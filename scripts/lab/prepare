@@ -1,0 +1,34 @@
+#!/usr/bin/env bash
+# Fetches the pinned Stockfish binaries into $LAB_CACHE/stockfish/<tag>/<asset>/ (see stockfish.env).
+# Safe to repeat: a tarball that is already there with the right sha256 is not downloaded again.
+# Gradle finds the binaries through $LAB_CACHE (see build.gradle.kts).
+set -euo pipefail
+
+here=$(cd "$(dirname "$0")" && pwd)
+# shellcheck source=stockfish.env
+source "$here/stockfish.env"
+: "${LAB_CACHE:?LAB_CACHE must point at the download cache}"
+
+dest=$LAB_CACHE/stockfish/$STOCKFISH_TAG
+mkdir -p "$dest"
+
+fetch() { # asset sha256
+  local asset=$1 sha=$2 tar=$LAB_CACHE/$1.tar.gz
+  if [[ -x $dest/$asset/$asset ]] && [[ -f $dest/$asset/.sha256 && $(cat "$dest/$asset/.sha256") == "$sha" ]]; then
+    return
+  fi
+  if ! { [[ -f $tar ]] && echo "$sha  $tar" | sha256sum -c --status; }; then
+    echo "prepare: downloading $asset ($STOCKFISH_TAG)"
+    curl -fsSL --retry 3 -o "$tar.part" "$STOCKFISH_URL_BASE/$asset.tar.gz"
+    mv "$tar.part" "$tar"
+  fi
+  echo "$sha  $tar" | sha256sum -c --status || { echo "prepare: sha256 mismatch for $tar" >&2; rm -f "$tar"; exit 1; }
+  rm -rf "$dest/$asset"
+  mkdir -p "$dest/$asset"
+  tar -xzf "$tar" -C "$dest/$asset" --strip-components=1 "stockfish/$asset" stockfish/Copying.txt
+  chmod 755 "$dest/$asset/$asset"
+  echo "$sha" > "$dest/$asset/.sha256"
+}
+
+fetch "$STOCKFISH_ANDROID_ASSET" "$STOCKFISH_ANDROID_SHA256"
+fetch "$STOCKFISH_LINUX_ASSET" "$STOCKFISH_LINUX_SHA256"

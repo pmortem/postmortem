@@ -1,0 +1,13 @@
+info string Available processors: 0,2-3
+info string Using 3 threads
+info string NNUE evaluation using nn-1a298aa575a0.nnue (109MiB, (86896, 1024, 32, 32, 1))
+info string Network replica 1: Shared memory.
+info depth 1 seldepth 4 multipv 1 score cp 84 nodes 126 nps 126000 hashfull 0 tbhits 0 time 1 pv e1c1
+info depth 2 seldepth 4 multipv 1 score cp 84 nodes 245 nps 245000 hashfull 0 tbhits 0 time 1 pv e1c1 c6d4 e3d4
+info depth 3 seldepth 4 multipv 1 score cp 84 nodes 347 nps 347000 hashfull 0 tbhits 0 time 1 pv e1c1 c6d4 e3d4
+info depth 4 seldepth 8 multipv 1 score cp 85 nodes 711 nps 711000 hashfull 0 tbhits 0 time 1 pv e1c1 c6d4 e3d4 c8e6 c1b1
+info depth 5 seldepth 8 multipv 1 score cp 91 nodes 872 nps 436000 hashfull 0 tbhits 0 time 2 pv e1c1 c6d4 e3d4 c8e6
+info depth 6 seldepth 8 multipv 1 score cp 77 nodes 1913 nps 956500 hashfull 0 tbhits 0 time 2 pv e1c1 c6d4 e3d4 d8a5 c1b1 c8e6
+info depth 7 seldepth 10 multipv 1 score cp 60 nodes 3721 nps 930250 hashfull 1 tbhits 0 time 4 pv e1c1 c6d4 e3d4 d8a5 h2h4 c8e6 c1b1
+info depth 8 seldepth 11 multipv 1 score cp 41 upperbound nodes 9319 nps 931900 hashfull 2 tbhits 0 time 10 pv e1c1 c6d4
+bestmove e1c1 ponder c6d4
