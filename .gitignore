@@ -1,0 +1,28 @@
+# Gradle and Kotlin
+.gradle/
+build/
+.kotlin/
+local.properties
+
+# IDE
+.idea/
+*.iml
+
+# Build outputs
+*.apk
+*.aab
+
+# The engine is fetched by scripts/lab/prepare into $LAB_CACHE; never commit it
+*.so
+*.nnue
+
+# Secrets
+*.jks
+*.keystore
+.env
+.env.*
+
+# Logs and OS files
+*.log
+hs_err_pid*
+.DS_Store

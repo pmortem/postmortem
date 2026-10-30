@@ -1,0 +1,11 @@
+wait paste_input
+shot paste
+tap analyse_button
+wait result_board
+shot result
+tap move_4
+sleep 1
+shot move4
+tap next_button
+sleep 1
+shot move5

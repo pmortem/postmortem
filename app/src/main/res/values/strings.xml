@@ -1,0 +1,17 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <string name="app_name">Postmortem</string>
+    <string name="paste_title">Paste a game</string>
+    <string name="paste_hint">Paste the PGN of a game here, from Lichess or Chess.com.</string>
+    <string name="paste_label">PGN</string>
+    <string name="analyse_button">Analyse</string>
+    <string name="paste_empty">Paste a game first.</string>
+    <string name="paste_no_moves">This game has no moves.</string>
+    <string name="paste_bad_fen">The starting position is not valid: %1$s</string>
+    <string name="paste_variant">%1$s is not supported. Only standard chess is.</string>
+    <string name="paste_illegal_move">Illegal move %1$s (ply %2$d).</string>
+    <string name="result_board_description">Board after %1$s</string>
+    <string name="result_start_position">the start position</string>
+    <string name="result_previous">Previous</string>
+    <string name="result_next">Next</string>
+</resources>

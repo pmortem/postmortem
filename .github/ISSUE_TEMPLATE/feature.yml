@@ -1,0 +1,25 @@
+name: Feature
+description: An idea or a request. Claude builds it only after it is labelled `ready`.
+labels: [feature]
+body:
+  - type: textarea
+    id: what
+    attributes:
+      label: What
+      description: What should the app do?
+    validations:
+      required: true
+  - type: textarea
+    id: why
+    attributes:
+      label: Why
+      description: What problem does it solve for you?
+    validations:
+      required: true
+  - type: textarea
+    id: works
+    attributes:
+      label: How I'll know it works on the phone
+      description: The steps you would tap through, and what you expect to see.
+    validations:
+      required: true

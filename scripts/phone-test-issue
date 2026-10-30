@@ -1,0 +1,36 @@
+#!/usr/bin/env bash
+# Opens the phone test page for a merged PR, from .github/phone-test.md.
+# Usage: scripts/phone-test-issue <pr-number> <steps-file> [changes-file]
+#   steps-file    one step per line; each becomes a checkbox
+#   changes-file  markdown for "What changed" (default: the PR title)
+set -euo pipefail
+pr=${1:?usage: phone-test-issue <pr-number> <steps-file> [changes-file]}
+steps_file=${2:?steps file}
+changes_file=${3:-}
+cd "$(git rev-parse --show-toplevel)"
+
+repo=$(gh repo view --json nameWithOwner --jq .nameWithOwner)
+title=$(gh pr view "$pr" --json title --jq .title)
+url=$(gh pr view "$pr" --json url --jq .url)
+commit=$(gh pr view "$pr" --json mergeCommit --jq '.mergeCommit.oid[0:7]')
+closes=$(gh pr view "$pr" --json body --jq .body | grep -ioE 'closes #[0-9]+' | grep -oE '#[0-9]+' | paste -sd, - | sed 's/,/, /g' || true)
+[[ -n $closes ]] && closes=", closing $closes"
+changes=$title
+[[ -n $changes_file ]] && changes=$(cat "$changes_file")
+steps=$(sed 's/^/- [ ] /' "$steps_file")
+open_pages=$(gh issue list --label phone-test --state open --json number,title --jq '.[] | "- #\(.number) \(.title)"')
+[[ -n $open_pages ]] || open_pages="None."
+
+body=$(TITLE=$title PR_URL=$url COMMIT=$commit CLOSES=$closes CHANGES=$changes STEPS=$steps OPEN_PAGES=$open_pages \
+  BUG_URL="https://github.com/$repo/issues/new?template=bug.yml&page={{SELF}}" \
+  python3 -I -c '
+import os,sys
+t=open(".github/phone-test.md").read()
+for k in ("TITLE","PR_URL","COMMIT","CLOSES","CHANGES","STEPS","OPEN_PAGES","BUG_URL"):
+    t=t.replace("{{"+k+"}}",os.environ[k])
+print(t)')
+
+issue_url=$(gh issue create --title "Phone test: $title" --label phone-test --body "$body")
+num=${issue_url##*/}
+gh issue edit "$num" --body "${body//\{\{SELF\}\}/%23$num}" >/dev/null
+echo "$issue_url"

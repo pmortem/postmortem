@@ -1,0 +1,29 @@
+name: Bug
+description: Something is wrong on the phone
+labels: [bug]
+body:
+  - type: input
+    id: page
+    attributes:
+      label: Phone test page
+      description: The test page this came from, if any (the link on the page fills it in).
+  - type: textarea
+    id: steps
+    attributes:
+      label: Steps
+      placeholder: "1. Paste a Chess.com game\n2. Tap Analyse"
+    validations:
+      required: true
+  - type: textarea
+    id: expected
+    attributes:
+      label: Expected
+    validations:
+      required: true
+  - type: textarea
+    id: actual
+    attributes:
+      label: Actual
+      description: Attach a screenshot if you can.
+    validations:
+      required: true
