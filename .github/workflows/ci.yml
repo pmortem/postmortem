@@ -24,8 +24,11 @@ jobs:
           distribution: temurin
           java-version: 21
       - uses: gradle/actions/setup-gradle@8da46b539cd8fe6ab27ca75128919a18d757604c # v6
-      - name: Download cache for scripts/lab/prepare
-        run: echo "LAB_CACHE=$RUNNER_TEMP/lab-cache" >> "$GITHUB_ENV"
+      - name: Folders for downloads and the debug keystore
+        run: |
+          echo "LAB_CACHE=$RUNNER_TEMP/lab-cache" >> "$GITHUB_ENV"
+          echo "ANDROID_USER_HOME=$RUNNER_TEMP/android-user" >> "$GITHUB_ENV"
+          mkdir -p "$RUNNER_TEMP/android-user"
       - uses: actions/cache@55cc8345863c7cc4c66a329aec7e433d2d1c52a9 # v6
         with:
           path: ${{ runner.temp }}/lab-cache
