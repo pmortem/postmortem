@@ -26,4 +26,4 @@ scripts/lab/prepare                      # downloads the pinned Stockfish binari
 Stockfish is pinned by tag and source sha256 in `scripts/lab/stockfish.env`. The phone's engine is built from that source with the Android NDK (`scripts/lab/build-stockfish`, 16 KB page alignment checked), cached in `$LAB_CACHE`; the first build needs the NDK from `stockfish.env` (`sdkmanager --install "ndk;<version>"`) and about 5 minutes.
 
 ## Licence
-GPLv3, see `LICENSE`. Stockfish is GPLv3: the exact source is the sf_19 tag, <https://github.com/official-stockfish/Stockfish/releases/tag/sf_19>, and the phone build recipe is `scripts/lab/build-stockfish`. Chess piece art and chesslib are credited in `THIRD_PARTY_NOTICES.md`.
+GPLv3, see `LICENSE`. Stockfish is GPLv3: the exact source is the sf_19 tag, <https://github.com/official-stockfish/Stockfish/releases/tag/sf_19>, and the phone build recipe is `scripts/lab/build-stockfish`. Chess piece art, chesslib and the opening table (Lichess's chess-openings, CC0, <https://github.com/lichess-org/chess-openings>) are credited in `THIRD_PARTY_NOTICES.md`.

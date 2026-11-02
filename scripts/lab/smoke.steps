@@ -23,4 +23,5 @@ sleep 1
 shot chartmid
 tap tab_summary
 wait summary
+sleep 2
 shot summary

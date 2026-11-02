@@ -12,6 +12,8 @@ import androidx.compose.material3.HorizontalDivider
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.getValue
+import androidx.compose.runtime.produceState
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.platform.testTag
 import androidx.compose.ui.res.stringResource
@@ -21,8 +23,12 @@ import app.postmortem.R
 import app.postmortem.UiState
 import app.postmortem.UiTags
 import app.postmortem.core.analysis.PlayerReport
+import app.postmortem.core.opening.Opening
+import app.postmortem.core.opening.OpeningBook
 import app.postmortem.core.pgn.GameOverview
 import app.postmortem.ui.theme.Spacing
+import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.withContext
 import kotlin.math.roundToInt
 
 private const val LABEL_WEIGHT = 1.4f
@@ -34,8 +40,13 @@ fun SummaryScreen(
     state: UiState.Result,
     modifier: Modifier = Modifier,
 ) {
-    val overview = state.overview
     val report = state.report
+    val detected = detectedOpening(state)
+    // An Opening tag in the PGN always wins; otherwise the opening found from the moves fills the gap.
+    val overview =
+        state.overview.let {
+            if (it.opening != null || detected == null) it else it.copy(opening = detected.name, eco = it.eco ?: detected.eco)
+        }
     Column(
         modifier
             .testTag(UiTags.SUMMARY)
@@ -51,6 +62,19 @@ fun SummaryScreen(
         }
     }
 }
+
+/** The opening found from the moves, once the table is loaded (null until then, and when the PGN names its opening). */
+@Composable
+private fun detectedOpening(state: UiState.Result): Opening? {
+    val named = state.overview.opening != null
+    val detected by produceState<Opening?>(null, state.game) {
+        if (!named) value = withContext(Dispatchers.Default) { bundledBook.detect(state.game) }
+    }
+    return detected
+}
+
+/** The table is built once per process: it plays every line of it. */
+private val bundledBook: OpeningBook by lazy { OpeningBook.bundled() }
 
 @Composable
 private fun Overview(overview: GameOverview) {
