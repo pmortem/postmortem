@@ -2,6 +2,22 @@ plugins {
     alias(libs.plugins.android.application) apply false
     alias(libs.plugins.kotlin.jvm) apply false
     alias(libs.plugins.kotlin.compose) apply false
+    alias(libs.plugins.spotless)
+}
+
+// One formatter for every Kotlin file. `./gradlew spotlessApply` fixes, `spotlessCheck` is what CI runs.
+spotless {
+    val ktlintVersion = libs.versions.ktlint.get()
+    kotlin {
+        target("**/*.kt")
+        targetExclude("**/build/**")
+        ktlint(ktlintVersion)
+    }
+    kotlinGradle {
+        target("**/*.kts")
+        targetExclude("**/build/**")
+        ktlint(ktlintVersion)
+    }
 }
 
 // The pinned Stockfish release lives in scripts/lab/stockfish.env, which scripts/lab/prepare also reads.
