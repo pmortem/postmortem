@@ -1,8 +1,10 @@
 #!/usr/bin/env python3
-"""Converts the cburnett piece SVGs (Colin M.L. Burnett, GPLv2+, as shipped by Lichess) to Android VectorDrawables.
+"""Converts a Lichess piece set (wK.svg ... bP.svg) to Android VectorDrawables. Used for cburnett (Colin M.L. Burnett,
+GPLv2+, as shipped by Lichess).
 
 Usage: svg2vector.py <input-dir-with-wK.svg...> <output-dir>
-Handles what those files use: nested <g> with inherited presentation attributes, <path> and <circle>.
+Handles what those sets use: nested <g> with inherited presentation attributes, <path>, <circle>, <rect> (rounded or not)
+and the per-element `opacity`.
 Writes piece_white_king.xml ... piece_black_pawn.xml.
 """
 import os
@@ -32,11 +34,27 @@ def shapes(node, inherited):
         if key in node.attrib:
             style[key] = node.attrib[key]
     tag = node.tag.replace(NS, "")
+    if "opacity" in node.attrib:
+        style["opacity"] = node.attrib["opacity"]
+    else:
+        style.pop("opacity", None)  # opacity belongs to the element, it is not inherited
     if tag in ("g", "svg"):
         for child in node:
             yield from shapes(child, style)
     elif tag == "path":
         yield node.attrib["d"], style
+    elif tag == "rect":
+        x, y, w, h = (float(node.attrib[k]) for k in ("x", "y", "width", "height"))
+        rx = float(node.attrib.get("rx", node.attrib.get("ry", 0)))
+        ry = float(node.attrib.get("ry", node.attrib.get("rx", 0)))
+        if rx == 0 and ry == 0:
+            d = "M%s,%sh%sv%sh%sz" % (fmt(x), fmt(y), fmt(w), fmt(h), fmt(-w))
+        else:
+            d = "M%s,%sh%sa%s,%s 0 0 1 %s,%sv%sa%s,%s 0 0 1 %s,%sh%sa%s,%s 0 0 1 %s,%sv%sa%s,%s 0 0 1 %s,%sz" % (
+                fmt(x + rx), fmt(y), fmt(w - 2 * rx), fmt(rx), fmt(ry), fmt(rx), fmt(ry), fmt(h - 2 * ry),
+                fmt(rx), fmt(ry), fmt(-rx), fmt(ry), fmt(-(w - 2 * rx)), fmt(rx), fmt(ry), fmt(-rx), fmt(-ry),
+                fmt(-(h - 2 * ry)), fmt(rx), fmt(ry), fmt(rx), fmt(-ry))
+        yield d, style
     elif tag == "circle":
         cx, cy, r = (float(node.attrib[k]) for k in ("cx", "cy", "r"))
         d = "M%s,%sa%s,%s 0 1,0 %s,0a%s,%s 0 1,0 %s,0z" % (fmt(cx - r), fmt(cy), fmt(r), fmt(r), fmt(2 * r), fmt(r), fmt(r), fmt(-2 * r))
@@ -58,6 +76,9 @@ def convert(svg_path):
             attrs.append('android:fillColor="%s"' % color(style["fill"]))
         if style.get("fill-rule") == "evenodd":
             attrs.append('android:fillType="evenOdd"')
+        if "opacity" in style:
+            attrs.append('android:fillAlpha="%s"' % style["opacity"])
+            attrs.append('android:strokeAlpha="%s"' % style["opacity"])
         if style.get("stroke", "none") != "none":
             attrs.append('android:strokeColor="%s"' % color(style["stroke"]))
             attrs.append('android:strokeWidth="%s"' % style.get("stroke-width", "1"))

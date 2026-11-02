@@ -2,7 +2,8 @@
 
 | Component | Licence | Notes |
 |---|---|---|
-| Chess pieces "cburnett" by Colin M.L. Burnett | GPL-2.0-or-later | The Lichess copy of the set, converted to Android VectorDrawables by `scripts/svg2vector.py` (`app/src/main/res/drawable/piece_*.xml`). |
+| EXPERIMENT BRANCH ONLY, MUST NOT BE MERGED OR SHIPPED: chess pieces "staunty" by sadsnake1 | CC BY-NC-SA 4.0 (NonCommercial: not compatible with GPL-3.0) | From lichess-org/lila `public/piece/staunty` at commit `46d24871f68844ec1df18ab8618b5156ffbe4e56`, licence listed in its `COPYING.md`: <https://github.com/lichess-org/lila/blob/46d24871f68844ec1df18ab8618b5156ffbe4e56/COPYING.md>. Converted by `scripts/svg2vector.py`. |
+| Chess pieces "cburnett" by Colin M.L. Burnett (replaced by staunty on this branch only) | GPL-2.0-or-later | The Lichess copy of the set, converted to Android VectorDrawables by `scripts/svg2vector.py` (`app/src/main/res/drawable/piece_*.xml`). |
 | chesslib (bhlangonijr) | Apache-2.0 | Legal moves, SAN, FEN. |
 | Icon and splash artwork (`design/`, `app/src/main/res/drawable/ic_launcher_*.xml`) | GPL-3.0-or-later | The Postmortem authors, made with Claude (AI-assisted); no third-party artwork. The tool is recorded for each asset. |
 | AndroidSVG (Paul LeBeau) | Apache-2.0 | Draws the splash scene from `design/splash-scene.svg` at run time. |
