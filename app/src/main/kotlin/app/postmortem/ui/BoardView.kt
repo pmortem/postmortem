@@ -17,6 +17,7 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.res.painterResource
+import androidx.compose.ui.text.TextStyle
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.sp
@@ -102,11 +103,12 @@ private fun Coordinate(
     square: Dp,
     modifier: Modifier,
 ) {
+    val size = (square.value * Spacing.coordinateTextRatio).sp
     Text(
         name.toString(),
         color = color,
-        fontSize = (square.value * Spacing.coordinateTextRatio).sp,
-        fontWeight = FontWeight.Bold,
+        // The line height is the font size: the default line height is taller than the square's corner, which centred the glyph.
+        style = TextStyle(fontSize = size, lineHeight = size, fontWeight = FontWeight.Bold),
         modifier = modifier.padding(Spacing.coordinatePadding),
     )
 }
