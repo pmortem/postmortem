@@ -46,7 +46,12 @@ sealed interface UiState {
         val selectedEval: Eval get() = evals[selectedPly]
 
         /** Accuracy, ACPL and the judged moves; worked out once, when the Summary or the chart first asks. */
-        val report: GameReport by lazy(LazyThreadSafetyMode.NONE) { GameReport.of(evals, game.whiteMovesFirst) }
+        val report: GameReport by lazy(
+            LazyThreadSafetyMode.NONE,
+        ) { GameReport.of(evals, game.whiteMovesFirst, startEval = lichessStartEval) }
         val overview: GameOverview get() = game.overview
+
+        /** Lichess scores the first move against 15 cp, whatever the start position evaluates to; so do we, for a normal game. */
+        private val lichessStartEval: Eval? get() = if (game.startsFromStandardPosition) Eval.Cp(GameReport.LICHESS_START_CP) else null
     }
 }

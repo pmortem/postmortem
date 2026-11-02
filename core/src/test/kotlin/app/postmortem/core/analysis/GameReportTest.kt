@@ -15,8 +15,8 @@ class GameReportTest {
     fun aGameOfBestMovesIsAboutHundredPercentWithNothingFlagged() {
         val report = GameReport.of(cps(20, 20, 20, 20, 20, 20, 20, 20, 20))
         for (player in listOf(report.white, report.black)) {
-            assertTrue(player.accuracy!! > 99.9, "accuracy ${player.accuracy}")
-            assertEquals(0.0, player.acpl!!, 1e-9)
+            assertEquals(100.0, player.accuracy!!, 1e-9)
+            assertEquals(0, player.acpl)
             assertEquals(0, player.inaccuracies + player.mistakes + player.blunders)
         }
         assertTrue(report.judgements.all { it == null })
@@ -24,7 +24,7 @@ class GameReportTest {
 
     @Test
     fun oneMoveOfEqualEvalsIsAlmostHundred() {
-        assertEquals(99.9999, GameReport.of(cps(0, 0)).white.accuracy!!, 1e-4)
+        assertEquals(100.0, GameReport.of(cps(0, 0)).white.accuracy!!, 1e-9)
     }
 
     @Test
@@ -37,8 +37,8 @@ class GameReportTest {
         assertEquals(Judgement.BLUNDER, report.judgements[4])
         assertEquals(1, report.judgements.count { it != null })
         assertTrue(report.white.accuracy!! < report.black.accuracy!! - 10)
-        assertEquals(520.0 / 5, report.white.acpl!!, 1e-9)
-        assertEquals(0.0, report.black.acpl!!, 1e-9)
+        assertEquals(104, report.white.acpl)
+        assertEquals(0, report.black.acpl)
     }
 
     @Test
@@ -145,5 +145,29 @@ class GameReportTest {
         assertEquals(1, report.count(Judgement.BLUNDER))
         assertEquals(0, report.count(Judgement.MISTAKE))
         assertEquals(report.judgements.count { it != null }, Judgement.entries.sumOf { report.count(it) })
+    }
+
+    @Test
+    fun aLossIsNotCappedAtAThousandCentipawns() {
+        // Lichess clamps the evals to +-1000 and leaves the loss alone: +10.00 to -10.00 loses 2000 cp.
+        assertEquals(2000, GameReport.of(cps(1500, -1500)).white.acpl)
+    }
+
+    @Test
+    fun theFirstMoveIsScoredAgainstLichessStartValueWhenAskedTo() {
+        // The engine likes the start position (+0.60); against Lichess's 15 cp the first White move is almost free.
+        val engine = GameReport.of(cps(60, 15))
+        val lichess = GameReport.of(cps(60, 15), startEval = Eval.Cp(GameReport.LICHESS_START_CP))
+        assertEquals(45, engine.white.acpl)
+        assertEquals(0, lichess.white.acpl)
+    }
+
+    @Test
+    fun aMoveThatLosesWinPercentGetsLichessUncertaintyBonus() {
+        // 0 cp to -80 cp is 50.00 % to 42.68 %, a 7.32 point drop: 103.1668100711649*exp(-0.04354415386753951*7.32)
+        // - 3.166924740191411 + 1 = 72.87 (it would be 71.87 without the bonus).
+        assertEquals(72.87, GameReport.of(cps(0, -80)).white.accuracy!!, 0.01)
+        // Gaining win percent is a perfect move.
+        assertEquals(100.0, GameReport.of(cps(0, 0, -80)).black.accuracy!!, 1e-9)
     }
 }

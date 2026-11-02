@@ -4,14 +4,15 @@ import app.postmortem.core.board.PieceColor
 import kotlin.math.exp
 import kotlin.math.max
 import kotlin.math.min
+import kotlin.math.roundToInt
 import kotlin.math.sqrt
 
 enum class Judgement { INACCURACY, MISTAKE, BLUNDER }
 
-/** One player's side of the report; the numbers are null when the player made no move. */
+/** One player's side of the report; the numbers are null when the player made no move. [acpl] is rounded, as Lichess shows it. */
 data class PlayerReport(
     val accuracy: Double?,
-    val acpl: Double?,
+    val acpl: Int?,
     val inaccuracies: Int,
     val mistakes: Int,
     val blunders: Int,
@@ -28,10 +29,18 @@ data class GameReport(
 
     companion object {
         private const val CP_LIMIT = 1000
-        private const val ACCURACY_SCALE = 103.1668
-        private const val ACCURACY_DECAY = -0.04354
-        private const val ACCURACY_OFFSET = -3.1669
+
+        // Lichess's `AccuracyPercent.fromWinPercents`, to the digits it has.
+        private const val ACCURACY_SCALE = 103.1668100711649
+        private const val ACCURACY_DECAY = -0.04354415386753951
+        private const val ACCURACY_OFFSET = -3.166924740191411
+
+        /** Added to every move that lost win percent: "uncertainty bonus (due to imperfect analysis)". */
+        private const val UNCERTAINTY_BONUS = 1.0
         private const val MAX_ACCURACY = 100.0
+
+        /** The eval Lichess gives the start position (`legacyInitial`), whatever an engine says about it. */
+        const val LICHESS_START_CP = 15
         private const val MIN_WEIGHT = 0.5
         private const val MAX_WEIGHT = 12.0
         private const val MIN_WINDOW = 2
@@ -50,12 +59,23 @@ data class GameReport(
         /**
          * The report for a game whose positions are evaluated in [evals] (one per position, White's point of view, so one
          * more than there are moves). [whiteMovesFirst] is false for a game that starts with Black to move.
-         * The formulas are Lichess's: win percent, move accuracy, game accuracy and the `Advice` judgements.
+         * The formulas are Lichess's: win percent, move accuracy, game accuracy and the `Advice` judgements. Lichess scores
+         * the first move against a start position of [LICHESS_START_CP], so a caller that starts from the standard position
+         * passes `startEval = Eval.Cp(LICHESS_START_CP)` to do the same; null keeps the engine's own eval of position 0.
          */
         fun of(
-            evals: List<Eval>,
+            evalsOfPositions: List<Eval>,
             whiteMovesFirst: Boolean = true,
+            startEval: Eval? = null,
         ): GameReport {
+            val evals =
+                if (startEval != null &&
+                    evalsOfPositions.isNotEmpty()
+                ) {
+                    listOf(startEval) + evalsOfPositions.drop(1)
+                } else {
+                    evalsOfPositions
+                }
             val moves = evals.size - 1
             if (moves <= 0) return GameReport(emptyPlayer(), emptyPlayer(), emptyList())
 
@@ -75,11 +95,12 @@ data class GameReport(
                 if (plies.isEmpty()) return emptyPlayer()
                 val sign = if (color == PieceColor.WHITE) 1 else -1
                 val accuracies = plies.map { moveAccuracy(winPercentFor(winWhite[it - 1], sign), winPercentFor(winWhite[it], sign)) }
-                val losses = plies.map { min(CP_LIMIT, max(0, sign * (cps[it - 1] - cps[it]))) }
+                // Lichess's `AccuracyCP`: the evals are clamped to +-1000, the loss itself is not capped.
+                val losses = plies.map { max(0, sign * (cps[it - 1] - cps[it])) }
                 val judged = plies.mapNotNull { judgements[it - 1] }
                 return PlayerReport(
                     accuracy = gameAccuracy(accuracies, plies.map { weights.getOrElse(it - 1) { MIN_WEIGHT } }),
-                    acpl = losses.average(),
+                    acpl = losses.average().roundToInt(),
                     inaccuracies = judged.count { it == Judgement.INACCURACY },
                     mistakes = judged.count { it == Judgement.MISTAKE },
                     blunders = judged.count { it == Judgement.BLUNDER },
@@ -108,7 +129,12 @@ data class GameReport(
         private fun moveAccuracy(
             before: Double,
             after: Double,
-        ): Double = (ACCURACY_SCALE * exp(ACCURACY_DECAY * (before - after)) + ACCURACY_OFFSET).coerceIn(0.0, MAX_ACCURACY)
+        ): Double =
+            if (after >= before) {
+                MAX_ACCURACY
+            } else {
+                (ACCURACY_SCALE * exp(ACCURACY_DECAY * (before - after)) + ACCURACY_OFFSET + UNCERTAINTY_BONUS).coerceIn(0.0, MAX_ACCURACY)
+            }
 
         /**
          * Lichess weights each move by how volatile the game is around it: the standard deviation of the win percent in a
