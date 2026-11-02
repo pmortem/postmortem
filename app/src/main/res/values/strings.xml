@@ -24,6 +24,8 @@
     <string name="tab_moves">Moves</string>
     <string name="tab_chart">Chart</string>
     <string name="tab_summary">Summary</string>
+    <string name="chart_label">%1$s  %2$s</string>
+    <string name="chart_selected">selected %1$s, evaluation %2$s</string>
     <plurals name="chart_description">
         <item quantity="one">Evaluation chart, %1$d move</item>
         <item quantity="other">Evaluation chart, %1$d moves</item>
