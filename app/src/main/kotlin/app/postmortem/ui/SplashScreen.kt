@@ -1,7 +1,6 @@
 package app.postmortem.ui
 
 import android.content.Context
-import android.content.pm.ActivityInfo
 import android.graphics.Bitmap
 import android.graphics.Canvas
 import androidx.activity.ComponentActivity
@@ -76,12 +75,7 @@ fun SplashScreen(onFinished: () -> Unit) {
             statusBarStyle = SystemBarStyle.dark(android.graphics.Color.TRANSPARENT),
             navigationBarStyle = SystemBarStyle.dark(android.graphics.Color.TRANSPARENT),
         )
-        // The scene is a portrait picture: rotated, it would show only its top part.
-        activity?.requestedOrientation = ActivityInfo.SCREEN_ORIENTATION_PORTRAIT
-        onDispose {
-            activity?.enableEdgeToEdge()
-            activity?.requestedOrientation = ActivityInfo.SCREEN_ORIENTATION_UNSPECIFIED
-        }
+        onDispose { activity?.enableEdgeToEdge() }
     }
     LaunchedEffect(Unit) {
         delay(minMillis.toLong())

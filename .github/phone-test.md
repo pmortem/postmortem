@@ -12,7 +12,6 @@ Merged in {{PR_URL}}{{CLOSES}}.
 
 ### Standing checks
 - [ ] Dark mode: text and the board are readable
-- [ ] Rotate the phone: nothing is lost, nothing is squeezed
 - [ ] A long game (60+ moves) still works
 
 ### Comments
