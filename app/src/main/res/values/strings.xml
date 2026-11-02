@@ -21,4 +21,9 @@
     <string name="analysing_progress">Position %1$d of %2$d</string>
     <string name="analysing_hint">Back stops the analysis.</string>
     <string name="result_eval_label">Evaluation %1$s</string>
+    <string name="tab_moves">Moves</string>
+    <string name="tab_chart">Chart</string>
+    <string name="tab_summary">Summary</string>
+    <string name="chart_placeholder">Evaluation chart coming soon</string>
+    <string name="summary_placeholder">Summary coming soon</string>
 </resources>

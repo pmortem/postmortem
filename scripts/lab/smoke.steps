@@ -14,3 +14,6 @@ shot move6
 tap next_button
 sleep 1
 shot mate
+tap tab_chart
+sleep 1
+shot chart
