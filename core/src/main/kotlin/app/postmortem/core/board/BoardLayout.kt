@@ -79,9 +79,9 @@ object BoardLayout {
 }
 
 /**
- * A coordinate drawn in the corner of an edge square: a rank digit on the left file or a file letter on the bottom rank,
- * placed as v1 and Lichess place them, so they stay clear of the piece in the middle of the square.
- * [row] and [col] are the screen square the label sits in.
+ * A coordinate drawn in a corner of an edge square, where the Lichess app draws it: a rank digit at the top-right of the
+ * squares on the right-hand file, a file letter at the bottom-left of the squares on the bottom rank. Those are the corners
+ * the pieces leave empty. [row] and [col] are the screen square the label sits in.
  */
 data class BoardLabel(
     val text: Char,
@@ -89,12 +89,15 @@ data class BoardLabel(
     val col: Int,
     val isRank: Boolean,
 ) {
-    /** Left edge of the text, for a square of [square] pixels. */
+    /**
+     * Where the text is anchored: the right end of a rank digit (it is drawn right-aligned, so a one-glyph label ends at
+     * the same place on every rank), the left end of a file letter.
+     */
     fun x(square: Float): Float =
         if (isRank) {
-            (col + BoardLabels.RANK_LEFT) * square
+            (col + BoardLabels.RANK_RIGHT) * square
         } else {
-            (col + 1 - BoardLabels.FILE_RIGHT_INSET) * square
+            (col + BoardLabels.FILE_LEFT) * square
         }
 
     /** The text's baseline. */
@@ -102,26 +105,26 @@ data class BoardLabel(
         if (isRank) {
             (row + BoardLabels.RANK_BASELINE) * square
         } else {
-            (row + 1 - BoardLabels.FILE_BASELINE_INSET) * square
+            (row + BoardLabels.FILE_BASELINE) * square
         }
 }
 
-/** The 16 coordinates of a board, and where they go, as fractions of a square (v1's numbers). */
+/** The 16 coordinates of a board, and where they go, as fractions of a square (measured on the Lichess app). */
 object BoardLabels {
     /** Text size as a fraction of the square. */
     const val TEXT_SIZE = 0.2f
 
-    /** A rank digit: from the left edge, baseline this far below the top of its square. */
-    const val RANK_LEFT = 0.06f
-    const val RANK_BASELINE = 0.22f
+    /** A rank digit: its right end this far from the left edge of its square, baseline this far below the top. */
+    const val RANK_RIGHT = 0.93f
+    const val RANK_BASELINE = 0.21f
 
-    /** A file letter: starts this far left of the square's right edge, baseline this far above its bottom. */
-    const val FILE_RIGHT_INSET = 0.2f
-    const val FILE_BASELINE_INSET = 0.07f
+    /** A file letter: starts this far from the left edge of its square, baseline this far below the top. */
+    const val FILE_LEFT = 0.06f
+    const val FILE_BASELINE = 0.89f
 
-    /** Ranks down the left file (top to bottom), then files along the bottom rank (left to right). */
+    /** Ranks down the right-hand file (top to bottom), then files along the bottom rank (left to right). */
     fun all(flipped: Boolean = false): List<BoardLabel> =
-        (0 until BoardLayout.SIZE).map { row -> BoardLabel(BoardLayout.rankName(row, flipped), row, 0, isRank = true) } +
+        (0 until BoardLayout.SIZE).map { row -> BoardLabel(BoardLayout.rankName(row, flipped), row, BoardLayout.SIZE - 1, isRank = true) } +
             (0 until BoardLayout.SIZE).map { col ->
                 BoardLabel(BoardLayout.fileName(col, flipped), BoardLayout.SIZE - 1, col, isRank = false)
             }
