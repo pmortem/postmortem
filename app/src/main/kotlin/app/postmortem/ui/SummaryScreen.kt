@@ -43,11 +43,12 @@ fun SummaryScreen(
             .padding(vertical = Spacing.gap),
         verticalArrangement = Arrangement.spacedBy(Spacing.gap),
     ) {
-        if (!overview.isEmpty) {
-            Overview(overview)
-            HorizontalDivider()
-        }
+        // The table first: the tab is short, and the numbers are what the Summary is for.
         PlayerTable(report.white, report.black)
+        if (!overview.isEmpty) {
+            HorizontalDivider()
+            Overview(overview)
+        }
     }
 }
 
