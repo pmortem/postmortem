@@ -81,23 +81,20 @@ fun ResultScreen(
     }
 }
 
-/** The eval bar beside a square board: the bar is as tall as the board, which takes the width the bar leaves. */
+/** The board at the full width, with the eval bar right under it. */
 @Composable
 private fun BoardWithEvalBar(state: UiState.Result) {
-    BoxWithConstraints(Modifier.fillMaxWidth()) {
-        val side = maxWidth - Spacing.evalBarWidth - Spacing.gap
-        Row(horizontalArrangement = Arrangement.spacedBy(Spacing.gap)) {
-            EvalBar(state.selectedEval, Modifier.width(Spacing.evalBarWidth).height(side))
-            val description = stringResource(R.string.result_board_description, positionName(state))
-            BoardView(
-                fen = state.game.fenAt(state.selectedPly),
-                modifier =
-                    Modifier
-                        .size(side)
-                        .testTag(UiTags.RESULT_BOARD)
-                        .semantics { contentDescription = description },
-            )
-        }
+    Column {
+        val description = stringResource(R.string.result_board_description, positionName(state))
+        BoardView(
+            fen = state.game.fenAt(state.selectedPly),
+            modifier =
+                Modifier
+                    .fillMaxWidth()
+                    .testTag(UiTags.RESULT_BOARD)
+                    .semantics { contentDescription = description },
+        )
+        EvalBar(state.selectedEval, Modifier.fillMaxWidth().height(Spacing.evalBarHeight))
     }
 }
 
