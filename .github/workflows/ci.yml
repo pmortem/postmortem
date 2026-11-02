@@ -12,23 +12,47 @@ concurrency:
   group: ci-${{ github.ref }}
   cancel-in-progress: true
 
+# One job, id `ci` and no `name:`: the check the `main` ruleset requires is called `ci`.
 jobs:
-  core-tests:
-    name: Core tests
+  ci:
     runs-on: ubuntu-latest
+    timeout-minutes: 20
     steps:
-      - uses: actions/checkout@v7
-      - uses: actions/setup-java@v6
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
+      - uses: actions/setup-java@b843ebf9b913146b38da2eaa7aeddf76074ae1ad # v6
         with:
           distribution: temurin
-          java-version: 17
-      - uses: gradle/actions/setup-gradle@v6
-      # The Android app needs the SDK and the Stockfish binary, so CI builds and tests :core only.
-      - name: Run core tests
-        run: ./gradlew :core:test --no-daemon -Ppostmortem.coreOnly=true
-      - name: Upload test report
-        if: always()
-        uses: actions/upload-artifact@v6
+          java-version: 21
+      - uses: gradle/actions/setup-gradle@8da46b539cd8fe6ab27ca75128919a18d757604c # v6
+      - name: Folders for downloads and the debug keystore
+        run: |
+          echo "LAB_CACHE=$RUNNER_TEMP/lab-cache" >> "$GITHUB_ENV"
+          echo "ANDROID_USER_HOME=$RUNNER_TEMP/android-user" >> "$GITHUB_ENV"
+          mkdir -p "$RUNNER_TEMP/android-user"
+      - uses: actions/cache@55cc8345863c7cc4c66a329aec7e433d2d1c52a9 # v6
         with:
-          name: core-test-report
-          path: core/build/reports/tests/test
+          path: ${{ runner.temp }}/lab-cache
+          key: lab-cache-${{ hashFiles('scripts/lab/stockfish.env') }}
+      # compileSdk comes from gradle.properties; the runner image may not have that platform yet.
+      - name: Android SDK platform
+        run: |
+          compile_sdk=$(sed -n 's/^postmortem.compileSdk=//p' gradle.properties)
+          build_tools=$(sed -n 's/^postmortem.buildTools=//p' gradle.properties)
+          yes | sudo -E "$ANDROID_HOME/cmdline-tools/latest/bin/sdkmanager" --licenses > /dev/null || true
+          sudo -E "$ANDROID_HOME/cmdline-tools/latest/bin/sdkmanager" "platforms;android-${compile_sdk}.0" "build-tools;${build_tools}"
+      - name: Prepare (the pinned Stockfish binaries)
+        run: |
+          mkdir -p "$LAB_CACHE"
+          if [ -x scripts/lab/prepare ]; then scripts/lab/prepare; fi
+      - name: Build, test and lint
+        run: ./gradlew assembleDebug test lint --no-daemon
+      - name: Upload reports
+        if: always()
+        uses: actions/upload-artifact@b7c566a772e6b6bfb58ed0dc250532a479d7789f # v6
+        with:
+          name: reports
+          path: |
+            core/build/reports/tests/test
+            app/build/reports/tests
+            app/build/reports/lint-results-debug.html
+          if-no-files-found: ignore
