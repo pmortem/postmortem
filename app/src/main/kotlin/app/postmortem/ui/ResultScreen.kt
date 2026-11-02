@@ -1,6 +1,7 @@
 package app.postmortem.ui
 
 import android.content.res.Configuration
+import androidx.annotation.StringRes
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
@@ -18,10 +19,17 @@ import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.lazy.rememberLazyListState
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.OutlinedButton
+import androidx.compose.material3.PrimaryTabRow
 import androidx.compose.material3.Surface
+import androidx.compose.material3.Tab
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
+import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.saveable.rememberSaveable
+import androidx.compose.runtime.setValue
+import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.platform.LocalConfiguration
@@ -69,7 +77,17 @@ fun ResultScreen(
                 StepButtons(state, onStep)
             }
         }
-        val moves: @Composable (Modifier) -> Unit = { modifier -> MoveList(state, onSelect, modifier) }
+        var tab by rememberSaveable { mutableStateOf(ResultTab.Moves) }
+        val tabs: @Composable (Modifier) -> Unit = { modifier ->
+            Column(modifier) {
+                ResultTabs(tab, onTab = { tab = it })
+                when (tab) {
+                    ResultTab.Moves -> MoveList(state, onSelect, Modifier.weight(1f).fillMaxWidth())
+                    ResultTab.Chart -> TabPlaceholder(R.string.chart_placeholder)
+                    ResultTab.Summary -> TabPlaceholder(R.string.summary_placeholder)
+                }
+            }
+        }
 
         if (landscape) {
             Row(
@@ -80,7 +98,7 @@ fun ResultScreen(
                     board(Modifier.fillMaxWidth())
                     controls()
                 }
-                moves(Modifier.weight(1f).fillMaxHeight())
+                tabs(Modifier.weight(1f).fillMaxHeight())
             }
         } else {
             Column(
@@ -89,9 +107,45 @@ fun ResultScreen(
             ) {
                 board(Modifier.fillMaxWidth())
                 controls()
-                moves(Modifier.weight(1f).fillMaxWidth())
+                tabs(Modifier.weight(1f).fillMaxWidth())
             }
         }
+    }
+}
+
+/** The views under the board. The selected move is shared, so switching tabs never changes the board. */
+private enum class ResultTab(
+    @StringRes val label: Int,
+    val tag: String,
+) {
+    Moves(R.string.tab_moves, UiTags.TAB_MOVES),
+    Chart(R.string.tab_chart, UiTags.TAB_CHART),
+    Summary(R.string.tab_summary, UiTags.TAB_SUMMARY),
+}
+
+@Composable
+private fun ResultTabs(
+    selected: ResultTab,
+    onTab: (ResultTab) -> Unit,
+) {
+    PrimaryTabRow(selectedTabIndex = selected.ordinal, containerColor = Color.Transparent) {
+        ResultTab.entries.forEach { tab ->
+            Tab(
+                selected = tab == selected,
+                onClick = { onTab(tab) },
+                text = { Text(stringResource(tab.label), style = MaterialTheme.typography.labelLarge, maxLines = 1, softWrap = false) },
+                modifier = Modifier.testTag(tab.tag),
+            )
+        }
+    }
+}
+
+@Composable
+private fun TabPlaceholder(
+    @StringRes text: Int,
+) {
+    Box(Modifier.fillMaxSize().padding(Spacing.screen), contentAlignment = Alignment.Center) {
+        Text(stringResource(text), style = MaterialTheme.typography.bodyLarge)
     }
 }
 
