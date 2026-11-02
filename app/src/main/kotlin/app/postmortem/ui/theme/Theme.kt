@@ -103,6 +103,11 @@ object Spacing {
     val evalBarLabelPadding = 2.dp
     val evalBarBorder = 1.dp
     val evalBarMillis = 300
+    val chartLabelGap = 6.dp
+    val chartLabelInset = 6.dp
+    val chartLabelCorner = 8.dp
+    val chartLabelPaddingX = 8.dp
+    val chartLabelPaddingY = 4.dp
     val chartLine = 2.dp
     val chartMarker = 2.dp
     val chartZeroLine = 1.dp

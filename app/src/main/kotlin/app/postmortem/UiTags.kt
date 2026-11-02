@@ -13,6 +13,7 @@ object UiTags {
     const val TAB_MOVES = "tab_moves"
     const val TAB_CHART = "tab_chart"
     const val TAB_SUMMARY = "tab_summary"
+    const val CHART_LABEL = "chart_label"
     const val EVAL_CHART = "eval_chart"
     const val MOVE_LIST = "move_list"
     const val EVAL_BAR = "eval_bar"
