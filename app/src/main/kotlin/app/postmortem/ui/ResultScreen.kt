@@ -133,7 +133,7 @@ private fun ResultTabs(
             Tab(
                 selected = tab == selected,
                 onClick = { onTab(tab) },
-                text = { Text(stringResource(tab.label)) },
+                text = { Text(stringResource(tab.label), style = MaterialTheme.typography.labelLarge, maxLines = 1, softWrap = false) },
                 modifier = Modifier.testTag(tab.tag),
             )
         }
