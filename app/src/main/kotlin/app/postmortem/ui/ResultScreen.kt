@@ -83,7 +83,7 @@ fun ResultScreen(
                 ResultTabs(tab, onTab = { tab = it })
                 when (tab) {
                     ResultTab.Moves -> MoveList(state, onSelect, Modifier.weight(1f).fillMaxWidth())
-                    ResultTab.Chart -> TabPlaceholder(R.string.chart_placeholder)
+                    ResultTab.Chart -> EvalChart(state, onSelect, Modifier.weight(1f).fillMaxWidth().padding(vertical = Spacing.gap))
                     ResultTab.Summary -> TabPlaceholder(R.string.summary_placeholder)
                 }
             }

@@ -24,6 +24,9 @@
     <string name="tab_moves">Moves</string>
     <string name="tab_chart">Chart</string>
     <string name="tab_summary">Summary</string>
-    <string name="chart_placeholder">Evaluation chart coming soon</string>
+    <plurals name="chart_description">
+        <item quantity="one">Evaluation chart, %1$d move</item>
+        <item quantity="other">Evaluation chart, %1$d moves</item>
+    </plurals>
     <string name="summary_placeholder">Summary coming soon</string>
 </resources>

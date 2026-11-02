@@ -56,6 +56,38 @@ private val DarkBoard =
 
 val LocalBoardPalette = staticCompositionLocalOf { LightBoard }
 
+/** The evaluation chart: White's advantage fills above the zero line, Black's below it. */
+data class ChartPalette(
+    val background: Color,
+    val whiteFill: Color,
+    val blackFill: Color,
+    val line: Color,
+    val zeroLine: Color,
+    val marker: Color,
+)
+
+private val LightChart =
+    ChartPalette(
+        background = Color(0xFFD3CCBC),
+        whiteFill = Color(0xFFFFFBF5),
+        blackFill = Color(0xFF2B3A33),
+        line = Color(0xFF6E7F73),
+        zeroLine = Color(0xFF8C8570),
+        marker = Color(0xFFB4532A),
+    )
+
+private val DarkChart =
+    ChartPalette(
+        background = Color(0xFF3A4240),
+        whiteFill = Color(0xFFE6E2DA),
+        blackFill = Color(0xFF0B0E0F),
+        line = Color(0xFFB9CDBF),
+        zeroLine = Color(0xFF7C8784),
+        marker = Color(0xFFE59A6B),
+    )
+
+val LocalChartPalette = staticCompositionLocalOf { LightChart }
+
 /** Sizes and spacing used across the screens. */
 object Spacing {
     val screen = 16.dp
@@ -65,12 +97,18 @@ object Spacing {
     val moveNumberWidth = 40.dp
     val splashFade = 96.dp
     val splashSpinner = 16.dp
+    val chartLine = 2.dp
+    val chartMarker = 2.dp
+    val chartZeroLine = 1.dp
 }
 
 @Composable
 fun PostmortemTheme(content: @Composable () -> Unit) {
     val dark = isSystemInDarkTheme()
-    CompositionLocalProvider(LocalBoardPalette provides if (dark) DarkBoard else LightBoard) {
+    CompositionLocalProvider(
+        LocalBoardPalette provides if (dark) DarkBoard else LightBoard,
+        LocalChartPalette provides if (dark) DarkChart else LightChart,
+    ) {
         MaterialTheme(colorScheme = if (dark) DarkColors else LightColors, content = content)
     }
 }
