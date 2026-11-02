@@ -98,7 +98,7 @@ object Spacing {
     val splashFade = 96.dp
     val splashSpinner = 16.dp
     val coordinateTextRatio = 0.22f
-    val coordinatePadding = 2.dp
+    val coordinatePadding = 3.dp
     val evalBarWidth = 28.dp
     val evalBarLabelPadding = 2.dp
     val evalBarBorder = 1.dp
