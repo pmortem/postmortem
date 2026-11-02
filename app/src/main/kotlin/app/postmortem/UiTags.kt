@@ -11,6 +11,7 @@ object UiTags {
     const val PREVIOUS_BUTTON = "prev_button"
     const val NEXT_BUTTON = "next_button"
     const val SUMMARY = "summary"
+    const val OPENING = "opening"
     const val TAB_MOVES = "tab_moves"
     const val TAB_CHART = "tab_chart"
     const val TAB_SUMMARY = "tab_summary"

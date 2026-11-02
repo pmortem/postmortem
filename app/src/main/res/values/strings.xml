@@ -38,7 +38,6 @@
     <string name="summary_site">Site</string>
     <string name="summary_result">Result</string>
     <string name="summary_termination">Termination</string>
-    <string name="summary_opening">Opening</string>
     <string name="summary_opening_with_eco">%1$s (%2$s)</string>
     <string name="summary_accuracy">Accuracy</string>
     <string name="summary_acpl">ACPL</string>

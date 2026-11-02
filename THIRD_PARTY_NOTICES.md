@@ -7,3 +7,4 @@
 | Icon and splash artwork (`design/`, `app/src/main/res/drawable/ic_launcher_*.xml`) | GPL-3.0-or-later | The Postmortem authors, made with Claude (AI-assisted); no third-party artwork. The tool is recorded for each asset. |
 | AndroidSVG (Paul LeBeau) | Apache-2.0 | Draws the splash scene from `design/splash-scene.svg` at run time. |
 | Stockfish sf_19 (the Stockfish developers) | GPL-3.0-or-later | The engine, built from the tag's source by `scripts/lab/build-stockfish` and shipped as `libstockfish.so`. Source: <https://github.com/official-stockfish/Stockfish/releases/tag/sf_19>. |
+| Opening table (lichess-org/chess-openings) | CC0-1.0 | ECO codes and names, joined by `scripts/gen-openings` from a pinned commit into `core/src/main/resources/app/postmortem/core/opening/openings.tsv`. <https://github.com/lichess-org/chess-openings> |
