@@ -24,7 +24,22 @@
     <string name="tab_moves">Moves</string>
     <string name="tab_chart">Chart</string>
     <string name="tab_summary">Summary</string>
-    <string name="chart_label">%1$s  %2$s</string>
+    <string name="chart_label_eval">"  %1$s"</string>
+    <string name="marks_inaccuracy">\?!</string>
+    <string name="marks_mistake">\?</string>
+    <string name="marks_blunder">\?\?</string>
+    <plurals name="judged_blunders">
+        <item quantity="one">%1$d blunder</item>
+        <item quantity="other">%1$d blunders</item>
+    </plurals>
+    <plurals name="judged_mistakes">
+        <item quantity="one">%1$d mistake</item>
+        <item quantity="other">%1$d mistakes</item>
+    </plurals>
+    <plurals name="judged_inaccuracies">
+        <item quantity="one">%1$d inaccuracy</item>
+        <item quantity="other">%1$d inaccuracies</item>
+    </plurals>
     <string name="chart_selected">selected %1$s, evaluation %2$s</string>
     <plurals name="chart_description">
         <item quantity="one">Evaluation chart, %1$d move</item>

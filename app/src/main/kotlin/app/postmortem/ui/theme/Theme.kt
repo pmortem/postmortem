@@ -64,6 +64,7 @@ data class ChartPalette(
     val line: Color,
     val zeroLine: Color,
     val marker: Color,
+    val dotOutline: Color,
 )
 
 private val LightChart =
@@ -74,6 +75,7 @@ private val LightChart =
         line = Color(0xFF6E7F73),
         zeroLine = Color(0xFF8C8570),
         marker = Color(0xFFB4532A),
+        dotOutline = Color(0xFFFFFBF5),
     )
 
 private val DarkChart =
@@ -84,7 +86,15 @@ private val DarkChart =
         line = Color(0xFFB9CDBF),
         zeroLine = Color(0xFF7C8784),
         marker = Color(0xFFE59A6B),
+        dotOutline = Color(0xFF14181A),
     )
+
+/** Lichess's colour-blind friendly colours for the judged moves, the same in light and dark. */
+object JudgementColors {
+    val inaccuracy = Color(0xFF56B4E9)
+    val mistake = Color(0xFFE69F00)
+    val blunder = Color(0xFFDB3031)
+}
 
 val LocalChartPalette = staticCompositionLocalOf { LightChart }
 
@@ -110,6 +120,9 @@ object Spacing {
     val chartLabelCorner = 8.dp
     val chartLabelPaddingX = 8.dp
     val chartLabelPaddingY = 4.dp
+    val chartDot = 3.dp
+    val chartDotSelected = 4.5.dp
+    val chartDotOutline = 1.5.dp
     val chartLine = 2.dp
     val chartMarker = 2.dp
     val chartZeroLine = 1.dp
