@@ -53,3 +53,10 @@ fun Eval.format(): String =
         is Eval.Mate -> if (moves > 0) "M$moves" else "-M${-moves}"
         is Eval.Checkmate -> if (winner == PieceColor.WHITE) "1-0" else "0-1"
     }
+
+/** The short form for tight places: one decimal (`+1.3`, `-0.4`, `0.0`), `M3`, `-M3`, `1-0` or `0-1`. */
+fun Eval.formatShort(): String =
+    when (this) {
+        is Eval.Cp -> if (centipawns == 0) "0.0" else String.format(Locale.ROOT, "%+.1f", centipawns / CENTIPAWNS_PER_PAWN)
+        else -> format()
+    }

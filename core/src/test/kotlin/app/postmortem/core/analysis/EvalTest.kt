@@ -32,4 +32,16 @@ class EvalTest {
         assertEquals("1-0", Eval.Checkmate(PieceColor.WHITE).format())
         assertEquals("0-1", Eval.Checkmate(PieceColor.BLACK).format())
     }
+
+    @Test
+    fun shortFormatting() {
+        assertEquals("+1.3", Eval.Cp(130).formatShort())
+        assertEquals("-0.4", Eval.Cp(-38).formatShort())
+        assertEquals("0.0", Eval.Cp(0).formatShort())
+        assertEquals("+12.0", Eval.Cp(1204).formatShort())
+        assertEquals("M3", Eval.Mate(3).formatShort())
+        assertEquals("-M1", Eval.Mate(-1).formatShort())
+        assertEquals("1-0", Eval.Checkmate(PieceColor.WHITE).formatShort())
+        assertEquals("0-1", Eval.Checkmate(PieceColor.BLACK).formatShort())
+    }
 }

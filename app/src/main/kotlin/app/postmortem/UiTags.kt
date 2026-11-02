@@ -8,14 +8,14 @@ object UiTags {
     const val VERSION_LABEL = "version_label"
     const val PASTE_STATUS = "paste_status"
     const val RESULT_BOARD = "result_board"
-    const val PREVIOUS_BUTTON = "previous_button"
+    const val PREVIOUS_BUTTON = "prev_button"
     const val NEXT_BUTTON = "next_button"
     const val TAB_MOVES = "tab_moves"
     const val TAB_CHART = "tab_chart"
     const val TAB_SUMMARY = "tab_summary"
     const val EVAL_CHART = "eval_chart"
     const val MOVE_LIST = "move_list"
-    const val RESULT_EVAL = "result_eval"
+    const val EVAL_BAR = "eval_bar"
     const val ANALYSING_PROGRESS = "analysing_progress"
 
     /** The cell for a half-move; [ply] counts from 1. */

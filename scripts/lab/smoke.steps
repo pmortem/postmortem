@@ -6,6 +6,7 @@ tap analyse_button
 wait analysing_progress
 shot analysing
 wait result_board
+wait eval_bar
 shot result
 wait move_6
 tap move_6
