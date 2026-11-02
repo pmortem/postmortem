@@ -49,7 +49,7 @@ fun PasteScreen(state: UiState.Paste, onPgnChange: (String) -> Unit, onAnalyse: 
                     .weight(1f)
                     .testTag(UiTags.PASTE_INPUT),
             )
-            StatusLine(state.error)
+            StatusLine(state.error, state.engineFailed)
             Button(
                 onClick = onAnalyse,
                 enabled = state.canAnalyse,
@@ -62,10 +62,14 @@ fun PasteScreen(state: UiState.Paste, onPgnChange: (String) -> Unit, onAnalyse: 
 }
 
 @Composable
-private fun StatusLine(error: PgnError?) {
-    if (error == null) return
+private fun StatusLine(error: PgnError?, engineFailed: Boolean) {
+    val message = when {
+        error != null -> errorText(error)
+        engineFailed -> stringResource(R.string.paste_engine_failed)
+        else -> return
+    }
     Text(
-        errorText(error),
+        message,
         color = MaterialTheme.colorScheme.error,
         style = MaterialTheme.typography.bodyLarge,
         modifier = Modifier.testTag(UiTags.PASTE_STATUS),

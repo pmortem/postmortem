@@ -1,4 +1,4 @@
-# Read by lab-loop and lab-check.
-LAB_TASKS="assembleDebug test"
+# Read by lab-loop and lab-check. They set LAB_TASKS themselves, so these are only defaults.
+LAB_TASKS="${LAB_TASKS:-assembleDebug test}"
 # The slow pass (real engine over every fixture game) runs only before a merge.
-LAB_CHECK_TASKS="assembleDebug test lint -Ppostmortem.slow=true"
+LAB_CHECK_TASKS="${LAB_CHECK_TASKS:-assembleDebug test lint -Ppostmortem.slow=true}"

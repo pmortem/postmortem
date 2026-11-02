@@ -33,6 +33,7 @@ import android.content.res.Configuration
 import app.postmortem.R
 import app.postmortem.UiState
 import app.postmortem.UiTags
+import app.postmortem.core.analysis.format
 import app.postmortem.core.pgn.Game
 import app.postmortem.core.pgn.plyLabel
 import app.postmortem.ui.theme.LocalBoardPalette
@@ -56,7 +57,12 @@ fun ResultScreen(state: UiState.Result, onSelect: (Int) -> Unit, onStep: (Int) -
                     .semantics { contentDescription = description },
             )
         }
-        val controls: @Composable () -> Unit = { StepButtons(state, onStep) }
+        val controls: @Composable () -> Unit = {
+            Column(verticalArrangement = Arrangement.spacedBy(Spacing.gap)) {
+                EvalLine(state)
+                StepButtons(state, onStep)
+            }
+        }
         val moves: @Composable (Modifier) -> Unit = { modifier -> MoveList(state, onSelect, modifier) }
 
         if (landscape) {
@@ -81,6 +87,15 @@ fun ResultScreen(state: UiState.Result, onSelect: (Int) -> Unit, onStep: (Int) -
             }
         }
     }
+}
+
+@Composable
+private fun EvalLine(state: UiState.Result) {
+    Text(
+        stringResource(R.string.result_eval_label, state.selectedEval.format()),
+        style = MaterialTheme.typography.titleMedium,
+        modifier = Modifier.testTag(UiTags.RESULT_EVAL),
+    )
 }
 
 @Composable
@@ -124,6 +139,7 @@ private fun MoveList(state: UiState.Result, onSelect: (Int) -> Unit, modifier: M
                 for (ply in listOf(row * 2 + 1, row * 2 + 2)) {
                     MoveCell(
                         text = game.plies.getOrNull(ply - 1)?.san,
+                        eval = state.evals.getOrNull(ply)?.format().orEmpty(),
                         ply = ply,
                         selected = ply == state.selectedPly,
                         onSelect = onSelect,
@@ -136,20 +152,22 @@ private fun MoveList(state: UiState.Result, onSelect: (Int) -> Unit, modifier: M
 }
 
 @Composable
-private fun MoveCell(text: String?, ply: Int, selected: Boolean, onSelect: (Int) -> Unit, modifier: Modifier) {
+private fun MoveCell(text: String?, eval: String, ply: Int, selected: Boolean, onSelect: (Int) -> Unit, modifier: Modifier) {
     val palette = LocalBoardPalette.current
     if (text == null) {
         Box(modifier)
         return
     }
-    Text(
-        text,
-        style = MaterialTheme.typography.bodyLarge,
-        color = if (selected) palette.onSelectedMove else MaterialTheme.colorScheme.onBackground,
+    val color = if (selected) palette.onSelectedMove else MaterialTheme.colorScheme.onBackground
+    Row(
         modifier = modifier
             .testTag(UiTags.move(ply))
             .background(if (selected) palette.selectedMove else Color.Transparent)
             .clickable { onSelect(ply) }
             .padding(Spacing.moveCell),
-    )
+        horizontalArrangement = Arrangement.SpaceBetween,
+    ) {
+        Text(text, style = MaterialTheme.typography.bodyLarge, color = color)
+        Text(eval, style = MaterialTheme.typography.bodyMedium, color = color)
+    }
 }
