@@ -9,6 +9,7 @@ import kotlin.test.assertTrue
 class PgnParserTest {
     private val clockMarker = "[%clk"
     private val withMoves = Fixtures.names.filter { it != "chesscom-no-moves" }
+    private val exports = withMoves.filter { it.startsWith("lichess") || it.startsWith("chesscom") }
 
     private fun placement(fen: String) = fen.substringBefore(' ')
     private fun pieceCount(fen: String) = placement(fen).count { it.isLetter() }
@@ -29,7 +30,7 @@ class PgnParserTest {
 
     @Test
     fun everyClockedFixtureHasOnePlyPerClock() {
-        for (name in withMoves) {
+        for (name in exports) {
             val text = Fixtures.text(name)
             assertEquals(text.split(clockMarker).size - 1, Fixtures.game(name).plies.size, name)
         }

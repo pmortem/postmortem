@@ -4,15 +4,30 @@ import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.setValue
 import androidx.lifecycle.ViewModel
+import androidx.lifecycle.viewModelScope
+import app.postmortem.core.analysis.AnalysisProgress
+import app.postmortem.core.pgn.Game
 import app.postmortem.core.pgn.PgnParser
 import app.postmortem.core.pgn.PgnResult
 import app.postmortem.core.pgn.looksLikePgn
+import kotlinx.coroutines.CoroutineDispatcher
+import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.Job
+import kotlinx.coroutines.flow.Flow
+import kotlinx.coroutines.flow.catch
+import kotlinx.coroutines.flow.flowOn
+import kotlinx.coroutines.launch
 
-class MainViewModel : ViewModel() {
+/** [analysis] evaluates a game; it runs on [dispatcher] and is cancelled with the screen or on Back. */
+class MainViewModel(
+    private val analysis: (Game) -> Flow<AnalysisProgress>,
+    private val dispatcher: CoroutineDispatcher = Dispatchers.IO,
+) : ViewModel() {
     var state: UiState by mutableStateOf(UiState.Paste())
         private set
 
     private var clipboardOffered = false
+    private var job: Job? = null
 
     fun onPgnChange(text: String) {
         state = UiState.Paste(pgn = text)
@@ -28,9 +43,22 @@ class MainViewModel : ViewModel() {
 
     fun analyse() {
         val current = state as? UiState.Paste ?: return
-        state = when (val result = PgnParser.parse(current.pgn)) {
-            is PgnResult.Success -> UiState.Result(current.pgn, result.game)
-            is PgnResult.Failure -> current.copy(error = result.error)
+        when (val result = PgnParser.parse(current.pgn)) {
+            is PgnResult.Failure -> state = current.copy(error = result.error)
+            is PgnResult.Success -> startAnalysis(current.pgn, result.game)
+        }
+    }
+
+    private fun startAnalysis(pgn: String, game: Game) {
+        state = UiState.Analysing(pgn, game, done = 0, total = game.positionCount)
+        job = viewModelScope.launch {
+            analysis(game)
+                .flowOn(dispatcher)
+                .catch { state = UiState.Paste(pgn = pgn, engineFailed = true) }
+                .collect { progress ->
+                    state = if (progress.finished) UiState.Result(pgn, game, progress.evals)
+                    else UiState.Analysing(pgn, game, progress.done, progress.total)
+                }
         }
     }
 
@@ -44,10 +72,16 @@ class MainViewModel : ViewModel() {
         selectPly(current.selectedPly + delta)
     }
 
-    /** Back from the result returns to the paste page with the game still in the box. */
+    /** Back stops a running analysis, or leaves the result; either way the game stays in the paste box. */
     fun back(): Boolean {
-        val current = state as? UiState.Result ?: return false
-        state = UiState.Paste(pgn = current.pgn)
+        val pgn = when (val current = state) {
+            is UiState.Analysing -> current.pgn
+            is UiState.Result -> current.pgn
+            is UiState.Paste -> return false
+        }
+        job?.cancel()
+        job = null
+        state = UiState.Paste(pgn = pgn)
         return true
     }
 }

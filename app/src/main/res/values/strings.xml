@@ -14,4 +14,9 @@
     <string name="result_start_position">the start position</string>
     <string name="result_previous">Previous</string>
     <string name="result_next">Next</string>
+    <string name="paste_engine_failed">The engine stopped before it finished. Try again.</string>
+    <string name="analysing_title">Analysing</string>
+    <string name="analysing_progress">Position %1$d of %2$d</string>
+    <string name="analysing_hint">Back stops the analysis.</string>
+    <string name="result_eval_label">Evaluation %1$s</string>
 </resources>

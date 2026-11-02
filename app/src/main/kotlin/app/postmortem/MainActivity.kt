@@ -8,12 +8,25 @@ import androidx.activity.compose.setContent
 import androidx.activity.enableEdgeToEdge
 import androidx.activity.viewModels
 import androidx.core.splashscreen.SplashScreen.Companion.installSplashScreen
+import androidx.lifecycle.viewmodel.initializer
+import androidx.lifecycle.viewmodel.viewModelFactory
+import app.postmortem.core.analysis.AnalysisConfig
+import app.postmortem.core.analysis.Analyser
+import app.postmortem.ui.AnalysingScreen
 import app.postmortem.ui.PasteScreen
 import app.postmortem.ui.ResultScreen
 import app.postmortem.ui.theme.PostmortemTheme
 
 class MainActivity : ComponentActivity() {
-    private val viewModel: MainViewModel by viewModels()
+    private val viewModel: MainViewModel by viewModels {
+        viewModelFactory {
+            initializer {
+                val config = AnalysisConfig.forCores(Runtime.getRuntime().availableProcessors())
+                val analyser = Analyser(config, EngineLocator.factory(applicationContext))
+                MainViewModel(analysis = analyser::analyse)
+            }
+        }
+    }
 
     override fun onCreate(savedInstanceState: Bundle?) {
         installSplashScreen()
@@ -25,6 +38,10 @@ class MainActivity : ComponentActivity() {
                 when (val state = viewModel.state) {
                     is UiState.Paste ->
                         PasteScreen(state = state, onPgnChange = viewModel::onPgnChange, onAnalyse = viewModel::analyse)
+                    is UiState.Analysing -> {
+                        BackHandler { viewModel.back() }
+                        AnalysingScreen(state)
+                    }
                     is UiState.Result -> {
                         BackHandler { viewModel.back() }
                         ResultScreen(state = state, onSelect = viewModel::selectPly, onStep = viewModel::step)

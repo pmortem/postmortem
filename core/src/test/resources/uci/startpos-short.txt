@@ -1,0 +1,16 @@
+info string Available processors: 0,2-3
+info string Using 2 threads
+info string NNUE evaluation using nn-1a298aa575a0.nnue (109MiB, (86896, 1024, 32, 32, 1))
+info string Network replica 1: Shared memory.
+info depth 1 seldepth 2 multipv 1 score cp 30 nodes 40 nps 40000 hashfull 0 tbhits 0 time 1 pv d2d4
+info depth 2 seldepth 3 multipv 1 score cp 38 nodes 93 nps 93000 hashfull 0 tbhits 0 time 1 pv d2d4
+info depth 3 seldepth 4 multipv 1 score cp 19 nodes 2816 nps 704000 hashfull 0 tbhits 0 time 4 pv d2d4 d7d5 e2e3
+info depth 4 seldepth 11 multipv 1 score cp 25 nodes 4570 nps 652857 hashfull 0 tbhits 0 time 7 pv e2e4 c7c5 g1f3
+info depth 5 seldepth 11 multipv 1 score cp 23 nodes 5325 nps 665625 hashfull 0 tbhits 0 time 8 pv e2e4 c7c5
+info depth 6 seldepth 8 multipv 1 score cp 21 nodes 5648 nps 706000 hashfull 0 tbhits 0 time 8 pv e2e4 c7c5 g1f3 b8c6 f1b5
+info depth 7 seldepth 10 multipv 1 score cp 25 nodes 7409 nps 673545 hashfull 2 tbhits 0 time 11 pv e2e4 c7c5 g1f3 b8c6 f1b5 g8f6
+info depth 8 seldepth 10 multipv 1 score cp 25 nodes 7611 nps 634250 hashfull 2 tbhits 0 time 12 pv e2e4 c7c5 g1f3 b8c6 f1b5 g8f6 e4e5 f6d5
+info depth 9 seldepth 10 multipv 1 score cp 27 nodes 10344 nps 646500 hashfull 3 tbhits 0 time 16 pv e2e4 c7c5 g1f3 b8c6 f1b5 g8f6 e4e5 f6d5
+info depth 10 seldepth 13 multipv 1 score cp 39 nodes 14867 nps 646391 hashfull 4 tbhits 0 time 23 pv e2e4 c7c5 g1f3 b8c6 f1b5
+info depth 11 seldepth 12 multipv 1 score cp 33 upperbound nodes 18820 nps 627333 hashfull 5 tbhits 0 time 30 pv e2e4 c7c5
+bestmove e2e4 ponder c7c5
