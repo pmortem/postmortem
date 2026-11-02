@@ -8,12 +8,18 @@ import androidx.compose.foundation.layout.BoxWithConstraints
 import androidx.compose.foundation.layout.aspectRatio
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.offset
+import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
+import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.remember
+import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.res.painterResource
-import androidx.compose.ui.unit.dp
+import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.unit.Dp
+import androidx.compose.ui.unit.sp
 import app.postmortem.R
 import app.postmortem.core.board.BoardCell
 import app.postmortem.core.board.BoardLayout
@@ -21,6 +27,7 @@ import app.postmortem.core.board.BoardPiece
 import app.postmortem.core.board.PieceColor
 import app.postmortem.core.board.PieceKind
 import app.postmortem.ui.theme.LocalBoardPalette
+import app.postmortem.ui.theme.Spacing
 
 @DrawableRes
 private fun drawableOf(piece: BoardPiece): Int =
@@ -61,12 +68,20 @@ fun BoardView(
         Box(Modifier.fillMaxSize()) {
             for (row in 0 until BoardLayout.SIZE) {
                 for (col in 0 until BoardLayout.SIZE) {
+                    val light = (row + col) % 2 == 0
+                    val label = if (light) palette.darkSquare else palette.lightSquare
                     Box(
                         Modifier
                             .offset(square * col, square * row)
                             .size(square)
-                            .background(if ((row + col) % 2 == 0) palette.lightSquare else palette.darkSquare),
-                    )
+                            .background(if (light) palette.lightSquare else palette.darkSquare),
+                    ) {
+                        // Lichess style: ranks in the top-left of the left file, files in the bottom-right of the bottom rank.
+                        if (col == 0) Coordinate(BoardLayout.rankName(row), label, square, Modifier.align(Alignment.TopStart))
+                        if (row == BoardLayout.SIZE - 1) {
+                            Coordinate(BoardLayout.fileName(col), label, square, Modifier.align(Alignment.BottomEnd))
+                        }
+                    }
                 }
             }
             for (cell in cells) {
@@ -78,4 +93,20 @@ fun BoardView(
             }
         }
     }
+}
+
+@Composable
+private fun Coordinate(
+    name: Char,
+    color: Color,
+    square: Dp,
+    modifier: Modifier,
+) {
+    Text(
+        name.toString(),
+        color = color,
+        fontSize = (square.value * Spacing.coordinateTextRatio).sp,
+        fontWeight = FontWeight.Bold,
+        modifier = modifier.padding(Spacing.coordinatePadding),
+    )
 }

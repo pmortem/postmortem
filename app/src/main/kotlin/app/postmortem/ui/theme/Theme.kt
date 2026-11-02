@@ -97,6 +97,8 @@ object Spacing {
     val moveNumberWidth = 40.dp
     val splashFade = 96.dp
     val splashSpinner = 16.dp
+    val coordinateTextRatio = 0.22f
+    val coordinatePadding = 2.dp
     val chartLine = 2.dp
     val chartMarker = 2.dp
     val chartZeroLine = 1.dp
