@@ -21,3 +21,6 @@ shot chart
 tap eval_chart
 sleep 1
 shot chartmid
+tap tab_summary
+wait summary
+shot summary

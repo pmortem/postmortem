@@ -30,5 +30,22 @@
         <item quantity="one">Evaluation chart, %1$d move</item>
         <item quantity="other">Evaluation chart, %1$d moves</item>
     </plurals>
-    <string name="summary_placeholder">Summary coming soon</string>
+    <string name="summary_white">White</string>
+    <string name="summary_black">Black</string>
+    <string name="summary_with_elo">%1$s (%2$s)</string>
+    <string name="summary_date">Date</string>
+    <string name="summary_event">Event</string>
+    <string name="summary_site">Site</string>
+    <string name="summary_result">Result</string>
+    <string name="summary_termination">Termination</string>
+    <string name="summary_opening">Opening</string>
+    <string name="summary_opening_with_eco">%1$s (%2$s)</string>
+    <string name="summary_accuracy">Accuracy</string>
+    <string name="summary_acpl">ACPL</string>
+    <string name="summary_inaccuracies">Inaccuracies</string>
+    <string name="summary_mistakes">Mistakes</string>
+    <string name="summary_blunders">Blunders</string>
+    <string name="summary_percent">%1$.1f%%</string>
+    <string name="summary_number">%1$d</string>
+    <string name="summary_none">–</string>
 </resources>

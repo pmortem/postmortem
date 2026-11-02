@@ -34,7 +34,6 @@ import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.runtime.setValue
-import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.platform.testTag
@@ -75,7 +74,7 @@ fun ResultScreen(
             when (tab) {
                 ResultTab.Moves -> MoveList(state, onSelect, Modifier.weight(1f).fillMaxWidth())
                 ResultTab.Chart -> EvalChart(state, onSelect, Modifier.weight(1f).fillMaxWidth())
-                ResultTab.Summary -> TabPlaceholder(R.string.summary_placeholder)
+                ResultTab.Summary -> SummaryScreen(state, Modifier.weight(1f).fillMaxWidth())
             }
         }
     }
@@ -122,15 +121,6 @@ private fun ResultTabs(
                 modifier = Modifier.testTag(tab.tag),
             )
         }
-    }
-}
-
-@Composable
-private fun TabPlaceholder(
-    @StringRes text: Int,
-) {
-    Box(Modifier.fillMaxSize().padding(Spacing.screen), contentAlignment = Alignment.Center) {
-        Text(stringResource(text), style = MaterialTheme.typography.bodyLarge)
     }
 }
 
