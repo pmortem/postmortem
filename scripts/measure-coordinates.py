@@ -1,8 +1,7 @@
 """Measures the board coordinate labels in a smoke screenshot of the start position.
 
 Usage: measure-coordinates.py <png> [light|dark] [flipped]
-Prints the bounding box of the label pixels on a1, d1, h8 and h6 (for the labels on the squares of the bottom rank and the
-right-hand file), as fractions of a square from the square's top-left corner. Targets (Lichess app): a file letter starts at
+Prints the bounding box of the label pixels on a1 (its file letter), h8 and h6 (their rank digits), as fractions of a square from the square's top-left corner. Targets (Lichess app): a file letter starts at
 x 0.06 with its bottom at y 0.89; a rank digit ends at x 0.93 with its baseline at y 0.21. Screenshots are the smoke's
 `result-light.png` / `result-dark.png` (and `flipped-*.png`).
 """
@@ -75,20 +74,19 @@ def main(path, theme="light", flipped=False):
         label = DARK if light else LIGHT
         x0, y0 = left + col * sq, top + row * sq
         # A rank digit lives in the top-right of its square, a file letter in the bottom-left.
-        fx, fy = ((0.6, 1.0), (0.0, 0.4)) if kind == "rank" else ((0.0, 0.4), (0.6, 1.0))
+        fx, fy = ((0.6, 1.0), (0.0, 0.3)) if kind == "rank" else ((0.0, 0.3), (0.7, 1.0))
         pts = []
         for y in range(int(y0 + fy[0] * sq), int(y0 + fy[1] * sq)):
             for x in range(int(x0 + fx[0] * sq), int(x0 + fx[1] * sq)):
-                if close(px(rows, bpp, x, y), label, 20):
+                if close(px(rows, bpp, x, y), label, 10):
                     pts.append(((x - x0) / sq, (y - y0) / sq))
         if not pts:
             return None
         return (min(p[0] for p in pts), max(p[0] for p in pts), min(p[1] for p in pts), max(p[1] for p in pts), len(pts))
 
-    a1, d1 = (0, 3)
+    a1 = 0
     cases = [
         ("bottom-left letter (col %d)" % a1, 7, a1, "file"),
-        ("bottom letter (col %d)" % d1, 7, d1, "file"),
         ("top-right digit (row 0)", 0, 7, "rank"),
         ("right digit (row 2)", 2, 7, "rank"),
     ]
