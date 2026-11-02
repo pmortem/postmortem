@@ -1,34 +1,35 @@
 package app.postmortem.ui
 
+import android.graphics.Paint
+import android.graphics.Typeface
 import androidx.annotation.DrawableRes
+import androidx.compose.foundation.Canvas
 import androidx.compose.foundation.Image
-import androidx.compose.foundation.background
-import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.BoxWithConstraints
 import androidx.compose.foundation.layout.aspectRatio
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.offset
-import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
-import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.remember
-import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
-import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.geometry.Offset
+import androidx.compose.ui.geometry.Size
+import androidx.compose.ui.graphics.drawscope.DrawScope
+import androidx.compose.ui.graphics.drawscope.drawIntoCanvas
+import androidx.compose.ui.graphics.nativeCanvas
+import androidx.compose.ui.graphics.toArgb
 import androidx.compose.ui.res.painterResource
-import androidx.compose.ui.text.TextStyle
-import androidx.compose.ui.text.font.FontWeight
-import androidx.compose.ui.unit.Dp
-import androidx.compose.ui.unit.sp
 import app.postmortem.R
 import app.postmortem.core.board.BoardCell
+import app.postmortem.core.board.BoardLabel
+import app.postmortem.core.board.BoardLabels
 import app.postmortem.core.board.BoardLayout
 import app.postmortem.core.board.BoardPiece
 import app.postmortem.core.board.PieceColor
 import app.postmortem.core.board.PieceKind
+import app.postmortem.ui.theme.BoardPalette
 import app.postmortem.ui.theme.LocalBoardPalette
-import app.postmortem.ui.theme.Spacing
 
 @DrawableRes
 private fun drawableOf(piece: BoardPiece): Int =
@@ -61,54 +62,55 @@ private fun drawableOf(piece: BoardPiece): Int =
 fun BoardView(
     fen: String,
     modifier: Modifier = Modifier,
+    flipped: Boolean = false,
 ) {
-    val cells: List<BoardCell> = remember(fen) { BoardLayout.cells(fen) }
+    val cells: List<BoardCell> = remember(fen, flipped) { BoardLayout.cells(fen, flipped) }
+    val labels = remember(flipped) { BoardLabels.all(flipped) }
     val palette = LocalBoardPalette.current
     BoxWithConstraints(modifier.aspectRatio(1f)) {
         val square = maxWidth / BoardLayout.SIZE
-        Box(Modifier.fillMaxSize()) {
-            for (row in 0 until BoardLayout.SIZE) {
-                for (col in 0 until BoardLayout.SIZE) {
-                    val light = (row + col) % 2 == 0
-                    val label = if (light) palette.darkSquare else palette.lightSquare
-                    Box(
-                        Modifier
-                            .offset(square * col, square * row)
-                            .size(square)
-                            .background(if (light) palette.lightSquare else palette.darkSquare),
-                    ) {
-                        // Lichess style: ranks in the top-left of the left file, files in the bottom-right of the bottom rank.
-                        if (col == 0) Coordinate(BoardLayout.rankName(row), label, square, Modifier.align(Alignment.TopStart))
-                        if (row == BoardLayout.SIZE - 1) {
-                            Coordinate(BoardLayout.fileName(col), label, square, Modifier.align(Alignment.BottomEnd))
-                        }
-                    }
-                }
-            }
-            for (cell in cells) {
-                Image(
-                    painter = painterResource(drawableOf(cell.piece)),
-                    contentDescription = null,
-                    modifier = Modifier.offset(square * cell.col, square * cell.row).size(square),
-                )
-            }
+        // The squares and their coordinates are drawn together, under the pieces.
+        Canvas(Modifier.fillMaxSize()) { drawSquaresAndLabels(palette, labels) }
+        for (cell in cells) {
+            Image(
+                painter = painterResource(drawableOf(cell.piece)),
+                contentDescription = null,
+                modifier = Modifier.offset(square * cell.col, square * cell.row).size(square),
+            )
         }
     }
 }
 
-@Composable
-private fun Coordinate(
-    name: Char,
-    color: Color,
-    square: Dp,
-    modifier: Modifier,
+/** Squares, then the coordinates as v1 drew them: bold text at a baseline in a corner, in the colour of the other square. */
+private fun DrawScope.drawSquaresAndLabels(
+    palette: BoardPalette,
+    labels: List<BoardLabel>,
 ) {
-    val size = (square.value * Spacing.coordinateTextRatio).sp
-    Text(
-        name.toString(),
-        color = color,
-        // The line height is the font size: the default line height is taller than the square's corner, which centred the glyph.
-        style = TextStyle(fontSize = size, lineHeight = size, fontWeight = FontWeight.Bold),
-        modifier = modifier.padding(Spacing.coordinatePadding),
-    )
+    val square = size.width / BoardLayout.SIZE
+    for (row in 0 until BoardLayout.SIZE) {
+        for (col in 0 until BoardLayout.SIZE) {
+            drawRect(
+                if (isLight(row, col)) palette.lightSquare else palette.darkSquare,
+                topLeft = Offset(col * square, row * square),
+                size = Size(square, square),
+            )
+        }
+    }
+    val paint =
+        Paint().apply {
+            isAntiAlias = true
+            typeface = Typeface.DEFAULT_BOLD
+            textSize = square * BoardLabels.TEXT_SIZE
+        }
+    drawIntoCanvas { canvas ->
+        for (label in labels) {
+            paint.color = (if (isLight(label.row, label.col)) palette.darkSquare else palette.lightSquare).toArgb()
+            canvas.nativeCanvas.drawText(label.text.toString(), label.x(square), label.y(square), paint)
+        }
+    }
 }
+
+private fun isLight(
+    row: Int,
+    col: Int,
+): Boolean = (row + col) % 2 == 0
