@@ -40,6 +40,8 @@ sealed interface UiState {
         val tab: ResultTab = ResultTab.Moves,
         /** Black at the bottom. A newly analysed game starts with White at the bottom; later features can set it. */
         val flipped: Boolean = false,
+        /** How the evals were made (engine, nodes, hash), so a saved analysis can say. */
+        val analysisSettings: String = "",
     ) : UiState {
         val canStepBack: Boolean get() = selectedPly > 0
         val canStepForward: Boolean get() = selectedPly < game.plies.size

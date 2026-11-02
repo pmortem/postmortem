@@ -2,6 +2,8 @@ package app.postmortem
 
 import android.content.ClipboardManager
 import android.os.Bundle
+import android.os.SystemClock
+import android.util.Log
 import androidx.activity.ComponentActivity
 import androidx.activity.compose.BackHandler
 import androidx.activity.compose.setContent
@@ -16,19 +18,43 @@ import androidx.lifecycle.viewmodel.initializer
 import androidx.lifecycle.viewmodel.viewModelFactory
 import app.postmortem.core.analysis.Analyser
 import app.postmortem.core.analysis.AnalysisConfig
+import app.postmortem.core.analysis.format
 import app.postmortem.ui.AnalysingScreen
 import app.postmortem.ui.PasteScreen
 import app.postmortem.ui.ResultScreen
 import app.postmortem.ui.SplashScreen
 import app.postmortem.ui.theme.PostmortemTheme
+import kotlinx.coroutines.flow.onCompletion
+import kotlinx.coroutines.flow.onEach
+import kotlinx.coroutines.flow.onStart
+
+private const val ANALYSIS_TAG = "Analysis"
 
 class MainActivity : ComponentActivity() {
     private val viewModel: MainViewModel by viewModels {
         viewModelFactory {
             initializer {
                 val config = AnalysisConfig.forCores(Runtime.getRuntime().availableProcessors())
-                val analyser = Analyser(config, EngineLocator.factory(applicationContext))
-                MainViewModel(analysis = analyser::analyse)
+                val analyser =
+                    Analyser(config, EngineLocator.factory(applicationContext)) { result ->
+                        Log.i(ANALYSIS_TAG, "search: ${result.nodes} nodes in ${result.timeMs} ms, ${result.nodesPerSecond} nodes/s")
+                    }
+                MainViewModel(
+                    analysisSettings = config.describe(BuildConfig.ENGINE_NAME),
+                    analysis = { game ->
+                        var started = 0L
+                        analyser
+                            .analyse(game)
+                            .onStart { started = SystemClock.elapsedRealtime() }
+                            .onEach { if (it.finished) Log.i(ANALYSIS_TAG, "evals: " + it.evals.joinToString(" ") { e -> e.format() }) }
+                            .onCompletion {
+                                Log.i(
+                                    ANALYSIS_TAG,
+                                    "analysis of ${game.positionCount} positions took ${SystemClock.elapsedRealtime() - started} ms with ${config.workers} workers",
+                                )
+                            }
+                    },
+                )
             }
         }
     }

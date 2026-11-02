@@ -22,6 +22,8 @@ import kotlinx.coroutines.launch
 class MainViewModel(
     private val analysis: (Game) -> Flow<AnalysisProgress>,
     private val dispatcher: CoroutineDispatcher = Dispatchers.IO,
+    /** How the analysis is made, kept with each result. */
+    private val analysisSettings: String = "",
 ) : ViewModel() {
     var state: UiState by mutableStateOf(UiState.Paste())
         private set
@@ -62,7 +64,7 @@ class MainViewModel(
                     .collect { progress ->
                         state =
                             if (progress.finished) {
-                                UiState.Result(pgn, game, progress.evals)
+                                UiState.Result(pgn, game, progress.evals, analysisSettings = analysisSettings)
                             } else {
                                 UiState.Analysing(pgn, game, progress.done, progress.total)
                             }

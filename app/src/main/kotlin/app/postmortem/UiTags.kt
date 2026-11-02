@@ -12,6 +12,7 @@ object UiTags {
     const val FLIP_BUTTON = "flip_button"
     const val NEXT_BUTTON = "next_button"
     const val SUMMARY = "summary"
+    const val ANALYSIS_SETTINGS = "analysis_settings"
     const val OPENING = "opening"
     const val TAB_MOVES = "tab_moves"
     const val TAB_CHART = "tab_chart"

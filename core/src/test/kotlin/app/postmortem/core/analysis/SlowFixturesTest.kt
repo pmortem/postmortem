@@ -12,7 +12,7 @@ import kotlin.test.assertTrue
 
 /** The slow pass, run by lab-check and CI (-Ppostmortem.slow=true): every fixture game through the real engine. */
 class SlowFixturesTest {
-    private val config = AnalysisConfig(moveTimeMs = 60, threads = 2, hashMb = 32)
+    private val config = AnalysisConfig(nodes = 100_000, workers = 2, hashMb = 16)
     private val lichessEval = Regex("""\[%eval (#?-?\d+(?:\.\d+)?)]""")
     private val decisiveCentipawns = 300
     private val quietCentipawns = 100
