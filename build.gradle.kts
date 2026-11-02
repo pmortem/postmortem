@@ -34,5 +34,6 @@ fun stockfishBinary(assetKey: String): Provider<File> =
         File(cache, "stockfish/${stockfishPins.getValue("STOCKFISH_TAG")}/$asset/$asset")
     }
 
+extra["stockfishTag"] = stockfishPins.getValue("STOCKFISH_TAG")
 extra["stockfishLinux"] = stockfishBinary("STOCKFISH_LINUX_ASSET")
 extra["stockfishAndroid"] = stockfishBinary("STOCKFISH_ANDROID_ASSET")

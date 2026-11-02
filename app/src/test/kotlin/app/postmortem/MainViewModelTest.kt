@@ -50,7 +50,8 @@ class MainViewModelTest {
             }
         }
 
-    private fun viewModel(analysis: (Game) -> Flow<AnalysisProgress> = ::canned) = MainViewModel(analysis, dispatcher)
+    private fun viewModel(analysis: (Game) -> Flow<AnalysisProgress> = ::canned) =
+        MainViewModel(analysis, dispatcher, analysisSettings = "test engine, 123 nodes")
 
     private fun MainViewModel.paste() = assertIs<UiState.Paste>(state)
 
@@ -252,5 +253,13 @@ class MainViewModelTest {
         typed.onPgnChange("1. e4")
         typed.onClipboard(fixture("lichess-draw"))
         assertEquals("1. e4", typed.paste().pgn)
+    }
+
+    @Test
+    fun theSettingsAreKeptWithTheResult() {
+        val vm = viewModel()
+        vm.onPgnChange(fixture("lichess-short-resign"))
+        vm.analyse()
+        assertEquals("test engine, 123 nodes", vm.result().analysisSettings)
     }
 }

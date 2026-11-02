@@ -83,6 +83,7 @@ android {
         versionCode = commitCount
         versionName = "${prop("postmortem.versionName")}+$commitSha"
         buildConfigField("String", "ENGINE_LIBRARY", "\"$stockfishLibName\"")
+        buildConfigField("String", "ENGINE_NAME", "\"Stockfish ${rootProject.extra["stockfishTag"]}\"")
     }
 
     buildFeatures {

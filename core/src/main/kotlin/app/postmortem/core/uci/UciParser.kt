@@ -39,6 +39,15 @@ object UciParser {
         }
     }
 
+    /** The `nodes` and `time` (ms) an `info` line reports, or null when it carries no such pair. */
+    fun effort(line: String): Pair<Long, Long>? {
+        val words = line.trim().split(' ').filter { it.isNotEmpty() }
+        if (words.firstOrNull() != "info" || words.getOrNull(1) == "string") return null
+        val nodes = words.getOrNull(words.indexOf("nodes") + 1)?.toLongOrNull() ?: return null
+        val time = words.getOrNull(words.indexOf("time") + 1)?.toLongOrNull() ?: return null
+        return nodes to time
+    }
+
     fun bestMove(line: String): BestMove? {
         val words = line.trim().split(' ').filter { it.isNotEmpty() }
         if (words.firstOrNull() != "bestmove") return null

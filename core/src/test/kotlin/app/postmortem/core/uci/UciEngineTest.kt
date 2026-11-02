@@ -14,7 +14,7 @@ import kotlin.test.assertFalse
 import kotlin.test.assertTrue
 
 class UciEngineTest {
-    private val quick = AnalysisConfig(moveTimeMs = 100, threads = 1, hashMb = 16)
+    private val quick = AnalysisConfig(nodes = 20_000, hashMb = 16)
     private val startFen = "rnbqkbnr/pppppppp/8/8/8/8/PPPPPPPP/RNBQKBNR w KQkq - 0 1"
     private val mateIn1 = "r1bqkb1r/pppp1ppp/2n2n2/4p2Q/2B1P3/8/PPPP1PPP/RNB1K1NR w KQkq - 4 4"
 
@@ -59,7 +59,7 @@ class UciEngineTest {
             val factory = EngineBinary.require()
             var process: Process? = null
             val engine = UciEngine.start(quick) { factory().also { process = it } }
-            val search = async(start = CoroutineStart.UNDISPATCHED) { engine.search(startFen, moveTimeMs = 60_000) }
+            val search = async(start = CoroutineStart.UNDISPATCHED) { engine.search(startFen, nodes = 100_000_000_000L) }
             delay(300)
             search.cancelAndJoin()
             engine.close()
@@ -89,4 +89,38 @@ class UciEngineTest {
             runBlocking { UciEngine.start(quick) { ProcessBuilder("/no/such/engine").start() } }
         }
     }
+
+    @Test
+    fun theSameFixedNodeSearchGivesTheSameResultEveryTimeAndInAnyOrder() =
+        runBlocking {
+            val fens =
+                listOf(
+                    startFen,
+                    mateIn1,
+                    "rnbqkbnr/pppppppp/8/8/4P3/8/PPPP1PPP/RNBQKBNR b KQkq - 0 1",
+                    "r1bqkb1r/pppp1ppp/2n2n2/4p3/2B1P3/5Q2/PPPP1PPP/RNB1K1NR w KQkq - 4 4",
+                    "2r3k1/pp3ppp/8/3p4/3P4/2P2N2/PP3PPP/6K1 w - - 0 1",
+                )
+            val factory = EngineBinary.require()
+            val config = AnalysisConfig(nodes = 200_000, hashMb = 16)
+
+            suspend fun run(order: List<Int>): Map<Int, Pair<Score?, BestMove>> =
+                UciEngine.start(config, factory).use { engine ->
+                    order.associateWith { engine.search(fens[it]).let { r -> r.score to r.bestMove } }
+                }
+            val forward = run(fens.indices.toList())
+            assertEquals(forward, run(fens.indices.toList()), "the same positions again")
+            assertEquals(forward, run(fens.indices.toList().reversed()), "the positions in another order")
+            assertEquals(forward, run(listOf(2, 0, 4, 1, 3)), "and a third order")
+        }
+
+    @Test
+    fun aSearchReportsItsNodesAndTime() =
+        runBlocking {
+            UciEngine.start(quick, EngineBinary.require()).use { engine ->
+                val result = engine.search(startFen)
+                assertTrue(result.nodes >= 20_000, "searched ${result.nodes} nodes")
+                assertTrue(result.nodesPerSecond!! > 0)
+            }
+        }
 }

@@ -17,11 +17,16 @@ class EngineException(
     cause: Throwable? = null,
 ) : IOException(message, cause)
 
-/** What a search found: the last exact score and the move the engine chose. */
+/** What a search found: the last exact score and the move the engine chose, and the effort it took (nodes, milliseconds). */
 data class SearchResult(
     val score: Score?,
     val bestMove: BestMove,
-)
+    val nodes: Long = 0,
+    val timeMs: Long = 0,
+) {
+    /** Nodes per second, or null when the engine reported no time. */
+    val nodesPerSecond: Long? get() = if (timeMs > 0) nodes * 1000 / timeMs else null
+}
 
 /**
  * A UCI engine on a [java.lang.Process]. Output is read on its own thread and handed over through a channel, so
@@ -88,26 +93,34 @@ class UciEngine private constructor(
     private suspend fun handshake() {
         send("uci")
         readUntil(config.handshakeTimeoutMs, "uciok") { if (it.trim() == "uciok") Unit else null }
-        send("setoption name Threads value ${config.threads}")
+        send("setoption name Threads value ${AnalysisConfig.THREADS}")
         send("setoption name Hash value ${config.hashMb}")
         send("isready")
         readUntil(config.handshakeTimeoutMs, "readyok") { if (it.trim() == "readyok") Unit else null }
     }
 
-    /** Searches [fen] for [moveTimeMs] and returns the last exact score the engine reported. */
+    /**
+     * Searches [fen] for [nodes] nodes and returns the last exact score the engine reported. The engine's hash and history are
+     * cleared first (`ucinewgame`), so the result does not depend on what it searched before.
+     */
     suspend fun search(
         fen: String,
-        moveTimeMs: Long = config.moveTimeMs,
+        nodes: Long = config.nodes,
     ): SearchResult {
+        send("ucinewgame")
+        send("isready")
+        readUntil(config.handshakeTimeoutMs, "readyok") { if (it.trim() == "readyok") Unit else null }
         send("position fen $fen")
-        send("go movetime $moveTimeMs")
+        send("go nodes $nodes")
         var score: Score? = null
+        var effort: Pair<Long, Long>? = null
         val best =
-            readUntil(moveTimeMs + config.searchMarginMs, "bestmove") { line ->
+            readUntil(config.searchTimeoutMs, "bestmove") { line ->
                 UciParser.score(line)?.let { score = it }
+                UciParser.effort(line)?.let { effort = it }
                 UciParser.bestMove(line)
             }
-        return SearchResult(score, best)
+        return SearchResult(score, best, effort?.first ?: 0, effort?.second ?: 0)
     }
 
     val isAlive: Boolean get() = process.isAlive

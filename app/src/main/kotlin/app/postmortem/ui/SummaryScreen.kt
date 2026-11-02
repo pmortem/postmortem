@@ -62,6 +62,14 @@ fun SummaryScreen(
             HorizontalDivider()
             Overview(overview)
         }
+        if (state.analysisSettings.isNotEmpty()) {
+            Text(
+                stringResource(R.string.summary_analysed_with, state.analysisSettings),
+                style = MaterialTheme.typography.labelSmall,
+                color = MaterialTheme.colorScheme.onSurfaceVariant,
+                modifier = Modifier.testTag(UiTags.ANALYSIS_SETTINGS),
+            )
+        }
     }
 }
 

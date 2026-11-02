@@ -123,5 +123,10 @@ class LichessComparisonTest {
             assertTrue(abs(o - l) <= maxGapCp, "gap of ${o - l} cp at ply ${index + 1}")
         }
         assertTrue(gaps.map { abs(it) }.average() <= maxMeanGapCp, "mean gap too large")
+        // The search is reproducible now: with 1,000,000 nodes the result is the same on every run and on the phone. Against
+        // Lichess's judgements one move differs (12...Rxh5 is an inaccuracy for us, since our eval of the position before it is
+        // 0.4 pawn worse for White than Lichess's); at other budgets it is a different single move, never more.
+        val different = lichess.plies.indices.count { lichess.plies[it].judgement != oursReport.judgements[it] }
+        assertTrue(different <= 1, "$different judgements differ from Lichess's")
     }
 }
