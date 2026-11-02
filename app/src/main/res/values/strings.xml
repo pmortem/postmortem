@@ -3,6 +3,7 @@
     <string name="app_name">Postmortem</string>
     <string name="paste_title">Paste a game</string>
     <string name="paste_hint">Paste the PGN of a game here, from Lichess or Chess.com.</string>
+    <string name="splash_loading">Loading…</string>
     <string name="version_label">Version %1$s</string>
     <string name="paste_label">PGN</string>
     <string name="analyse_button">Analyse</string>

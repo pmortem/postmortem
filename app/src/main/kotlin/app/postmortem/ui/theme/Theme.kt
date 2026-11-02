@@ -63,6 +63,8 @@ object Spacing {
     val small = 4.dp
     val moveCell = 6.dp
     val moveNumberWidth = 40.dp
+    val splashFade = 96.dp
+    val splashSpinner = 16.dp
 }
 
 @Composable
