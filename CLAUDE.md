@@ -1,6 +1,6 @@
 # Postmortem: notes for Claude
 
-Read `PLAN.md` context in the lab box (`~/PLAN.md`) and the global `~/.claude/CLAUDE.md` for the workflow; this file holds only what is specific to the code.
+The workflow (loop, PRs, Definition of Done) is in the box's global `~/.claude/CLAUDE.md`; this file holds only what is specific to the code.
 
 - Modules: `:core` (pure Kotlin, no Android) and `:app` (Compose). Anything in `:core` needs a test on a real sample from `core/src/test/resources`.
 - Engine settings live in `AnalysisConfig`. UI text goes in `strings.xml`, visual values in the theme. No hardcoded values.
