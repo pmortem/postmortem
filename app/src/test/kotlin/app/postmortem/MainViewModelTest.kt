@@ -35,25 +35,25 @@ class MainViewModelTest {
     @After
     fun tearDown() = Dispatchers.resetMain()
 
-    private fun fixture(name: String) =
-        checkNotNull(javaClass.getResource("/pgn/$name.pgn")) { "no fixture $name" }.readText()
+    private fun fixture(name: String) = checkNotNull(javaClass.getResource("/pgn/$name.pgn")) { "no fixture $name" }.readText()
 
-    private fun positionCount(name: String) =
-        (PgnParser.parse(fixture(name)) as PgnResult.Success).game.positionCount
+    private fun positionCount(name: String) = (PgnParser.parse(fixture(name)) as PgnResult.Success).game.positionCount
 
     /** Stands in for the engine: one canned evaluation per position, reported one by one. */
-    private fun canned(game: Game): Flow<AnalysisProgress> = flow {
-        val evals = ArrayList<Eval>()
-        emit(AnalysisProgress(0, game.positionCount, emptyList()))
-        for (position in 0 until game.positionCount) {
-            evals += Eval.Cp(position * 10)
-            emit(AnalysisProgress(position + 1, game.positionCount, evals.toList()))
+    private fun canned(game: Game): Flow<AnalysisProgress> =
+        flow {
+            val evals = ArrayList<Eval>()
+            emit(AnalysisProgress(0, game.positionCount, emptyList()))
+            for (position in 0 until game.positionCount) {
+                evals += Eval.Cp(position * 10)
+                emit(AnalysisProgress(position + 1, game.positionCount, evals.toList()))
+            }
         }
-    }
 
     private fun viewModel(analysis: (Game) -> Flow<AnalysisProgress> = ::canned) = MainViewModel(analysis, dispatcher)
 
     private fun MainViewModel.paste() = assertIs<UiState.Paste>(state)
+
     private fun MainViewModel.result() = assertIs<UiState.Result>(state)
 
     @Test
@@ -70,12 +70,13 @@ class MainViewModelTest {
 
     @Test
     fun theProgressIsShownWhileTheEngineWorks() {
-        val vm = viewModel { game ->
-            flow {
-                emit(AnalysisProgress(3, game.positionCount, List(3) { Eval.Cp(0) }))
-                awaitCancellation()
+        val vm =
+            viewModel { game ->
+                flow {
+                    emit(AnalysisProgress(3, game.positionCount, List(3) { Eval.Cp(0) }))
+                    awaitCancellation()
+                }
             }
-        }
         vm.onPgnChange(fixture("lichess-draw"))
         vm.analyse()
         val analysing = assertIs<UiState.Analysing>(vm.state)
@@ -109,7 +110,11 @@ class MainViewModelTest {
     @Test
     fun anIllegalMoveStaysOnThePastePageWithTheError() {
         var started = false
-        val vm = viewModel { started = true; canned(it) }
+        val vm =
+            viewModel {
+                started = true
+                canned(it)
+            }
         vm.onPgnChange("1. e4 e5 2. Kh5")
         vm.analyse()
         assertEquals(PgnError.IllegalMove(3, "Kh5"), vm.paste().error)
@@ -139,7 +144,10 @@ class MainViewModelTest {
         val vm = viewModel()
         vm.onPgnChange(fixture("lichess-short-resign"))
         vm.analyse()
-        val last = vm.result().game.plies.size
+        val last =
+            vm
+                .result()
+                .game.plies.size
         vm.selectPly(5)
         assertEquals(5, vm.result().selectedPly)
         assertEquals(Eval.Cp(50), vm.result().selectedEval)

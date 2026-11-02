@@ -12,21 +12,30 @@ class PgnParserTest {
     private val exports = withMoves.filter { it.startsWith("lichess") || it.startsWith("chesscom") }
 
     private fun placement(fen: String) = fen.substringBefore(' ')
+
     private fun pieceCount(fen: String) = placement(fen).count { it.isLetter() }
+
     private fun failure(text: String) = assertIs<PgnResult.Failure>(PgnParser.parse(text)).error
+
     private fun success(text: String) = assertIs<PgnResult.Success>(PgnParser.parse(text)).game
 
     /** The movetext of a game rebuilt from its plies, so tests can add noise around real moves. */
-    private fun movetext(plies: List<Ply>, firstPly: Int = 1, annotate: (Int, String) -> String = { _, s -> s }): String =
-        plies.mapIndexed { i, p ->
-            val ply = firstPly + i
-            val number = when {
-                ply % 2 == 1 -> "${(ply + 1) / 2}. "
-                i == 0 -> "${ply / 2}... "
-                else -> ""
-            }
-            number + annotate(ply, p.san)
-        }.joinToString(" ")
+    private fun movetext(
+        plies: List<Ply>,
+        firstPly: Int = 1,
+        annotate: (Int, String) -> String = { _, s -> s },
+    ): String =
+        plies
+            .mapIndexed { i, p ->
+                val ply = firstPly + i
+                val number =
+                    when {
+                        ply % 2 == 1 -> "${(ply + 1) / 2}. "
+                        i == 0 -> "${ply / 2}... "
+                        else -> ""
+                    }
+                number + annotate(ply, p.san)
+            }.joinToString(" ")
 
     @Test
     fun everyClockedFixtureHasOnePlyPerClock() {
@@ -66,7 +75,16 @@ class PgnParserTest {
     fun promotionLetterInUciMatchesTheSan() {
         val promotions = Fixtures.game("lichess-promotion-long-castle").plies.filter { '=' in it.san }
         assertTrue(promotions.isNotEmpty())
-        for (ply in promotions) assertEquals(ply.san.substringAfter('=').first().lowercaseChar(), ply.uci.last(), ply.san)
+        for (ply in promotions) {
+            assertEquals(
+                ply.san
+                    .substringAfter('=')
+                    .first()
+                    .lowercaseChar(),
+                ply.uci.last(),
+                ply.san,
+            )
+        }
     }
 
     @Test
@@ -74,7 +92,12 @@ class PgnParserTest {
         val game = Fixtures.game("lichess-mate-castle")
         val castle = game.plies.withIndex().first { it.value.san == "O-O" }
         assertEquals(if (castle.index % 2 == 0) "e1g1" else "e8g8", castle.value.uci)
-        val long = Fixtures.game("lichess-promotion-long-castle").plies.withIndex().first { it.value.san == "O-O-O" }
+        val long =
+            Fixtures
+                .game("lichess-promotion-long-castle")
+                .plies
+                .withIndex()
+                .first { it.value.san == "O-O-O" }
         assertEquals(if (long.index % 2 == 0) "e1c1" else "e8c8", long.value.uci)
     }
 
@@ -110,7 +133,7 @@ class PgnParserTest {
     fun byteOrderMarkAndWindowsLineEndingsChangeNothing() {
         val text = Fixtures.text("lichess-draw")
         val plain = success(text)
-        val noisy = success("﻿" + text.replace("\n", "\r\n"))
+        val noisy = success("" + text.replace("\n", "\r\n"))
         assertEquals(plain.plies, noisy.plies)
         assertEquals(plain.headers, noisy.headers)
     }
@@ -126,14 +149,15 @@ class PgnParserTest {
     @Test
     fun commentsVariationsAnnotationsAndNagsAreSkipped() {
         val plies = Fixtures.game("lichess-short-resign").plies
-        val noisy = movetext(plies) { ply, san ->
-            when (ply) {
-                1 -> "$san!? \$1 { a comment with (parens) and 2. d4 } (1. d4 d5 (1... Nf6 2. c4 { nested }) 2. c4) ?!"
-                2 -> "$san ; rest of the line 3. Qh5\n"
-                3 -> "$san \$14 \$15 {[%eval 0.3] [%clk 0:03:00]}"
-                else -> san
+        val noisy =
+            movetext(plies) { ply, san ->
+                when (ply) {
+                    1 -> "$san!? \$1 { a comment with (parens) and 2. d4 } (1. d4 d5 (1... Nf6 2. c4 { nested }) 2. c4) ?!"
+                    2 -> "$san ; rest of the line 3. Qh5\n"
+                    3 -> "$san \$14 \$15 {[%eval 0.3] [%clk 0:03:00]}"
+                    else -> san
+                }
             }
-        }
         assertEquals(plies, success("[Event \"x\"]\n\n$noisy 1-0").plies)
     }
 

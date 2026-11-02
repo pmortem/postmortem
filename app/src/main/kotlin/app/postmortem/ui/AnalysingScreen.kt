@@ -25,15 +25,17 @@ import app.postmortem.ui.theme.Spacing
 @Composable
 fun AnalysingScreen(state: UiState.Analysing) {
     Surface(
-        modifier = Modifier
-            .fillMaxSize()
-            .semantics { testTagsAsResourceId = true },
+        modifier =
+            Modifier
+                .fillMaxSize()
+                .semantics { testTagsAsResourceId = true },
         color = MaterialTheme.colorScheme.background,
     ) {
         Column(
-            modifier = Modifier
-                .safeDrawingPadding()
-                .padding(Spacing.screen),
+            modifier =
+                Modifier
+                    .safeDrawingPadding()
+                    .padding(Spacing.screen),
             verticalArrangement = Arrangement.spacedBy(Spacing.gap, Alignment.CenterVertically),
         ) {
             Text(stringResource(R.string.analysing_title), style = MaterialTheme.typography.headlineMedium)

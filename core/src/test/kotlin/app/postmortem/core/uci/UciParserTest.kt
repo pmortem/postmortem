@@ -12,6 +12,7 @@ class UciParserTest {
         checkNotNull(javaClass.getResource("/uci/$name.txt")) { "no capture $name" }.readText().lines().filter { it.isNotBlank() }
 
     private fun lastScore(name: String) = capture(name).mapNotNull(UciParser::score).last()
+
     private fun bestMove(name: String) = capture(name).firstNotNullOf(UciParser::bestMove)
 
     @Test

@@ -10,8 +10,7 @@ object Fixtures {
     fun text(name: String): String =
         checkNotNull(Fixtures::class.java.getResource("$DIRECTORY/$name$EXTENSION")) { "no fixture $name" }.readText()
 
-    fun game(name: String): Game =
-        (PgnParser.parse(text(name)) as PgnResult.Success).game
+    fun game(name: String): Game = (PgnParser.parse(text(name)) as PgnResult.Success).game
 
     /** The names of every fixture. */
     val names: List<String> by lazy {

@@ -5,10 +5,14 @@ plugins {
 
 fun prop(name: String) = providers.gradleProperty(name).get()
 
-fun git(vararg args: String) = providers.exec {
-    commandLine("git", *args)
-    isIgnoreExitValue = true
-}.standardOutput.asText.map { it.trim() }.orElse("")
+fun git(vararg args: String) =
+    providers
+        .exec {
+            commandLine("git", *args)
+            isIgnoreExitValue = true
+        }.standardOutput.asText
+        .map { it.trim() }
+        .orElse("")
 
 // versionCode is the commit count and versionName is "<semver>+<short sha>", so every build on the phone says where it came from.
 val commitCount = git("rev-list", "--count", "HEAD").map { it.toIntOrNull() ?: 1 }.get()
@@ -27,8 +31,9 @@ val stageStockfish by tasks.registering {
     inputs.files(source.map { files(it) }.orElse(files()))
     outputs.file(target)
     doLast {
-        val binary = source.orNull?.takeIf { it.isFile }
-            ?: error("Stockfish for Android is missing: run scripts/lab/prepare (it needs LAB_CACHE).")
+        val binary =
+            source.orNull?.takeIf { it.isFile }
+                ?: error("Stockfish for Android is missing: run scripts/lab/prepare (it needs LAB_CACHE).")
         target.get().asFile.let {
             it.parentFile.mkdirs()
             binary.copyTo(it, overwrite = true)
@@ -65,14 +70,20 @@ android {
         targetCompatibility = java
     }
 
-    sourceSets.getByName("test").resources.directories.add("../core/src/test/resources")
+    sourceSets
+        .getByName("test")
+        .resources.directories
+        .add("../core/src/test/resources")
 
     packaging {
         // The engine runs as a process, so it must be a real file in nativeLibraryDir, not mapped from the APK.
         jniLibs.useLegacyPackaging = true
     }
 
-    sourceSets.getByName("main").jniLibs.directories.add(stockfishJniLibs.get().asFile.path)
+    sourceSets
+        .getByName("main")
+        .jniLibs.directories
+        .add(stockfishJniLibs.get().asFile.path)
 
     buildTypes {
         debug {
@@ -90,7 +101,10 @@ android {
 
 kotlin {
     compilerOptions {
-        jvmTarget.set(org.jetbrains.kotlin.gradle.dsl.JvmTarget.fromTarget(prop("postmortem.javaVersion")))
+        jvmTarget.set(
+            org.jetbrains.kotlin.gradle.dsl.JvmTarget
+                .fromTarget(prop("postmortem.javaVersion")),
+        )
     }
 }
 

@@ -49,17 +49,25 @@ class MainViewModel(
         }
     }
 
-    private fun startAnalysis(pgn: String, game: Game) {
+    private fun startAnalysis(
+        pgn: String,
+        game: Game,
+    ) {
         state = UiState.Analysing(pgn, game, done = 0, total = game.positionCount)
-        job = viewModelScope.launch {
-            analysis(game)
-                .flowOn(dispatcher)
-                .catch { state = UiState.Paste(pgn = pgn, engineFailed = true) }
-                .collect { progress ->
-                    state = if (progress.finished) UiState.Result(pgn, game, progress.evals)
-                    else UiState.Analysing(pgn, game, progress.done, progress.total)
-                }
-        }
+        job =
+            viewModelScope.launch {
+                analysis(game)
+                    .flowOn(dispatcher)
+                    .catch { state = UiState.Paste(pgn = pgn, engineFailed = true) }
+                    .collect { progress ->
+                        state =
+                            if (progress.finished) {
+                                UiState.Result(pgn, game, progress.evals)
+                            } else {
+                                UiState.Analysing(pgn, game, progress.done, progress.total)
+                            }
+                    }
+            }
     }
 
     fun selectPly(ply: Int) {
@@ -74,11 +82,12 @@ class MainViewModel(
 
     /** Back stops a running analysis, or leaves the result; either way the game stays in the paste box. */
     fun back(): Boolean {
-        val pgn = when (val current = state) {
-            is UiState.Analysing -> current.pgn
-            is UiState.Result -> current.pgn
-            is UiState.Paste -> return false
-        }
+        val pgn =
+            when (val current = state) {
+                is UiState.Analysing -> current.pgn
+                is UiState.Result -> current.pgn
+                is UiState.Paste -> return false
+            }
         job?.cancel()
         job = null
         state = UiState.Paste(pgn = pgn)

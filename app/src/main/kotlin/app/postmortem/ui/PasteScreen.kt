@@ -26,17 +26,23 @@ import app.postmortem.core.pgn.plyLabel
 import app.postmortem.ui.theme.Spacing
 
 @Composable
-fun PasteScreen(state: UiState.Paste, onPgnChange: (String) -> Unit, onAnalyse: () -> Unit) {
+fun PasteScreen(
+    state: UiState.Paste,
+    onPgnChange: (String) -> Unit,
+    onAnalyse: () -> Unit,
+) {
     Surface(
-        modifier = Modifier
-            .fillMaxSize()
-            .semantics { testTagsAsResourceId = true },
+        modifier =
+            Modifier
+                .fillMaxSize()
+                .semantics { testTagsAsResourceId = true },
         color = MaterialTheme.colorScheme.background,
     ) {
         Column(
-            modifier = Modifier
-                .safeDrawingPadding()
-                .padding(Spacing.screen),
+            modifier =
+                Modifier
+                    .safeDrawingPadding()
+                    .padding(Spacing.screen),
             verticalArrangement = Arrangement.spacedBy(Spacing.gap),
         ) {
             Text(stringResource(R.string.paste_title), style = MaterialTheme.typography.headlineMedium)
@@ -45,18 +51,20 @@ fun PasteScreen(state: UiState.Paste, onPgnChange: (String) -> Unit, onAnalyse: 
                 value = state.pgn,
                 onValueChange = onPgnChange,
                 label = { Text(stringResource(R.string.paste_label)) },
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .weight(1f)
-                    .testTag(UiTags.PASTE_INPUT),
+                modifier =
+                    Modifier
+                        .fillMaxWidth()
+                        .weight(1f)
+                        .testTag(UiTags.PASTE_INPUT),
             )
             StatusLine(state.error, state.engineFailed)
             Button(
                 onClick = onAnalyse,
                 enabled = state.canAnalyse,
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .testTag(UiTags.ANALYSE_BUTTON),
+                modifier =
+                    Modifier
+                        .fillMaxWidth()
+                        .testTag(UiTags.ANALYSE_BUTTON),
             ) { Text(stringResource(R.string.analyse_button)) }
             Text(
                 stringResource(R.string.version_label, BuildConfig.VERSION_NAME),
@@ -69,12 +77,16 @@ fun PasteScreen(state: UiState.Paste, onPgnChange: (String) -> Unit, onAnalyse: 
 }
 
 @Composable
-private fun StatusLine(error: PgnError?, engineFailed: Boolean) {
-    val message = when {
-        error != null -> errorText(error)
-        engineFailed -> stringResource(R.string.paste_engine_failed)
-        else -> return
-    }
+private fun StatusLine(
+    error: PgnError?,
+    engineFailed: Boolean,
+) {
+    val message =
+        when {
+            error != null -> errorText(error)
+            engineFailed -> stringResource(R.string.paste_engine_failed)
+            else -> return
+        }
     Text(
         message,
         color = MaterialTheme.colorScheme.error,
@@ -84,10 +96,11 @@ private fun StatusLine(error: PgnError?, engineFailed: Boolean) {
 }
 
 @Composable
-private fun errorText(error: PgnError): String = when (error) {
-    PgnError.Empty -> stringResource(R.string.paste_empty)
-    PgnError.NoMoves -> stringResource(R.string.paste_no_moves)
-    is PgnError.BadFen -> stringResource(R.string.paste_bad_fen, error.fen)
-    is PgnError.UnsupportedVariant -> stringResource(R.string.paste_variant, error.variant)
-    is PgnError.IllegalMove -> stringResource(R.string.paste_illegal_move, plyLabel(error.ply, error.san), error.ply)
-}
+private fun errorText(error: PgnError): String =
+    when (error) {
+        PgnError.Empty -> stringResource(R.string.paste_empty)
+        PgnError.NoMoves -> stringResource(R.string.paste_no_moves)
+        is PgnError.BadFen -> stringResource(R.string.paste_bad_fen, error.fen)
+        is PgnError.UnsupportedVariant -> stringResource(R.string.paste_variant, error.variant)
+        is PgnError.IllegalMove -> stringResource(R.string.paste_illegal_move, plyLabel(error.ply, error.san), error.ply)
+    }

@@ -15,9 +15,10 @@ import kotlin.test.assertTrue
 class AnalyserTest {
     private val quick = AnalysisConfig(moveTimeMs = 100, threads = 2, hashMb = 16)
 
-    private fun analyse(name: String) = runBlocking {
-        Analyser(quick, EngineBinary.require()).analyse(Fixtures.game(name)).toList()
-    }
+    private fun analyse(name: String) =
+        runBlocking {
+            Analyser(quick, EngineBinary.require()).analyse(Fixtures.game(name)).toList()
+        }
 
     @Test
     fun scholarsMateIsScoredEndToEnd() {
@@ -49,12 +50,16 @@ class AnalyserTest {
     }
 
     @Test
-    fun stoppingTheFlowEarlyKillsTheEngine() = runBlocking {
-        val factory = EngineBinary.require()
-        var process: Process? = null
-        val progress = Analyser(quick) { factory().also { process = it } }
-            .analyse(Fixtures.game("scholars-mate")).take(3).toList()
-        assertEquals(listOf(0, 1, 2), progress.map { it.done })
-        assertTrue(process!!.waitFor(5, TimeUnit.SECONDS), "the engine process is still running")
-    }
+    fun stoppingTheFlowEarlyKillsTheEngine() =
+        runBlocking {
+            val factory = EngineBinary.require()
+            var process: Process? = null
+            val progress =
+                Analyser(quick) { factory().also { process = it } }
+                    .analyse(Fixtures.game("scholars-mate"))
+                    .take(3)
+                    .toList()
+            assertEquals(listOf(0, 1, 2), progress.map { it.done })
+            assertTrue(process!!.waitFor(5, TimeUnit.SECONDS), "the engine process is still running")
+        }
 }

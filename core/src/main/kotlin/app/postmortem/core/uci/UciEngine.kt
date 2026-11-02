@@ -12,10 +12,16 @@ import kotlin.concurrent.thread
 /** Starts the engine process. On the phone and in the JVM tests this is `ProcessBuilder(path).start()`. */
 typealias ProcessFactory = () -> Process
 
-class EngineException(message: String, cause: Throwable? = null) : IOException(message, cause)
+class EngineException(
+    message: String,
+    cause: Throwable? = null,
+) : IOException(message, cause)
 
 /** What a search found: the last exact score and the move the engine chose. */
-data class SearchResult(val score: Score?, val bestMove: BestMove)
+data class SearchResult(
+    val score: Score?,
+    val bestMove: BestMove,
+)
 
 /**
  * A UCI engine on a [java.lang.Process]. Output is read on its own thread and handed over through a channel, so
@@ -58,13 +64,18 @@ class UciEngine private constructor(
     }
 
     /** Reads lines until [done] returns a value for one; [timeoutMs] bounds the wait. */
-    private suspend fun <T : Any> readUntil(timeoutMs: Long, what: String, done: (String) -> T?): T {
+    private suspend fun <T : Any> readUntil(
+        timeoutMs: Long,
+        what: String,
+        done: (String) -> T?,
+    ): T {
         try {
             return withTimeout(timeoutMs) {
                 var found: T? = null
                 while (found == null) {
-                    val line = lines.receiveCatching().getOrNull()
-                        ?: throw EngineException("the engine exited while we waited for $what")
+                    val line =
+                        lines.receiveCatching().getOrNull()
+                            ?: throw EngineException("the engine exited while we waited for $what")
                     found = done(line)
                 }
                 found
@@ -84,14 +95,18 @@ class UciEngine private constructor(
     }
 
     /** Searches [fen] for [moveTimeMs] and returns the last exact score the engine reported. */
-    suspend fun search(fen: String, moveTimeMs: Long = config.moveTimeMs): SearchResult {
+    suspend fun search(
+        fen: String,
+        moveTimeMs: Long = config.moveTimeMs,
+    ): SearchResult {
         send("position fen $fen")
         send("go movetime $moveTimeMs")
         var score: Score? = null
-        val best = readUntil(moveTimeMs + config.searchMarginMs, "bestmove") { line ->
-            UciParser.score(line)?.let { score = it }
-            UciParser.bestMove(line)
-        }
+        val best =
+            readUntil(moveTimeMs + config.searchMarginMs, "bestmove") { line ->
+                UciParser.score(line)?.let { score = it }
+                UciParser.bestMove(line)
+            }
         return SearchResult(score, best)
     }
 
@@ -111,12 +126,16 @@ class UciEngine private constructor(
 
     companion object {
         /** Starts the process and finishes the `uci`/`isready` handshake with the settings of [config]. */
-        suspend fun start(config: AnalysisConfig, factory: ProcessFactory): UciEngine {
-            val process = try {
-                factory()
-            } catch (e: IOException) {
-                throw EngineException("the engine could not be started", e)
-            }
+        suspend fun start(
+            config: AnalysisConfig,
+            factory: ProcessFactory,
+        ): UciEngine {
+            val process =
+                try {
+                    factory()
+                } catch (e: IOException) {
+                    throw EngineException("the engine could not be started", e)
+                }
             val engine = UciEngine(process, config)
             try {
                 engine.handshake()

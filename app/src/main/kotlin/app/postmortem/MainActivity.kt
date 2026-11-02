@@ -10,8 +10,8 @@ import androidx.activity.viewModels
 import androidx.core.splashscreen.SplashScreen.Companion.installSplashScreen
 import androidx.lifecycle.viewmodel.initializer
 import androidx.lifecycle.viewmodel.viewModelFactory
-import app.postmortem.core.analysis.AnalysisConfig
 import app.postmortem.core.analysis.Analyser
+import app.postmortem.core.analysis.AnalysisConfig
 import app.postmortem.ui.AnalysingScreen
 import app.postmortem.ui.PasteScreen
 import app.postmortem.ui.ResultScreen
@@ -36,12 +36,15 @@ class MainActivity : ComponentActivity() {
         setContent {
             PostmortemTheme {
                 when (val state = viewModel.state) {
-                    is UiState.Paste ->
+                    is UiState.Paste -> {
                         PasteScreen(state = state, onPgnChange = viewModel::onPgnChange, onAnalyse = viewModel::analyse)
+                    }
+
                     is UiState.Analysing -> {
                         BackHandler { viewModel.back() }
                         AnalysingScreen(state)
                     }
+
                     is UiState.Result -> {
                         BackHandler { viewModel.back() }
                         ResultScreen(state = state, onSelect = viewModel::selectPly, onStep = viewModel::step)
@@ -56,7 +59,12 @@ class MainActivity : ComponentActivity() {
         super.onWindowFocusChanged(hasFocus)
         if (!hasFocus) return
         val clipboard = getSystemService(ClipboardManager::class.java)
-        val text = clipboard.primaryClip?.takeIf { it.itemCount > 0 }?.getItemAt(0)?.text?.toString()
+        val text =
+            clipboard.primaryClip
+                ?.takeIf { it.itemCount > 0 }
+                ?.getItemAt(0)
+                ?.text
+                ?.toString()
         viewModel.onClipboard(text)
     }
 }

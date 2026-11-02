@@ -23,40 +23,51 @@ import app.postmortem.core.board.PieceKind
 import app.postmortem.ui.theme.LocalBoardPalette
 
 @DrawableRes
-private fun drawableOf(piece: BoardPiece): Int = when (piece.color) {
-    PieceColor.WHITE -> when (piece.kind) {
-        PieceKind.KING -> R.drawable.piece_white_king
-        PieceKind.QUEEN -> R.drawable.piece_white_queen
-        PieceKind.ROOK -> R.drawable.piece_white_rook
-        PieceKind.BISHOP -> R.drawable.piece_white_bishop
-        PieceKind.KNIGHT -> R.drawable.piece_white_knight
-        PieceKind.PAWN -> R.drawable.piece_white_pawn
+private fun drawableOf(piece: BoardPiece): Int =
+    when (piece.color) {
+        PieceColor.WHITE -> {
+            when (piece.kind) {
+                PieceKind.KING -> R.drawable.piece_white_king
+                PieceKind.QUEEN -> R.drawable.piece_white_queen
+                PieceKind.ROOK -> R.drawable.piece_white_rook
+                PieceKind.BISHOP -> R.drawable.piece_white_bishop
+                PieceKind.KNIGHT -> R.drawable.piece_white_knight
+                PieceKind.PAWN -> R.drawable.piece_white_pawn
+            }
+        }
+
+        PieceColor.BLACK -> {
+            when (piece.kind) {
+                PieceKind.KING -> R.drawable.piece_black_king
+                PieceKind.QUEEN -> R.drawable.piece_black_queen
+                PieceKind.ROOK -> R.drawable.piece_black_rook
+                PieceKind.BISHOP -> R.drawable.piece_black_bishop
+                PieceKind.KNIGHT -> R.drawable.piece_black_knight
+                PieceKind.PAWN -> R.drawable.piece_black_pawn
+            }
+        }
     }
-    PieceColor.BLACK -> when (piece.kind) {
-        PieceKind.KING -> R.drawable.piece_black_king
-        PieceKind.QUEEN -> R.drawable.piece_black_queen
-        PieceKind.ROOK -> R.drawable.piece_black_rook
-        PieceKind.BISHOP -> R.drawable.piece_black_bishop
-        PieceKind.KNIGHT -> R.drawable.piece_black_knight
-        PieceKind.PAWN -> R.drawable.piece_black_pawn
-    }
-}
 
 /** Draws the cells of a FEN. It decides nothing about chess: [BoardLayout] does. */
 @Composable
-fun BoardView(fen: String, modifier: Modifier = Modifier) {
+fun BoardView(
+    fen: String,
+    modifier: Modifier = Modifier,
+) {
     val cells: List<BoardCell> = remember(fen) { BoardLayout.cells(fen) }
     val palette = LocalBoardPalette.current
     BoxWithConstraints(modifier.aspectRatio(1f)) {
         val square = maxWidth / BoardLayout.SIZE
         Box(Modifier.fillMaxSize()) {
-            for (row in 0 until BoardLayout.SIZE) for (col in 0 until BoardLayout.SIZE) {
-                Box(
-                    Modifier
-                        .offset(square * col, square * row)
-                        .size(square)
-                        .background(if ((row + col) % 2 == 0) palette.lightSquare else palette.darkSquare),
-                )
+            for (row in 0 until BoardLayout.SIZE) {
+                for (col in 0 until BoardLayout.SIZE) {
+                    Box(
+                        Modifier
+                            .offset(square * col, square * row)
+                            .size(square)
+                            .background(if ((row + col) % 2 == 0) palette.lightSquare else palette.darkSquare),
+                    )
+                }
             }
             for (cell in cells) {
                 Image(
