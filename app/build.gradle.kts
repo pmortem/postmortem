@@ -1,3 +1,6 @@
+import java.nio.ByteBuffer
+import java.nio.ByteOrder
+
 plugins {
     alias(libs.plugins.android.application)
     alias(libs.plugins.kotlin.compose)
@@ -25,6 +28,20 @@ val stockfishJniLibs = layout.buildDirectory.dir("generated/stockfish/jniLibs")
 val stockfishLibName = "libstockfish.so"
 val stockfishAbi = "arm64-v8a"
 
+// Google Play needs 16 KB-aligned native code: fail the build when a LOAD segment of the engine is aligned to less.
+val requiredLoadAlignment = 0x4000L
+
+fun loadAlignments(elf: File): List<Long> {
+    val header = ByteBuffer.wrap(elf.readBytes()).order(ByteOrder.LITTLE_ENDIAN)
+    val phoff = header.getLong(0x20).toInt()
+    val phentsize = header.getShort(0x36).toInt()
+    val phnum = header.getShort(0x38).toInt()
+    return (0 until phnum)
+        .map { phoff + it * phentsize }
+        .filter { header.getInt(it) == 1 } // PT_LOAD
+        .map { header.getLong(it + 0x30) } // p_align
+}
+
 val stageStockfish by tasks.registering {
     val target = stockfishJniLibs.map { it.file("$stockfishAbi/$stockfishLibName") }
     val source = stockfishAndroid
@@ -34,6 +51,15 @@ val stageStockfish by tasks.registering {
         val binary =
             source.orNull?.takeIf { it.isFile }
                 ?: error("Stockfish for Android is missing: run scripts/lab/prepare (it needs LAB_CACHE).")
+        val aligned = loadAlignments(binary)
+        check(aligned.isNotEmpty() && aligned.all { it >= requiredLoadAlignment }) {
+            "$binary has LOAD segments aligned to ${aligned.map {
+                "0x" +
+                    it.toString(
+                        16,
+                    )
+            }}, not 0x4000: rebuild it with scripts/lab/prepare."
+        }
         target.get().asFile.let {
             it.parentFile.mkdirs()
             binary.copyTo(it, overwrite = true)
@@ -91,19 +117,36 @@ android {
         // The splash scene is drawn at run time from design/splash-scene.svg, so the app ships the file the design lives in.
         .add(rootProject.file("design").path)
 
-    buildTypes {
-        debug {
-            // Android shows a blocking "not 16 KB-compatible" dialog for debuggable apps (issue #4); it covers the
-            // UI the smoke check drives. The build is still signed with the debug key. This hides the warning, it does not fix the alignment.
-            isDebuggable = false
-        }
-    }
-
     lint {
         abortOnError = true
         checkReleaseBuilds = false
     }
 }
+
+// Google Play also needs the APK itself 16 KB-aligned: zipalign checks it after every debug build.
+val zipalign = androidComponents.sdkComponents.sdkDirectory.map { it.file("build-tools/${prop("postmortem.buildTools")}/zipalign") }
+val apkDir = layout.buildDirectory.dir("outputs/apk/debug")
+val checkApkAlignment by tasks.registering {
+    inputs.dir(apkDir)
+    doLast {
+        val apk =
+            apkDir
+                .get()
+                .asFile
+                .listFiles { f -> f.extension == "apk" }
+                ?.singleOrNull() ?: error("no debug APK in ${apkDir.get()}")
+        val process = ProcessBuilder(zipalign.get().asFile.path, "-c", "-P", "16", "-v", "4", apk.path).redirectErrorStream(true).start()
+        val output = process.inputStream.bufferedReader().readText()
+        check(process.waitFor() == 0) {
+            "zipalign -c -P 16 failed for $apk:\n${output.lines().filterNot {
+                it.endsWith(
+                    "(OK)",
+                ) || it.endsWith("(OK - compressed)")
+            }.joinToString("\n")}"
+        }
+    }
+}
+tasks.matching { it.name == "assembleDebug" }.configureEach { finalizedBy(checkApkAlignment) }
 
 kotlin {
     compilerOptions {

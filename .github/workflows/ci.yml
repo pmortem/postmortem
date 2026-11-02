@@ -32,6 +32,7 @@ jobs:
           echo "ANDROID_USER_HOME=$RUNNER_TEMP/android-user" >> "$GITHUB_ENV"
           mkdir -p "$RUNNER_TEMP/android-user"
       - uses: actions/cache@55cc8345863c7cc4c66a329aec7e433d2d1c52a9 # v6
+        id: lab-cache
         with:
           path: ${{ runner.temp }}/lab-cache
           key: lab-cache-${{ hashFiles('scripts/lab/stockfish.env') }}
@@ -42,6 +43,12 @@ jobs:
           build_tools=$(sed -n 's/^postmortem.buildTools=//p' gradle.properties)
           yes | sudo -E "$ANDROID_HOME/cmdline-tools/latest/bin/sdkmanager" --licenses > /dev/null || true
           sudo -E "$ANDROID_HOME/cmdline-tools/latest/bin/sdkmanager" "platforms;android-${compile_sdk}.0" "build-tools;${build_tools}"
+      # The phone's engine is built from source with this NDK (16 KB pages); the build is cached with the downloads.
+      - name: Android NDK (only when the engine is not cached)
+        if: steps.lab-cache.outputs.cache-hit != 'true'
+        run: |
+          set -a; source scripts/lab/stockfish.env; set +a
+          sudo -E "$ANDROID_HOME/cmdline-tools/latest/bin/sdkmanager" "ndk;${STOCKFISH_ANDROID_NDK}"
       - name: Prepare (the pinned Stockfish binaries)
         run: |
           mkdir -p "$LAB_CACHE"

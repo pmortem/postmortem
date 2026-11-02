@@ -1,0 +1,67 @@
+#!/usr/bin/env bash
+# Builds the phone's Stockfish from the pinned source with the Android NDK, linked for 16 KB pages.
+# Output: $LAB_CACHE/stockfish/<tag>/<asset>/<asset>. Cached by tag, source sha, NDK, arch and flags (see stockfish.env).
+# The build fails unless every LOAD segment of the result is aligned to 0x4000.
+# GPL: the exact source is the tag's tarball in stockfish.env; this script and its flags are the build recipe.
+set -euo pipefail
+
+here=$(cd "$(dirname "$0")" && pwd)
+# shellcheck source=stockfish.env
+source "$here/stockfish.env"
+: "${LAB_CACHE:?LAB_CACHE must point at the download cache}"
+sdk=${ANDROID_HOME:-${ANDROID_SDK_ROOT:-}}
+ndk=$sdk/ndk/$STOCKFISH_ANDROID_NDK
+[[ -d $ndk ]] || { echo "build-stockfish: NDK $STOCKFISH_ANDROID_NDK is missing: sdkmanager --install 'ndk;$STOCKFISH_ANDROID_NDK'" >&2; exit 1; }
+
+asset=$STOCKFISH_ANDROID_ASSET
+dest=$LAB_CACHE/stockfish/$STOCKFISH_TAG/$asset
+key=$(printf '%s\n' "$STOCKFISH_TAG" "$STOCKFISH_SOURCE_SHA256" "$STOCKFISH_ANDROID_NDK" "$STOCKFISH_ANDROID_ARCH" "$STOCKFISH_ANDROID_LDFLAGS" | sha256sum | cut -c1-16)
+bin=$dest/$asset
+readelf=$(echo "$ndk"/toolchains/llvm/prebuilt/*/bin/llvm-readelf)
+
+# Fails unless every LOAD segment has Align 0x4000.
+check_alignment() {
+  local aligns
+  aligns=$("$readelf" -lW "$1" | awk '$1 == "LOAD" { print $NF }')
+  [[ -n $aligns ]] || { echo "build-stockfish: no LOAD segments in $1" >&2; return 1; }
+  while read -r a; do
+    [[ $a == 0x4000 ]] || { echo "build-stockfish: LOAD segment aligned to $a, not 0x4000" >&2; return 1; }
+  done <<< "$aligns"
+}
+
+if [[ -x $bin && -f $dest/.build-key && $(cat "$dest/.build-key") == "$key" ]]; then
+  check_alignment "$bin"
+  exit 0
+fi
+
+work=$LAB_CACHE/build/$asset-$key
+tar=$LAB_CACHE/stockfish-$STOCKFISH_TAG-source.tar.gz
+rm -rf "$work"
+mkdir -p "$work"
+if ! { [[ -f $tar ]] && echo "$STOCKFISH_SOURCE_SHA256  $tar" | sha256sum -c --status; }; then
+  echo "build-stockfish: downloading the $STOCKFISH_TAG source"
+  curl -fsSL --retry 3 -o "$tar.part" "$STOCKFISH_SOURCE_URL"
+  mv "$tar.part" "$tar"
+fi
+echo "$STOCKFISH_SOURCE_SHA256  $tar" | sha256sum -c --status || { echo "build-stockfish: sha256 mismatch for $tar" >&2; rm -f "$tar"; exit 1; }
+tar -xzf "$tar" -C "$work" --strip-components=1
+
+# Gradle's own daemons hold memory the build box needs for the compiler.
+(cd "$here/../.." && ./gradlew --stop > /dev/null 2>&1 || true)
+
+echo "build-stockfish: building $asset (NDK $STOCKFISH_ANDROID_NDK, $STOCKFISH_ANDROID_ARCH)"
+export PATH=$(dirname "$readelf"):$PATH
+(
+  cd "$work/src"
+  make -j2 net
+  make -j2 build ARCH="$STOCKFISH_ANDROID_ARCH" COMP=ndk EXTRALDFLAGS="$STOCKFISH_ANDROID_LDFLAGS"
+)
+built=$work/src/stockfish
+check_alignment "$built"
+rm -rf "$dest"
+mkdir -p "$dest"
+install -m 755 "$built" "$bin"
+cp "$work/Copying.txt" "$dest/Copying.txt"
+echo "$key" > "$dest/.build-key"
+rm -rf "$work"
+echo "build-stockfish: done, LOAD segments aligned to 0x4000"

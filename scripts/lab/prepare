@@ -1,5 +1,5 @@
 #!/usr/bin/env bash
-# Fetches the pinned Stockfish binaries into $LAB_CACHE/stockfish/<tag>/<asset>/ (see stockfish.env).
+# Fetches the pinned linux Stockfish and builds the phone's (build-stockfish) into $LAB_CACHE/stockfish/<tag>/<asset>/ (see stockfish.env).
 # Safe to repeat: a tarball that is already there with the right sha256 is not downloaded again.
 # Gradle finds the binaries through $LAB_CACHE (see build.gradle.kts).
 set -euo pipefail
@@ -30,5 +30,5 @@ fetch() { # asset sha256
   echo "$sha" > "$dest/$asset/.sha256"
 }
 
-fetch "$STOCKFISH_ANDROID_ASSET" "$STOCKFISH_ANDROID_SHA256"
 fetch "$STOCKFISH_LINUX_ASSET" "$STOCKFISH_LINUX_SHA256"
+"$here/build-stockfish"
