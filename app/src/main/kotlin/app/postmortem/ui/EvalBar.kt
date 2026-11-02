@@ -3,6 +3,7 @@ package app.postmortem.ui
 import androidx.compose.animation.core.animateFloatAsState
 import androidx.compose.animation.core.tween
 import androidx.compose.foundation.background
+import androidx.compose.foundation.border
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.fillMaxHeight
 import androidx.compose.foundation.layout.fillMaxSize
@@ -58,6 +59,8 @@ fun EvalBar(
                 .fillMaxHeight(whiteShare)
                 .background(palette.whiteFill),
         )
+        // The white half is the page colour in light mode, so the bar needs an edge.
+        Box(Modifier.fillMaxSize().border(Spacing.evalBarBorder, palette.zeroLine))
         Box(Modifier.fillMaxSize().padding(vertical = Spacing.evalBarLabelPadding)) {
             Text(
                 eval.formatShort(),

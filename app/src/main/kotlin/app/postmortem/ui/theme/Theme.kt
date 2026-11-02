@@ -101,6 +101,7 @@ object Spacing {
     val coordinatePadding = 2.dp
     val evalBarWidth = 28.dp
     val evalBarLabelPadding = 2.dp
+    val evalBarBorder = 1.dp
     val evalBarMillis = 300
     val chartLine = 2.dp
     val chartMarker = 2.dp
