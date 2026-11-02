@@ -1,6 +1,6 @@
 <?xml version="1.0" encoding="utf-8"?>
 <resources>
-    <color name="splash_background">#FFFFFBF5</color>
-    <color name="icon_background">#FF2B3A33</color>
-    <color name="icon_foreground">#FFF3EBDD</color>
+    <!-- The splash scene is a night sky in both light and dark mode. -->
+    <color name="splash_background">#FF0D1016</color>
+    <color name="splash_text">#FFF4EEDD</color>
 </resources>

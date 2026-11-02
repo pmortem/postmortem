@@ -7,6 +7,10 @@ import androidx.activity.compose.BackHandler
 import androidx.activity.compose.setContent
 import androidx.activity.enableEdgeToEdge
 import androidx.activity.viewModels
+import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.saveable.rememberSaveable
+import androidx.compose.runtime.setValue
 import androidx.core.splashscreen.SplashScreen.Companion.installSplashScreen
 import androidx.lifecycle.viewmodel.initializer
 import androidx.lifecycle.viewmodel.viewModelFactory
@@ -15,6 +19,7 @@ import app.postmortem.core.analysis.AnalysisConfig
 import app.postmortem.ui.AnalysingScreen
 import app.postmortem.ui.PasteScreen
 import app.postmortem.ui.ResultScreen
+import app.postmortem.ui.SplashScreen
 import app.postmortem.ui.theme.PostmortemTheme
 
 class MainActivity : ComponentActivity() {
@@ -33,8 +38,14 @@ class MainActivity : ComponentActivity() {
         super.onCreate(savedInstanceState)
         enableEdgeToEdge()
         if (savedInstanceState == null) DebugInput.pgn(intent)?.let(viewModel::onPgnChange)
+        val coldStart = savedInstanceState == null
         setContent {
+            var showSplash by rememberSaveable { mutableStateOf(coldStart) }
             PostmortemTheme {
+                if (showSplash) {
+                    SplashScreen(onFinished = { showSplash = false })
+                    return@PostmortemTheme
+                }
                 when (val state = viewModel.state) {
                     is UiState.Paste -> {
                         PasteScreen(state = state, onPgnChange = viewModel::onPgnChange, onAnalyse = viewModel::analyse)

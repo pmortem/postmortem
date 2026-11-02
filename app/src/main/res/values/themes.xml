@@ -2,10 +2,13 @@
 <resources>
     <style name="Theme.Postmortem" parent="android:Theme.Material.NoActionBar" />
 
+    <!--
+        The system start-up screen shows only the background colour, with an empty icon, so the first
+        picture is the splash scene that SplashScreen.kt draws right after it.
+    -->
     <style name="Theme.Postmortem.Splash" parent="Theme.SplashScreen">
         <item name="windowSplashScreenBackground">@color/splash_background</item>
-        <item name="windowSplashScreenAnimatedIcon">@drawable/ic_pawn_tinted</item>
-        <item name="windowSplashScreenIconBackgroundColor">@color/icon_background</item>
+        <item name="windowSplashScreenAnimatedIcon">@drawable/splash_icon_empty</item>
         <item name="postSplashScreenTheme">@style/Theme.Postmortem</item>
     </style>
 </resources>

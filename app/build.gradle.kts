@@ -85,6 +85,12 @@ android {
         .jniLibs.directories
         .add(stockfishJniLibs.get().asFile.path)
 
+    sourceSets
+        .getByName("main")
+        .assets.directories
+        // The splash scene is drawn at run time from design/splash-scene.svg, so the app ships the file the design lives in.
+        .add(rootProject.file("design").path)
+
     buildTypes {
         debug {
             // Android shows a blocking "not 16 KB-compatible" dialog for debuggable apps (issue #4); it covers the
@@ -117,6 +123,7 @@ dependencies {
     implementation(libs.androidx.activity.compose)
     implementation(libs.androidx.lifecycle.viewmodel.compose)
     implementation(libs.androidx.core.splashscreen)
+    implementation(libs.androidsvg)
     implementation(libs.kotlinx.coroutines.core)
 
     debugImplementation(libs.androidx.compose.ui.tooling)

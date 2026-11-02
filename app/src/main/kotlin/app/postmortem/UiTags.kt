@@ -4,6 +4,7 @@ package app.postmortem
 object UiTags {
     const val PASTE_INPUT = "paste_input"
     const val ANALYSE_BUTTON = "analyse_button"
+    const val SPLASH_SCREEN = "splash_screen"
     const val VERSION_LABEL = "version_label"
     const val PASTE_STATUS = "paste_status"
     const val RESULT_BOARD = "result_board"
