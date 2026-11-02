@@ -7,6 +7,9 @@ import app.postmortem.core.pgn.GameOverview
 import app.postmortem.core.pgn.PgnError
 import app.postmortem.core.pgn.overview
 
+/** The views under the board on the Result screen. The selected move is shared, so switching tabs never changes the board. */
+enum class ResultTab { Moves, Chart, Summary }
+
 sealed interface UiState {
     /** [error] is why the last Analyse was refused; [engineFailed] says the engine broke during it. */
     data class Paste(
@@ -33,6 +36,8 @@ sealed interface UiState {
         val game: Game,
         val evals: List<Eval>,
         val selectedPly: Int = 0,
+        /** The one source of the selected tab: the tab bar and the content below it both read it. Each new result starts on Moves. */
+        val tab: ResultTab = ResultTab.Moves,
     ) : UiState {
         val canStepBack: Boolean get() = selectedPly > 0
         val canStepForward: Boolean get() = selectedPly < game.plies.size

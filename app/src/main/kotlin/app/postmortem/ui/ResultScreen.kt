@@ -42,6 +42,7 @@ import androidx.compose.ui.semantics.contentDescription
 import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.semantics.testTagsAsResourceId
 import app.postmortem.R
+import app.postmortem.ResultTab
 import app.postmortem.UiState
 import app.postmortem.UiTags
 import app.postmortem.core.analysis.format
@@ -55,6 +56,7 @@ fun ResultScreen(
     state: UiState.Result,
     onSelect: (Int) -> Unit,
     onStep: (Int) -> Unit,
+    onTab: (ResultTab) -> Unit,
 ) {
     Surface(
         modifier =
@@ -63,15 +65,14 @@ fun ResultScreen(
                 .semantics { testTagsAsResourceId = true },
         color = MaterialTheme.colorScheme.background,
     ) {
-        var tab by rememberSaveable { mutableStateOf(ResultTab.Moves) }
         Column(
             Modifier.safeDrawingPadding().padding(Spacing.screen),
             verticalArrangement = Arrangement.spacedBy(Spacing.gap),
         ) {
             BoardWithEvalBar(state)
             StepButtons(state, onStep)
-            ResultTabs(tab, onTab = { tab = it })
-            when (tab) {
+            ResultTabs(state.tab, onTab)
+            when (state.tab) {
                 ResultTab.Moves -> MoveList(state, onSelect, Modifier.weight(1f).fillMaxWidth())
                 ResultTab.Chart -> EvalChart(state, onSelect, Modifier.weight(1f).fillMaxWidth())
                 ResultTab.Summary -> SummaryScreen(state, Modifier.weight(1f).fillMaxWidth())
@@ -97,15 +98,19 @@ private fun BoardWithEvalBar(state: UiState.Result) {
     }
 }
 
-/** The views under the board. The selected move is shared, so switching tabs never changes the board. */
-private enum class ResultTab(
-    @StringRes val label: Int,
-    val tag: String,
-) {
-    Moves(R.string.tab_moves, UiTags.TAB_MOVES),
-    Chart(R.string.tab_chart, UiTags.TAB_CHART),
-    Summary(R.string.tab_summary, UiTags.TAB_SUMMARY),
-}
+private fun ResultTab.label(): Int =
+    when (this) {
+        ResultTab.Moves -> R.string.tab_moves
+        ResultTab.Chart -> R.string.tab_chart
+        ResultTab.Summary -> R.string.tab_summary
+    }
+
+private fun ResultTab.tag(): String =
+    when (this) {
+        ResultTab.Moves -> UiTags.TAB_MOVES
+        ResultTab.Chart -> UiTags.TAB_CHART
+        ResultTab.Summary -> UiTags.TAB_SUMMARY
+    }
 
 @Composable
 private fun ResultTabs(
@@ -117,8 +122,8 @@ private fun ResultTabs(
             Tab(
                 selected = tab == selected,
                 onClick = { onTab(tab) },
-                text = { Text(stringResource(tab.label), style = MaterialTheme.typography.labelLarge, maxLines = 1, softWrap = false) },
-                modifier = Modifier.testTag(tab.tag),
+                text = { Text(stringResource(tab.label()), style = MaterialTheme.typography.labelLarge, maxLines = 1, softWrap = false) },
+                modifier = Modifier.testTag(tab.tag()),
             )
         }
     }
