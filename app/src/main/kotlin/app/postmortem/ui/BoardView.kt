@@ -81,7 +81,7 @@ fun BoardView(
     }
 }
 
-/** Squares, then the coordinates as v1 drew them: bold text at a baseline in a corner, in the colour of the other square. */
+/** Squares, then the coordinates as the Lichess app draws them: regular text at a baseline in a corner, in the other square's colour. */
 private fun DrawScope.drawSquaresAndLabels(
     palette: BoardPalette,
     labels: List<BoardLabel>,
@@ -99,12 +99,13 @@ private fun DrawScope.drawSquaresAndLabels(
     val paint =
         Paint().apply {
             isAntiAlias = true
-            typeface = Typeface.DEFAULT_BOLD
+            typeface = Typeface.DEFAULT
             textSize = square * BoardLabels.TEXT_SIZE
         }
     drawIntoCanvas { canvas ->
         for (label in labels) {
             paint.color = (if (isLight(label.row, label.col)) palette.darkSquare else palette.lightSquare).toArgb()
+            paint.textAlign = if (label.isRank) Paint.Align.RIGHT else Paint.Align.LEFT
             canvas.nativeCanvas.drawText(label.text.toString(), label.x(square), label.y(square), paint)
         }
     }

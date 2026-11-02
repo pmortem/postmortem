@@ -158,52 +158,59 @@ class BoardLayoutTest {
     ) = labels.single { it.text == text && it.isRank == isRank }
 
     @Test
-    fun thereAreSixteenLabelsOnTheLeftFileAndTheBottomRank() {
+    fun thereAreSixteenLabelsOnTheRightFileAndTheBottomRank() {
         val labels = BoardLabels.all()
         assertEquals(16, labels.size)
-        assertTrue(labels.filter { it.isRank }.all { it.col == 0 })
+        assertTrue(labels.filter { it.isRank }.all { it.col == BoardLayout.SIZE - 1 })
         assertTrue(labels.filterNot { it.isRank }.all { it.row == BoardLayout.SIZE - 1 })
         assertEquals("87654321", labels.filter { it.isRank }.map { it.text }.joinToString(""))
         assertEquals("abcdefgh", labels.filterNot { it.isRank }.map { it.text }.joinToString(""))
     }
 
     @Test
-    fun theLabelsOnA1AreInOppositeCornersOfTheirSquares() {
+    fun theLabelsOnA1AndH1AreInTheBottomLeftOfTheirSquares() {
         val labels = BoardLabels.all()
-        // "1" is in the a1 square (row 7, col 0), top-left: x 6 px in, baseline 22 px below the square's top.
-        val one = label(labels, '1', isRank = true)
-        assertEquals(7 to 0, one.row to one.col)
-        assertEquals(6f, one.x(square), 1e-4f)
-        assertEquals(7 * square + 22f, one.y(square), 1e-4f)
-        // "a" is in the same square, bottom-right: starts 20 px left of the right edge, baseline 7 px above the bottom.
+        // The file letter "a" is in a1 (row 7, col 0): starts 6 px in, baseline 89 px below the square's top.
         val a = label(labels, 'a', isRank = false)
         assertEquals(7 to 0, a.row to a.col)
-        assertEquals(square - 20f, a.x(square), 1e-4f)
-        assertEquals(8 * square - 7f, a.y(square), 1e-4f)
+        assertEquals(6f, a.x(square), 1e-4f)
+        assertEquals(7 * square + 89f, a.y(square), 1e-4f)
+        // "h" is in h1 (row 7, col 7).
+        val h = label(labels, 'h', isRank = false)
+        assertEquals(7 to 7, h.row to h.col)
+        assertEquals(7 * square + 6f, h.x(square), 1e-4f)
     }
 
     @Test
-    fun theLabelsOnH8AreInTheTopRightSquare() {
+    fun theRankLabelsAreAtTheTopRightOfTheRightFile() {
         val labels = BoardLabels.all()
+        // "8" is in h8 (row 0, col 7): its right end is 93 px from the left edge of the square, baseline 21 px below the top.
         val eight = label(labels, '8', isRank = true)
-        assertEquals(0 to 0, eight.row to eight.col)
-        assertEquals(22f, eight.y(square), 1e-4f)
-        val h = label(labels, 'h', isRank = false)
-        assertEquals(7 to 7, h.row to h.col)
-        assertEquals(8 * square - 20f, h.x(square), 1e-4f)
+        assertEquals(0 to 7, eight.row to eight.col)
+        assertEquals(7 * square + 93f, eight.x(square), 1e-4f)
+        assertEquals(21f, eight.y(square), 1e-4f)
+        // "1" is in h1 (row 7, col 7).
+        val one = label(labels, '1', isRank = true)
+        assertEquals(7 to 7, one.row to one.col)
+        assertEquals(7 * square + 21f, one.y(square), 1e-4f)
     }
 
     @Test
     fun flippedLabelsKeepTheirCornersAndReverseTheirNames() {
         val flipped = BoardLabels.all(flipped = true)
+        // Still on the right file and the bottom rank; the board is turned, so the top row of the right file is rank 1
+        // and the bottom row reads h to a from the left.
+        assertTrue(flipped.filter { it.isRank }.all { it.col == BoardLayout.SIZE - 1 })
         assertEquals("12345678", flipped.filter { it.isRank }.map { it.text }.joinToString(""))
         assertEquals("hgfedcba", flipped.filterNot { it.isRank }.map { it.text }.joinToString(""))
-        // The first rank label is still on the top row of the left file; it now reads 1.
-        assertEquals(0 to 0, flipped.first { it.isRank }.let { it.row to it.col })
-        assertEquals('1', flipped.first { it.isRank }.text)
-        // The bottom-right square is a1 when flipped,.
+        assertEquals(0, flipped.first { it.isRank }.row)
+        // a1 is the bottom-right square when flipped: its letter is the last one and its digit "1" is at the top right.
         val a = label(flipped, 'a', isRank = false)
         assertEquals(7 to 7, a.row to a.col)
+        assertEquals(7 * square + 6f, a.x(square), 1e-4f)
+        val one = label(flipped, '1', isRank = true)
+        assertEquals(0 to 7, one.row to one.col)
+        assertEquals(7 * square + 93f, one.x(square), 1e-4f)
     }
 
     @Test
