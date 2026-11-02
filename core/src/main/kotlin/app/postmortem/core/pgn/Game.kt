@@ -7,6 +7,8 @@ data class Ply(
     val fen: String,
 )
 
+const val STANDARD_START_FEN = "rnbqkbnr/pppppppp/8/8/8/8/PPPPPPPP/RNBQKBNR w KQkq - 0 1"
+
 /** A parsed game. Position `n` is [startFen] for 0 and `plies[n - 1].fen` after that. */
 data class Game(
     val startFen: String,
@@ -17,6 +19,9 @@ data class Game(
 
     /** False for a game set up with Black to move (a `FEN` tag); the plies then start with Black. */
     val whiteMovesFirst: Boolean get() = startFen.split(' ').getOrNull(1) != "b"
+
+    /** True unless the game was set up from a `FEN`: the table of openings and Lichess's start eval only apply then. */
+    val startsFromStandardPosition: Boolean get() = startFen == STANDARD_START_FEN
 
     fun fenAt(position: Int): String = if (position == 0) startFen else plies[position - 1].fen
 }

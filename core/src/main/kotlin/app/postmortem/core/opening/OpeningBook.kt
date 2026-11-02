@@ -3,6 +3,7 @@ package app.postmortem.core.opening
 import app.postmortem.core.pgn.Game
 import app.postmortem.core.pgn.PgnParser
 import app.postmortem.core.pgn.PgnResult
+import app.postmortem.core.pgn.STANDARD_START_FEN
 
 /** An opening from the table: its ECO code and name, e.g. `C50` and `Italian Game`. */
 data class Opening(
@@ -44,8 +45,7 @@ class OpeningBook private constructor(
     companion object {
         private const val RESOURCE = "openings.tsv"
         private const val FIELDS = 3
-        private const val START_FEN = "rnbqkbnr/pppppppp/8/8/8/8/PPPPPPPP/RNBQKBNR w KQkq - 0 1"
-        private val START_KEY = positionKey(START_FEN)
+        private val START_KEY = positionKey(STANDARD_START_FEN)
 
         /**
          * Board, side to move and castling rights. The en passant square is left out on purpose: the same position carries it

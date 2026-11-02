@@ -29,7 +29,6 @@ import app.postmortem.core.pgn.GameOverview
 import app.postmortem.ui.theme.Spacing
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.withContext
-import kotlin.math.roundToInt
 
 private const val LABEL_WEIGHT = 1.4f
 private const val VALUE_WEIGHT = 1f
@@ -129,7 +128,7 @@ private fun PlayerTable(
     Column(verticalArrangement = Arrangement.spacedBy(Spacing.small)) {
         TableRow(null, stringResource(R.string.summary_white), stringResource(R.string.summary_black), header = true)
         TableRow(R.string.summary_accuracy, percent(white.accuracy), percent(black.accuracy))
-        TableRow(R.string.summary_acpl, number(white.acpl?.roundToInt()), number(black.acpl?.roundToInt()))
+        TableRow(R.string.summary_acpl, number(white.acpl), number(black.acpl))
         TableRow(R.string.summary_inaccuracies, number(white.inaccuracies), number(black.inaccuracies))
         TableRow(R.string.summary_mistakes, number(white.mistakes), number(black.mistakes))
         TableRow(R.string.summary_blunders, number(white.blunders), number(black.blunders))
