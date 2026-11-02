@@ -58,7 +58,13 @@ class MainActivity : ComponentActivity() {
 
                     is UiState.Result -> {
                         BackHandler { viewModel.back() }
-                        ResultScreen(state = state, onSelect = viewModel::selectPly, onStep = viewModel::step, onTab = viewModel::selectTab)
+                        ResultScreen(
+                            state = state,
+                            onSelect = viewModel::selectPly,
+                            onStep = viewModel::step,
+                            onTab = viewModel::selectTab,
+                            onFlip = viewModel::flip,
+                        )
                     }
                 }
             }
