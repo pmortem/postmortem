@@ -1,5 +1,6 @@
 package app.postmortem.ui
 
+import androidx.annotation.StringRes
 import androidx.compose.foundation.Canvas
 import androidx.compose.foundation.background
 import androidx.compose.foundation.gestures.awaitEachGesture
@@ -14,6 +15,7 @@ import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.geometry.Offset
+import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.Path
 import androidx.compose.ui.graphics.drawscope.DrawScope
 import androidx.compose.ui.graphics.drawscope.Stroke
@@ -25,14 +27,20 @@ import androidx.compose.ui.res.pluralStringResource
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.semantics.contentDescription
 import androidx.compose.ui.semantics.semantics
+import androidx.compose.ui.text.AnnotatedString
+import androidx.compose.ui.text.SpanStyle
+import androidx.compose.ui.text.buildAnnotatedString
+import androidx.compose.ui.text.withStyle
 import app.postmortem.R
 import app.postmortem.UiState
 import app.postmortem.UiTags
+import app.postmortem.core.analysis.Judgement
 import app.postmortem.core.analysis.format
 import app.postmortem.core.analysis.nearestPly
 import app.postmortem.core.analysis.winningChances
 import app.postmortem.core.pgn.plyLabel
 import app.postmortem.ui.theme.ChartPalette
+import app.postmortem.ui.theme.JudgementColors
 import app.postmortem.ui.theme.LocalChartPalette
 import app.postmortem.ui.theme.Spacing
 import kotlin.math.roundToInt
@@ -53,7 +61,15 @@ fun EvalChart(
     val position = selectedPositionName(state)
     val evalText = state.selectedEval.format()
     val selection = stringResource(R.string.chart_selected, position, evalText)
-    val description = pluralStringResource(R.plurals.chart_description, moves, moves) + ", " + selection
+    val report = state.report
+    val counts =
+        listOf(
+            pluralStringResource(R.plurals.judged_blunders, report.count(Judgement.BLUNDER), report.count(Judgement.BLUNDER)),
+            pluralStringResource(R.plurals.judged_mistakes, report.count(Judgement.MISTAKE), report.count(Judgement.MISTAKE)),
+            pluralStringResource(R.plurals.judged_inaccuracies, report.count(Judgement.INACCURACY), report.count(Judgement.INACCURACY)),
+        ).filterIndexed { index, _ -> report.count(Judgement.entries.reversed()[index]) > 0 }
+    val description =
+        (listOf(pluralStringResource(R.plurals.chart_description, moves, moves)) + counts + selection).joinToString(", ")
     Box(
         modifier
             .testTag(UiTags.EVAL_CHART)
@@ -69,15 +85,45 @@ fun EvalChart(
                 }
             },
     ) {
-        Canvas(Modifier.fillMaxSize()) { drawChart(palette, chances, state.selectedPly) }
+        Canvas(Modifier.fillMaxSize()) { drawChart(palette, chances, state.selectedPly, report.judgements) }
         MarkerLabel(
-            text = stringResource(R.string.chart_label, position, evalText),
+            text = labelText(position, evalText, report.judgements.getOrNull(state.selectedPly - 1)),
             ply = state.selectedPly,
             positions = chances.size,
             modifier = Modifier.testTag(UiTags.CHART_LABEL),
         )
     }
 }
+
+/** `4.Qxf7#  1-0`, with the judgement's marks (`?!`, `?`, `??`) after the move in the judgement's colour. */
+@Composable
+private fun labelText(
+    position: String,
+    evalText: String,
+    judgement: Judgement?,
+): AnnotatedString {
+    val marks = judgement?.let { stringResource(it.marksRes()) }.orEmpty()
+    return buildAnnotatedString {
+        append(position)
+        if (judgement != null) withStyle(SpanStyle(color = judgement.color())) { append(marks) }
+        append(stringResource(R.string.chart_label_eval, evalText))
+    }
+}
+
+private fun Judgement.color(): Color =
+    when (this) {
+        Judgement.INACCURACY -> JudgementColors.inaccuracy
+        Judgement.MISTAKE -> JudgementColors.mistake
+        Judgement.BLUNDER -> JudgementColors.blunder
+    }
+
+@StringRes
+private fun Judgement.marksRes(): Int =
+    when (this) {
+        Judgement.INACCURACY -> R.string.marks_inaccuracy
+        Judgement.MISTAKE -> R.string.marks_mistake
+        Judgement.BLUNDER -> R.string.marks_blunder
+    }
 
 /** Where the selected position is named: `21.Nf3`, or the start position. */
 @Composable
@@ -91,7 +137,7 @@ private fun selectedPositionName(state: UiState.Result): String =
 /** The selected move and its eval, beside the marker at the top of the chart; it flips to the other side near an edge. */
 @Composable
 private fun MarkerLabel(
-    text: String,
+    text: AnnotatedString,
     ply: Int,
     positions: Int,
     modifier: Modifier = Modifier,
@@ -120,6 +166,7 @@ private fun DrawScope.drawChart(
     palette: ChartPalette,
     chances: List<Float>,
     selectedPly: Int,
+    judgements: List<Judgement?>,
 ) {
     val middle = size.height / 2
     drawRect(palette.background, size = size)
@@ -140,5 +187,13 @@ private fun DrawScope.drawChart(
         drawPath(line, palette.line, style = Stroke(Spacing.chartLine.toPx()))
         val markerX = selectedPly * step
         drawLine(palette.marker, Offset(markerX, 0f), Offset(markerX, size.height), Spacing.chartMarker.toPx())
+        // A dot on the line at the position after each judged move; the selected move's dot is larger.
+        judgements.forEachIndexed { index, judgement ->
+            if (judgement == null) return@forEachIndexed
+            val ply = index + 1
+            val radius = (if (ply == selectedPly) Spacing.chartDotSelected else Spacing.chartDot).toPx()
+            drawCircle(palette.dotOutline, radius + Spacing.chartDotOutline.toPx(), points[ply])
+            drawCircle(judgement.color(), radius, points[ply])
+        }
     }
 }

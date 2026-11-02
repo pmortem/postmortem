@@ -136,4 +136,14 @@ class GameReportTest {
         // Black allowed the mate in 1 from an equal position.
         assertEquals(Judgement.BLUNDER, report.judgements[1])
     }
+
+    @Test
+    fun countsPerJudgementAddUpBothSides() {
+        // Ply 2 (Black) loses 0.7 pawns of eval, ply 3 (White) loses 3 pawns: an inaccuracy and a blunder.
+        val report = GameReport.of(cps(0, 0, 70, -230))
+        assertEquals(1, report.count(Judgement.INACCURACY))
+        assertEquals(1, report.count(Judgement.BLUNDER))
+        assertEquals(0, report.count(Judgement.MISTAKE))
+        assertEquals(report.judgements.count { it != null }, Judgement.entries.sumOf { report.count(it) })
+    }
 }

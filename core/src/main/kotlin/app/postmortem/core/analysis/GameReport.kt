@@ -23,6 +23,9 @@ data class GameReport(
     val black: PlayerReport,
     val judgements: List<Judgement?>,
 ) {
+    /** How many moves of both sides got [judgement]. */
+    fun count(judgement: Judgement): Int = judgements.count { it == judgement }
+
     companion object {
         private const val CP_LIMIT = 1000
         private const val ACCURACY_SCALE = 103.1668
