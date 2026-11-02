@@ -19,6 +19,7 @@ import androidx.compose.ui.platform.testTag
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.semantics.contentDescription
 import androidx.compose.ui.semantics.semantics
+import androidx.compose.ui.text.TextStyle
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.TextUnit
 import androidx.compose.ui.unit.sp
@@ -75,7 +76,8 @@ fun EvalBar(
         Box(Modifier.fillMaxSize().border(Spacing.evalBarBorder, palette.zeroLine))
         Text(
             eval.formatShort(),
-            fontSize = LABEL_SIZE,
+            // The line height equals the font size: the default one is taller than the bar and pushed the number down.
+            style = TextStyle(fontSize = LABEL_SIZE, lineHeight = LABEL_SIZE),
             textAlign = TextAlign.Center,
             maxLines = 1,
             softWrap = false,
