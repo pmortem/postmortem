@@ -3,10 +3,9 @@ wait version_label
 wait analyse_button
 shot paste
 tap analyse_button
-wait analysing_progress
+sleep 2
 shot analysing
 wait result_board
-wait eval_bar
 shot result
 wait move_6
 tap move_6
@@ -25,3 +24,7 @@ tap tab_summary
 wait summary
 sleep 2
 shot summary
+tap flip_button
+sleep 1
+shot flipped
+tap flip_button

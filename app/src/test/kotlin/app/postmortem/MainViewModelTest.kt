@@ -187,6 +187,30 @@ class MainViewModelTest {
     }
 
     @Test
+    fun flippingTurnsTheBoardAndKeepsTheMoveAndTheTabAndAFreshGameStartsUnflipped() {
+        val vm = viewModel()
+        vm.onPgnChange(fixture("lichess-short-resign"))
+        vm.analyse()
+        assertFalse(vm.result().flipped)
+        vm.selectPly(5)
+        vm.selectTab(ResultTab.Chart)
+        vm.flip()
+        assertTrue(vm.result().flipped)
+        assertEquals(5, vm.result().selectedPly)
+        assertEquals(ResultTab.Chart, vm.result().tab)
+        // Stepping leaves the board flipped and moves only the selection.
+        vm.step(1)
+        assertTrue(vm.result().flipped)
+        assertEquals(6, vm.result().selectedPly)
+        vm.flip()
+        assertFalse(vm.result().flipped)
+        vm.flip()
+        vm.back()
+        vm.analyse()
+        assertFalse(vm.result().flipped)
+    }
+
+    @Test
     fun backReturnsToThePastePageKeepingTheGame() {
         val vm = viewModel()
         vm.onPgnChange(fixture("lichess-draw"))

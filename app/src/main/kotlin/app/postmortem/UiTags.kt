@@ -9,6 +9,7 @@ object UiTags {
     const val PASTE_STATUS = "paste_status"
     const val RESULT_BOARD = "result_board"
     const val PREVIOUS_BUTTON = "prev_button"
+    const val FLIP_BUTTON = "flip_button"
     const val NEXT_BUTTON = "next_button"
     const val SUMMARY = "summary"
     const val OPENING = "opening"

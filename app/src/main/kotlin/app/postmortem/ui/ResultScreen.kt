@@ -37,6 +37,7 @@ import androidx.compose.runtime.setValue
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.platform.testTag
+import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.semantics.contentDescription
 import androidx.compose.ui.semantics.semantics
@@ -57,6 +58,7 @@ fun ResultScreen(
     onSelect: (Int) -> Unit,
     onStep: (Int) -> Unit,
     onTab: (ResultTab) -> Unit,
+    onFlip: () -> Unit,
 ) {
     Surface(
         modifier =
@@ -70,7 +72,7 @@ fun ResultScreen(
             verticalArrangement = Arrangement.spacedBy(Spacing.gap),
         ) {
             BoardWithEvalBar(state)
-            StepButtons(state, onStep)
+            StepButtons(state, onStep, onFlip)
             ResultTabs(state.tab, onTab)
             when (state.tab) {
                 ResultTab.Moves -> MoveList(state, onSelect, Modifier.weight(1f).fillMaxWidth())
@@ -88,13 +90,15 @@ private fun BoardWithEvalBar(state: UiState.Result) {
         val description = stringResource(R.string.result_board_description, positionName(state))
         BoardView(
             fen = state.game.fenAt(state.selectedPly),
+            flipped = state.flipped,
             modifier =
                 Modifier
                     .fillMaxWidth()
                     .testTag(UiTags.RESULT_BOARD)
                     .semantics { contentDescription = description },
         )
-        EvalBar(state.selectedEval, Modifier.fillMaxWidth().height(Spacing.evalBarHeight))
+        // The side at the bottom of the board fills from the left.
+        EvalBar(state.selectedEval, Modifier.fillMaxWidth().height(Spacing.evalBarHeight), whiteOnLeft = !state.flipped)
     }
 }
 
@@ -141,6 +145,7 @@ private fun positionName(state: UiState.Result): String =
 private fun StepButtons(
     state: UiState.Result,
     onStep: (Int) -> Unit,
+    onFlip: () -> Unit,
 ) {
     Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween) {
         IconButton(
@@ -148,6 +153,9 @@ private fun StepButtons(
             enabled = state.canStepBack,
             modifier = Modifier.testTag(UiTags.PREVIOUS_BUTTON),
         ) { Icon(Icons.AutoMirrored.Filled.ArrowBack, stringResource(R.string.result_previous)) }
+        IconButton(onClick = onFlip, modifier = Modifier.testTag(UiTags.FLIP_BUTTON)) {
+            Icon(painterResource(R.drawable.ic_flip_board), stringResource(R.string.result_flip))
+        }
         IconButton(
             onClick = { onStep(1) },
             enabled = state.canStepForward,

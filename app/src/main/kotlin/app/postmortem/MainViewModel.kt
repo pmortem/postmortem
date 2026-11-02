@@ -75,6 +75,12 @@ class MainViewModel(
         state = current.copy(selectedPly = ply.coerceIn(0, current.game.plies.size))
     }
 
+    /** Turns the board half around; the selected move, the tab and the chart stay as they are. */
+    fun flip() {
+        val current = state as? UiState.Result ?: return
+        state = current.copy(flipped = !current.flipped)
+    }
+
     fun selectTab(tab: ResultTab) {
         val current = state as? UiState.Result ?: return
         state = current.copy(tab = tab)

@@ -38,6 +38,8 @@ sealed interface UiState {
         val selectedPly: Int = 0,
         /** The one source of the selected tab: the tab bar and the content below it both read it. Each new result starts on Moves. */
         val tab: ResultTab = ResultTab.Moves,
+        /** Black at the bottom. A newly analysed game starts with White at the bottom; later features can set it. */
+        val flipped: Boolean = false,
     ) : UiState {
         val canStepBack: Boolean get() = selectedPly > 0
         val canStepForward: Boolean get() = selectedPly < game.plies.size
