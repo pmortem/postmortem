@@ -54,9 +54,12 @@ fun SummaryScreen(
             .padding(vertical = Spacing.gap),
         verticalArrangement = Arrangement.spacedBy(Spacing.gap),
     ) {
-        // The table first: the tab is short, and the numbers are what the Summary is for.
+        // The opening and the table first: the tab is short, and they are what the Summary is for.
+        openingText(overview)?.let {
+            Text(it, style = MaterialTheme.typography.titleMedium, modifier = Modifier.testTag(UiTags.OPENING))
+        }
         PlayerTable(report.white, report.black)
-        if (!overview.isEmpty) {
+        if (!overview.copy(opening = null, eco = null).isEmpty) {
             HorizontalDivider()
             Overview(overview)
         }
@@ -86,7 +89,6 @@ private fun Overview(overview: GameOverview) {
         overview.site?.let { InfoRow(R.string.summary_site, it) }
         overview.result?.let { InfoRow(R.string.summary_result, it) }
         overview.termination?.let { InfoRow(R.string.summary_termination, it) }
-        openingText(overview)?.let { InfoRow(R.string.summary_opening, it) }
     }
 }
 
