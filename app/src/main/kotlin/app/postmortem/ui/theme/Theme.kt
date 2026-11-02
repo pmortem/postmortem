@@ -99,6 +99,9 @@ object Spacing {
     val splashSpinner = 16.dp
     val coordinateTextRatio = 0.22f
     val coordinatePadding = 2.dp
+    val evalBarWidth = 28.dp
+    val evalBarLabelPadding = 2.dp
+    val evalBarMillis = 300
     val chartLine = 2.dp
     val chartMarker = 2.dp
     val chartZeroLine = 1.dp

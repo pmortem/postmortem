@@ -14,8 +14,8 @@
     <string name="paste_illegal_move">Illegal move %1$s (ply %2$d).</string>
     <string name="result_board_description">Board after %1$s</string>
     <string name="result_start_position">the start position</string>
-    <string name="result_previous">Previous</string>
-    <string name="result_next">Next</string>
+    <string name="result_previous">Previous move</string>
+    <string name="result_next">Next move</string>
     <string name="paste_engine_failed">The engine stopped before it finished. Try again.</string>
     <string name="analysing_title">Analysing</string>
     <string name="analysing_progress">Position %1$d of %2$d</string>

@@ -1,24 +1,29 @@
 package app.postmortem.ui
 
-import android.content.res.Configuration
 import androidx.annotation.StringRes
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
+import androidx.compose.foundation.layout.BoxWithConstraints
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
-import androidx.compose.foundation.layout.fillMaxHeight
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
+import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.safeDrawingPadding
+import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.lazy.rememberLazyListState
+import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.automirrored.filled.ArrowBack
+import androidx.compose.material.icons.automirrored.filled.ArrowForward
+import androidx.compose.material3.Icon
+import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
-import androidx.compose.material3.OutlinedButton
 import androidx.compose.material3.PrimaryTabRow
 import androidx.compose.material3.Surface
 import androidx.compose.material3.Tab
@@ -32,7 +37,6 @@ import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
-import androidx.compose.ui.platform.LocalConfiguration
 import androidx.compose.ui.platform.testTag
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.semantics.contentDescription
@@ -53,7 +57,6 @@ fun ResultScreen(
     onSelect: (Int) -> Unit,
     onStep: (Int) -> Unit,
 ) {
-    val landscape = LocalConfiguration.current.orientation == Configuration.ORIENTATION_LANDSCAPE
     Surface(
         modifier =
             Modifier
@@ -61,54 +64,39 @@ fun ResultScreen(
                 .semantics { testTagsAsResourceId = true },
         color = MaterialTheme.colorScheme.background,
     ) {
-        val board: @Composable (Modifier) -> Unit = { modifier ->
+        var tab by rememberSaveable { mutableStateOf(ResultTab.Moves) }
+        Column(
+            Modifier.safeDrawingPadding().padding(Spacing.screen),
+            verticalArrangement = Arrangement.spacedBy(Spacing.gap),
+        ) {
+            BoardWithEvalBar(state)
+            StepButtons(state, onStep)
+            ResultTabs(tab, onTab = { tab = it })
+            when (tab) {
+                ResultTab.Moves -> MoveList(state, onSelect, Modifier.weight(1f).fillMaxWidth())
+                ResultTab.Chart -> EvalChart(state, onSelect, Modifier.weight(1f).fillMaxWidth())
+                ResultTab.Summary -> TabPlaceholder(R.string.summary_placeholder)
+            }
+        }
+    }
+}
+
+/** The eval bar beside a square board: the bar is as tall as the board, which takes the width the bar leaves. */
+@Composable
+private fun BoardWithEvalBar(state: UiState.Result) {
+    BoxWithConstraints(Modifier.fillMaxWidth()) {
+        val side = maxWidth - Spacing.evalBarWidth - Spacing.gap
+        Row(horizontalArrangement = Arrangement.spacedBy(Spacing.gap)) {
+            EvalBar(state.selectedEval, Modifier.width(Spacing.evalBarWidth).height(side))
             val description = stringResource(R.string.result_board_description, positionName(state))
             BoardView(
                 fen = state.game.fenAt(state.selectedPly),
                 modifier =
-                    modifier
+                    Modifier
+                        .size(side)
                         .testTag(UiTags.RESULT_BOARD)
                         .semantics { contentDescription = description },
             )
-        }
-        val controls: @Composable () -> Unit = {
-            Column(verticalArrangement = Arrangement.spacedBy(Spacing.gap)) {
-                EvalLine(state)
-                StepButtons(state, onStep)
-            }
-        }
-        var tab by rememberSaveable { mutableStateOf(ResultTab.Moves) }
-        val tabs: @Composable (Modifier) -> Unit = { modifier ->
-            Column(modifier) {
-                ResultTabs(tab, onTab = { tab = it })
-                when (tab) {
-                    ResultTab.Moves -> MoveList(state, onSelect, Modifier.weight(1f).fillMaxWidth())
-                    ResultTab.Chart -> EvalChart(state, onSelect, Modifier.weight(1f).fillMaxWidth().padding(vertical = Spacing.gap))
-                    ResultTab.Summary -> TabPlaceholder(R.string.summary_placeholder)
-                }
-            }
-        }
-
-        if (landscape) {
-            Row(
-                Modifier.safeDrawingPadding().padding(Spacing.screen),
-                horizontalArrangement = Arrangement.spacedBy(Spacing.gap),
-            ) {
-                Column(Modifier.fillMaxHeight().weight(1f), verticalArrangement = Arrangement.spacedBy(Spacing.gap)) {
-                    board(Modifier.fillMaxWidth())
-                    controls()
-                }
-                tabs(Modifier.weight(1f).fillMaxHeight())
-            }
-        } else {
-            Column(
-                Modifier.safeDrawingPadding().padding(Spacing.screen),
-                verticalArrangement = Arrangement.spacedBy(Spacing.gap),
-            ) {
-                board(Modifier.fillMaxWidth())
-                controls()
-                tabs(Modifier.weight(1f).fillMaxWidth())
-            }
         }
     }
 }
@@ -150,15 +138,6 @@ private fun TabPlaceholder(
 }
 
 @Composable
-private fun EvalLine(state: UiState.Result) {
-    Text(
-        stringResource(R.string.result_eval_label, state.selectedEval.format()),
-        style = MaterialTheme.typography.titleMedium,
-        modifier = Modifier.testTag(UiTags.RESULT_EVAL),
-    )
-}
-
-@Composable
 private fun positionName(state: UiState.Result): String =
     if (state.selectedPly == 0) {
         stringResource(R.string.result_start_position)
@@ -171,17 +150,17 @@ private fun StepButtons(
     state: UiState.Result,
     onStep: (Int) -> Unit,
 ) {
-    Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(Spacing.gap)) {
-        OutlinedButton(
+    Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween) {
+        IconButton(
             onClick = { onStep(-1) },
             enabled = state.canStepBack,
-            modifier = Modifier.weight(1f).testTag(UiTags.PREVIOUS_BUTTON),
-        ) { Text(stringResource(R.string.result_previous)) }
-        OutlinedButton(
+            modifier = Modifier.testTag(UiTags.PREVIOUS_BUTTON),
+        ) { Icon(Icons.AutoMirrored.Filled.ArrowBack, stringResource(R.string.result_previous)) }
+        IconButton(
             onClick = { onStep(1) },
             enabled = state.canStepForward,
-            modifier = Modifier.weight(1f).testTag(UiTags.NEXT_BUTTON),
-        ) { Text(stringResource(R.string.result_next)) }
+            modifier = Modifier.testTag(UiTags.NEXT_BUTTON),
+        ) { Icon(Icons.AutoMirrored.Filled.ArrowForward, stringResource(R.string.result_next)) }
     }
 }
 
