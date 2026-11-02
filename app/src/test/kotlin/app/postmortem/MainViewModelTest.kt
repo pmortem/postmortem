@@ -162,6 +162,31 @@ class MainViewModelTest {
     }
 
     @Test
+    fun aNewAnalysisStartsOnTheMovesTabAndTheTabIsPartOfTheResult() {
+        val vm = viewModel()
+        vm.onPgnChange(fixture("lichess-short-resign"))
+        vm.analyse()
+        assertEquals(ResultTab.Moves, vm.result().tab)
+        vm.selectTab(ResultTab.Summary)
+        assertEquals(ResultTab.Summary, vm.result().tab)
+        // The tab is separate from the move: stepping and selecting leave it alone.
+        vm.step(1)
+        vm.selectPly(3)
+        assertEquals(ResultTab.Summary, vm.result().tab)
+        assertEquals(3, vm.result().selectedPly)
+        // Back to the paste page and a new analysis (the same game or another one): a fresh result on Moves.
+        vm.back()
+        vm.analyse()
+        assertEquals(ResultTab.Moves, vm.result().tab)
+        assertEquals(0, vm.result().selectedPly)
+        vm.selectTab(ResultTab.Chart)
+        vm.back()
+        vm.onPgnChange(fixture("lichess-draw"))
+        vm.analyse()
+        assertEquals(ResultTab.Moves, vm.result().tab)
+    }
+
+    @Test
     fun backReturnsToThePastePageKeepingTheGame() {
         val vm = viewModel()
         vm.onPgnChange(fixture("lichess-draw"))

@@ -75,6 +75,11 @@ class MainViewModel(
         state = current.copy(selectedPly = ply.coerceIn(0, current.game.plies.size))
     }
 
+    fun selectTab(tab: ResultTab) {
+        val current = state as? UiState.Result ?: return
+        state = current.copy(tab = tab)
+    }
+
     fun step(delta: Int) {
         val current = state as? UiState.Result ?: return
         selectPly(current.selectedPly + delta)
