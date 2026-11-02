@@ -18,9 +18,10 @@ class SlowFixturesTest {
     private val quietCentipawns = 100
     private val quietToleranceCentipawns = 120
 
-    private fun evalsOf(name: String): List<Eval> = runBlocking {
-        Analyser(config, EngineBinary.requireSlow()).analyse(Fixtures.game(name)).last().evals
-    }
+    private fun evalsOf(name: String): List<Eval> =
+        runBlocking {
+            Analyser(config, EngineBinary.requireSlow()).analyse(Fixtures.game(name)).last().evals
+        }
 
     @Test
     fun everyFixtureGameIsAnalysedToTheEnd() {
@@ -52,11 +53,12 @@ class SlowFixturesTest {
                 compared++
             } else if (abs(raw.toDouble() * 100) >= decisiveCentipawns) {
                 val white = raw.toDouble() > 0
-                val agrees = when (mine) {
-                    is Eval.Cp -> (mine.centipawns > 0) == white && abs(mine.centipawns) >= decisiveCentipawns / 2
-                    is Eval.Mate -> (mine.moves > 0) == white
-                    is Eval.Checkmate -> (mine.winner == PieceColor.WHITE) == white
-                }
+                val agrees =
+                    when (mine) {
+                        is Eval.Cp -> (mine.centipawns > 0) == white && abs(mine.centipawns) >= decisiveCentipawns / 2
+                        is Eval.Mate -> (mine.moves > 0) == white
+                        is Eval.Checkmate -> (mine.winner == PieceColor.WHITE) == white
+                    }
                 assertTrue(agrees, "ply ${index + 1}: lichess $raw, ours $mine")
                 compared++
             }
@@ -65,10 +67,11 @@ class SlowFixturesTest {
 
         // Quiet plies: the engines may differ, but not by much.
         val quiet = theirs.withIndex().filter { (_, raw) -> !raw.startsWith("#") && abs(raw.toDouble() * 100) < quietCentipawns }
-        val close = quiet.count { (index, raw) ->
-            val mine = ours[index + 1] as? Eval.Cp
-            mine != null && abs(mine.centipawns - raw.toDouble() * 100) <= quietToleranceCentipawns
-        }
+        val close =
+            quiet.count { (index, raw) ->
+                val mine = ours[index + 1] as? Eval.Cp
+                mine != null && abs(mine.centipawns - raw.toDouble() * 100) <= quietToleranceCentipawns
+            }
         assertTrue(close >= quiet.size * 0.9, "only $close of ${quiet.size} quiet plies are within $quietToleranceCentipawns cp")
     }
 }

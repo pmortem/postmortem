@@ -19,7 +19,7 @@ Needs JDK 21 and the Android SDK (compileSdk and build-tools versions are in `gr
 
 ```sh
 scripts/lab/prepare                      # downloads the pinned Stockfish binaries into $LAB_CACHE
-./gradlew assembleDebug test lint        # the same as CI
+./gradlew assembleDebug test lint spotlessCheck  # the same as CI (spotlessApply fixes formatting)
 ./gradlew test -Ppostmortem.slow=true    # also analyses every fixture game with the real engine
 ```
 

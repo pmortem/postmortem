@@ -11,7 +11,10 @@ java {
 
 kotlin {
     compilerOptions {
-        jvmTarget.set(org.jetbrains.kotlin.gradle.dsl.JvmTarget.fromTarget(javaVersion.toString()))
+        jvmTarget.set(
+            org.jetbrains.kotlin.gradle.dsl.JvmTarget
+                .fromTarget(javaVersion.toString()),
+        )
     }
 }
 

@@ -17,7 +17,12 @@ object PgnParser {
     private val standardVariants = setOf(STANDARD_VARIANT, "From Position")
 
     fun parse(text: String): PgnResult {
-        val lines = text.removePrefix("﻿").replace("\r\n", "\n").replace('\r', '\n').lines()
+        val lines =
+            text
+                .removePrefix("")
+                .replace("\r\n", "\n")
+                .replace('\r', '\n')
+                .lines()
         if (lines.all { it.isBlank() }) return PgnResult.Failure(PgnError.Empty)
 
         val headers = LinkedHashMap<String, String>()
@@ -44,11 +49,12 @@ object PgnParser {
         for (token in mainLineTokens(lines.drop(next))) {
             val san = token.replace("0-0-0", "O-O-O").replace("0-0", "O-O")
             val ply = plies.size + 1
-            val ok = try {
-                board.doMove(san)
-            } catch (e: Exception) {
-                false
-            }
+            val ok =
+                try {
+                    board.doMove(san)
+                } catch (e: Exception) {
+                    false
+                }
             if (!ok) return PgnResult.Failure(PgnError.IllegalMove(ply, token))
             plies += Ply(san, uciOf(board), board.fen)
         }
@@ -63,12 +69,13 @@ object PgnParser {
         return move.from.value().lowercase() + move.to.value().lowercase() + suffix
     }
 
-    private fun promotionLetter(type: PieceType) = when (type) {
-        PieceType.QUEEN -> "q"
-        PieceType.ROOK -> "r"
-        PieceType.BISHOP -> "b"
-        else -> "n"
-    }
+    private fun promotionLetter(type: PieceType) =
+        when (type) {
+            PieceType.QUEEN -> "q"
+            PieceType.ROOK -> "r"
+            PieceType.BISHOP -> "b"
+            else -> "n"
+        }
 
     /** The SAN tokens of the first game's main line, without comments, variations, NAGs and move numbers. */
     private fun mainLineTokens(lines: List<String>): List<String> {
@@ -100,13 +107,37 @@ object PgnParser {
             while (i < line.length && !finished) {
                 val c = line[i]
                 when {
-                    inBrace -> if (c == '}') inBrace = false
-                    c == '{' -> { flush(); inBrace = true }
-                    c == ';' -> { flush(); i = line.length }
-                    c == '(' -> { flush(); depth++ }
-                    c == ')' -> { flush(); if (depth > 0) depth-- }
-                    c.isWhitespace() -> flush()
-                    else -> word.append(c)
+                    inBrace -> {
+                        if (c == '}') inBrace = false
+                    }
+
+                    c == '{' -> {
+                        flush()
+                        inBrace = true
+                    }
+
+                    c == ';' -> {
+                        flush()
+                        i = line.length
+                    }
+
+                    c == '(' -> {
+                        flush()
+                        depth++
+                    }
+
+                    c == ')' -> {
+                        flush()
+                        if (depth > 0) depth--
+                    }
+
+                    c.isWhitespace() -> {
+                        flush()
+                    }
+
+                    else -> {
+                        word.append(c)
+                    }
                 }
                 i++
             }

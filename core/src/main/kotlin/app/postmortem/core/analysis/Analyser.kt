@@ -10,7 +10,11 @@ import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.flow
 
 /** [evals] holds the evaluation of positions 0 until [done]; position n is the position after ply n. */
-data class AnalysisProgress(val done: Int, val total: Int, val evals: List<Eval>) {
+data class AnalysisProgress(
+    val done: Int,
+    val total: Int,
+    val evals: List<Eval>,
+) {
     val finished: Boolean get() = done == total
 }
 
@@ -22,18 +26,19 @@ class Analyser(
      * Evaluates every position of [game] with one engine process, in White's point of view, and reports after each.
      * Checkmate and stalemate are scored without the engine. The process dies when the flow ends or is cancelled.
      */
-    fun analyse(game: Game): Flow<AnalysisProgress> = flow {
-        val total = game.positionCount
-        val evals = ArrayList<Eval>(total)
-        emit(AnalysisProgress(0, total, emptyList()))
-        UciEngine.start(config, processFactory).use { engine ->
-            for (position in 0 until total) {
-                val fen = game.fenAt(position)
-                evals += terminalEval(fen) ?: searchEval(engine, fen)
-                emit(AnalysisProgress(position + 1, total, evals.toList()))
+    fun analyse(game: Game): Flow<AnalysisProgress> =
+        flow {
+            val total = game.positionCount
+            val evals = ArrayList<Eval>(total)
+            emit(AnalysisProgress(0, total, emptyList()))
+            UciEngine.start(config, processFactory).use { engine ->
+                for (position in 0 until total) {
+                    val fen = game.fenAt(position)
+                    evals += terminalEval(fen) ?: searchEval(engine, fen)
+                    emit(AnalysisProgress(position + 1, total, evals.toList()))
+                }
             }
         }
-    }
 
     private fun terminalEval(fen: String): Eval? {
         val board = Board().apply { loadFromFen(fen) }
@@ -45,7 +50,10 @@ class Analyser(
         }
     }
 
-    private suspend fun searchEval(engine: UciEngine, fen: String): Eval {
+    private suspend fun searchEval(
+        engine: UciEngine,
+        fen: String,
+    ): Eval {
         val result = engine.search(fen)
         val score = result.score ?: throw EngineException("the engine gave no score for $fen")
         return Eval.fromScore(score, isWhiteToMove(fen))

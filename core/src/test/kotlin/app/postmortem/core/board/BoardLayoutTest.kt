@@ -9,20 +9,22 @@ import kotlin.test.assertTrue
 
 class BoardLayoutTest {
     private val startFen = "rnbqkbnr/pppppppp/8/8/8/8/PPPPPPPP/RNBQKBNR w KQkq - 0 1"
+
     private fun List<BoardCell>.at(square: String): BoardPiece? =
         BoardLayout.position(square).let { (row, col) -> firstOrNull { it.row == row && it.col == col }?.piece }
 
-    private fun piece(letter: Char) = BoardPiece(
-        if (letter.isUpperCase()) PieceColor.WHITE else PieceColor.BLACK,
-        when (letter.lowercaseChar()) {
-            'k' -> PieceKind.KING
-            'q' -> PieceKind.QUEEN
-            'r' -> PieceKind.ROOK
-            'b' -> PieceKind.BISHOP
-            'n' -> PieceKind.KNIGHT
-            else -> PieceKind.PAWN
-        },
-    )
+    private fun piece(letter: Char) =
+        BoardPiece(
+            if (letter.isUpperCase()) PieceColor.WHITE else PieceColor.BLACK,
+            when (letter.lowercaseChar()) {
+                'k' -> PieceKind.KING
+                'q' -> PieceKind.QUEEN
+                'r' -> PieceKind.ROOK
+                'b' -> PieceKind.BISHOP
+                'n' -> PieceKind.KNIGHT
+                else -> PieceKind.PAWN
+            },
+        )
 
     @Test
     fun theStartPositionHasWhiteAtTheBottom() {

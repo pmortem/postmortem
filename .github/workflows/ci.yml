@@ -47,7 +47,7 @@ jobs:
           mkdir -p "$LAB_CACHE"
           if [ -x scripts/lab/prepare ]; then scripts/lab/prepare; fi
       - name: Build, test and lint
-        run: ./gradlew assembleDebug test lint --no-daemon
+        run: ./gradlew assembleDebug test lint spotlessCheck --no-daemon
       - name: Upload reports
         if: always()
         uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2

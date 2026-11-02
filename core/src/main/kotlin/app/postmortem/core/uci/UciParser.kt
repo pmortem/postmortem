@@ -2,14 +2,20 @@ package app.postmortem.core.uci
 
 /** An engine score from the point of view of the side to move. */
 sealed interface Score {
-    data class Cp(val centipawns: Int) : Score
+    data class Cp(
+        val centipawns: Int,
+    ) : Score
 
     /** Mate in [moves] for the side to move; negative when the side to move gets mated; 0 when it is mated now. */
-    data class Mate(val moves: Int) : Score
+    data class Mate(
+        val moves: Int,
+    ) : Score
 }
 
 sealed interface BestMove {
-    data class Move(val uci: String) : BestMove
+    data class Move(
+        val uci: String,
+    ) : BestMove
 
     /** `bestmove (none)`: the position has no legal move. */
     data object None : BestMove
