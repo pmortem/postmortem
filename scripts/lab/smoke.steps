@@ -15,5 +15,8 @@ tap next_button
 sleep 1
 shot mate
 tap tab_chart
-sleep 1
+wait eval_chart
 shot chart
+tap eval_chart
+sleep 1
+shot chart-mid
