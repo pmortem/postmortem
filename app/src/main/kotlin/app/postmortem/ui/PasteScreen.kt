@@ -17,6 +17,7 @@ import androidx.compose.ui.platform.testTag
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.semantics.testTagsAsResourceId
+import app.postmortem.BuildConfig
 import app.postmortem.R
 import app.postmortem.UiState
 import app.postmortem.UiTags
@@ -57,6 +58,12 @@ fun PasteScreen(state: UiState.Paste, onPgnChange: (String) -> Unit, onAnalyse: 
                     .fillMaxWidth()
                     .testTag(UiTags.ANALYSE_BUTTON),
             ) { Text(stringResource(R.string.analyse_button)) }
+            Text(
+                stringResource(R.string.version_label, BuildConfig.VERSION_NAME),
+                style = MaterialTheme.typography.labelSmall,
+                color = MaterialTheme.colorScheme.onSurfaceVariant,
+                modifier = Modifier.testTag(UiTags.VERSION_LABEL),
+            )
         }
     }
 }

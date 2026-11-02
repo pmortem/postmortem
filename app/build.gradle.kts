@@ -5,6 +5,15 @@ plugins {
 
 fun prop(name: String) = providers.gradleProperty(name).get()
 
+fun git(vararg args: String) = providers.exec {
+    commandLine("git", *args)
+    isIgnoreExitValue = true
+}.standardOutput.asText.map { it.trim() }.orElse("")
+
+// versionCode is the commit count and versionName is "<semver>+<short sha>", so every build on the phone says where it came from.
+val commitCount = git("rev-list", "--count", "HEAD").map { it.toIntOrNull() ?: 1 }.get()
+val commitSha = git("rev-parse", "--short", "HEAD").map { it.ifEmpty { "unknown" } }.get()
+
 // The phone's Stockfish ships as libstockfish.so for arm64. scripts/lab/prepare fetches it into $LAB_CACHE.
 @Suppress("UNCHECKED_CAST")
 val stockfishAndroid = rootProject.extra["stockfishAndroid"] as Provider<File>
@@ -40,8 +49,8 @@ android {
         applicationId = prop("postmortem.applicationId")
         minSdk = prop("postmortem.minSdk").toInt()
         targetSdk = prop("postmortem.targetSdk").toInt()
-        versionCode = prop("postmortem.versionCode").toInt()
-        versionName = prop("postmortem.versionName")
+        versionCode = commitCount
+        versionName = "${prop("postmortem.versionName")}+$commitSha"
         buildConfigField("String", "ENGINE_LIBRARY", "\"$stockfishLibName\"")
     }
 

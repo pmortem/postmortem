@@ -1,4 +1,5 @@
 wait paste_input
+wait version_label
 wait analyse_button
 shot paste
 tap analyse_button
