@@ -15,6 +15,9 @@ data class Game(
 ) {
     val positionCount: Int get() = plies.size + 1
 
+    /** False for a game set up with Black to move (a `FEN` tag); the plies then start with Black. */
+    val whiteMovesFirst: Boolean get() = startFen.split(' ').getOrNull(1) != "b"
+
     fun fenAt(position: Int): String = if (position == 0) startFen else plies[position - 1].fen
 }
 

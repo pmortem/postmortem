@@ -1,8 +1,11 @@
 package app.postmortem
 
 import app.postmortem.core.analysis.Eval
+import app.postmortem.core.analysis.GameReport
 import app.postmortem.core.pgn.Game
+import app.postmortem.core.pgn.GameOverview
 import app.postmortem.core.pgn.PgnError
+import app.postmortem.core.pgn.overview
 
 sealed interface UiState {
     /** [error] is why the last Analyse was refused; [engineFailed] says the engine broke during it. */
@@ -34,5 +37,9 @@ sealed interface UiState {
         val canStepBack: Boolean get() = selectedPly > 0
         val canStepForward: Boolean get() = selectedPly < game.plies.size
         val selectedEval: Eval get() = evals[selectedPly]
+
+        /** Accuracy, ACPL and the judged moves; worked out once, when the Summary or the chart first asks. */
+        val report: GameReport by lazy(LazyThreadSafetyMode.NONE) { GameReport.of(evals, game.whiteMovesFirst) }
+        val overview: GameOverview get() = game.overview
     }
 }
