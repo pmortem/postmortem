@@ -19,4 +19,4 @@ wait eval_chart
 shot chart
 tap eval_chart
 sleep 1
-shot chart-mid
+shot chartmid
