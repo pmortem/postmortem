@@ -30,6 +30,18 @@ object BoardLayout {
             'p' to PieceKind.PAWN,
         )
 
+    /** The file letter of screen column [col]: `a` at 0 up to `h` at 7. */
+    fun fileName(col: Int): Char {
+        require(col in 0 until SIZE) { "column $col is off the board" }
+        return 'a' + col
+    }
+
+    /** The rank number of screen row [row]: `8` at the top row 0 down to `1` at row 7, White at the bottom. */
+    fun rankName(row: Int): Char {
+        require(row in 0 until SIZE) { "row $row is off the board" }
+        return '1' + (SIZE - 1 - row)
+    }
+
     fun cells(fen: String): List<BoardCell> {
         val ranks = fen.substringBefore(' ').split('/')
         require(ranks.size == SIZE) { "FEN needs $SIZE ranks: $fen" }

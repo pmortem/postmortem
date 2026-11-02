@@ -120,4 +120,26 @@ class BoardLayoutTest {
         assertFailsWith<IllegalArgumentException> { BoardLayout.cells("rnbqkbnr/pppppppp/8/8/8/8/PPPPPPPP/RNBQKBN w") }
         assertFailsWith<IllegalArgumentException> { BoardLayout.cells("xnbqkbnr/pppppppp/8/8/8/8/PPPPPPPP/RNBQKBNR w") }
     }
+
+    @Test
+    fun coordinatesRunAToHAndEightToOne() {
+        assertEquals("abcdefgh", (0 until BoardLayout.SIZE).map(BoardLayout::fileName).joinToString(""))
+        assertEquals("87654321", (0 until BoardLayout.SIZE).map(BoardLayout::rankName).joinToString(""))
+    }
+
+    @Test
+    fun coordinatesAgreeWithWherePiecesAreDrawn() {
+        // In the start position the white king is on e1: the bottom row, and the column named e.
+        val king =
+            BoardLayout
+                .cells("rnbqkbnr/pppppppp/8/8/8/8/PPPPPPPP/RNBQKBNR w KQkq - 0 1")
+                .single { it.piece == BoardPiece(PieceColor.WHITE, PieceKind.KING) }
+        assertEquals("e1", "${BoardLayout.fileName(king.col)}${BoardLayout.rankName(king.row)}")
+    }
+
+    @Test
+    fun coordinatesOutsideTheBoardAreRefused() {
+        assertFailsWith<IllegalArgumentException> { BoardLayout.fileName(8) }
+        assertFailsWith<IllegalArgumentException> { BoardLayout.rankName(-1) }
+    }
 }
