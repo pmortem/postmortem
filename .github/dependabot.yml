@@ -3,16 +3,22 @@ updates:
   - package-ecosystem: github-actions
     directory: /
     schedule:
-      interval: monthly
+      interval: weekly
     commit-message:
       prefix: "chore(ci)"
+    groups:
+      actions:
+        patterns: ["*"]
 
   - package-ecosystem: gradle
     directory: /
     schedule:
-      interval: monthly
+      interval: weekly
     commit-message:
       prefix: "chore(deps)"
+    groups:
+      gradle:
+        patterns: ["*"]
     # Kotlin, the Compose compiler plugin, the Compose libraries and the Android Gradle plugin must be
     # upgraded together and tested on a phone, so Dependabot does not propose them. Upgrade them by hand
     # in a dedicated branch once the app builds and runs.
