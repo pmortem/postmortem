@@ -1,15 +1,11 @@
 wait paste_input
-wait version_label
-wait analyse_button
 shot paste
 tap analyse_button
-sleep 2
-shot analysing
 wait result_board
 shot result
 wait move_6
 tap move_6
-sleep 1
+sleep 5
 shot move6
 tap next_button
 sleep 1
@@ -28,3 +24,7 @@ tap flip_button
 sleep 1
 shot flipped
 tap flip_button
+tap engine_toggle
+sleep 1
+shot arrowsoff
+tap engine_toggle

@@ -16,6 +16,14 @@ data class BoardCell(
     val piece: BoardPiece,
 )
 
+/** The squares a move goes from and to, as the board is drawn: (row, col) each. */
+data class BoardArrow(
+    val fromRow: Int,
+    val fromCol: Int,
+    val toRow: Int,
+    val toCol: Int,
+)
+
 /** Maps a FEN to the cells Compose draws, White at the bottom, so a wrong position is a logic bug a test catches. */
 object BoardLayout {
     const val SIZE = 8
@@ -76,6 +84,21 @@ object BoardLayout {
 
     /** The cell of an algebraic square such as `e4`, as (row, col). */
     fun position(square: String): Pair<Int, Int> = (SIZE - (square[1] - '0')) to (square[0] - 'a')
+
+    /** The squares of a move in UCI (`e2e4`, `e7e8q`, `e1g1`), where they are drawn: rotated half a turn when [flipped]. */
+    fun arrow(
+        uci: String,
+        flipped: Boolean = false,
+    ): BoardArrow {
+        require(uci.length >= 4) { "not a UCI move: $uci" }
+        val (fromRow, fromCol) = position(uci.substring(0, 2))
+        val (toRow, toCol) = position(uci.substring(2, 4))
+        return if (flipped) {
+            BoardArrow(SIZE - 1 - fromRow, SIZE - 1 - fromCol, SIZE - 1 - toRow, SIZE - 1 - toCol)
+        } else {
+            BoardArrow(fromRow, fromCol, toRow, toCol)
+        }
+    }
 }
 
 /**

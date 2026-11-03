@@ -16,6 +16,7 @@
     <string name="result_start_position">the start position</string>
     <string name="result_previous">Previous move</string>
     <string name="result_flip">Flip board</string>
+    <string name="result_engine_toggle">Engine arrows on/off</string>
     <string name="result_next">Next move</string>
     <string name="paste_engine_failed">The engine stopped before it finished. Try again.</string>
     <string name="analysing_title">Analysing</string>

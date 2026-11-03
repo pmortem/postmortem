@@ -1,0 +1,14 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- Two arrows, the live engine's best moves. -->
+<vector xmlns:android="http://schemas.android.com/apk/res/android"
+    android:width="24dp"
+    android:height="24dp"
+    android:viewportWidth="24"
+    android:viewportHeight="24">
+    <path
+        android:fillColor="#FF000000"
+        android:pathData="M5,19L16.6,7.4L14,7V5H20V11H18L17.6,8.4L6.4,20Z" />
+    <path
+        android:fillColor="#99000000"
+        android:pathData="M4,12L4,4L12,4L12,6L7.4,6L10,8.6L8.6,10L6,7.4L6,12Z" />
+</vector>

@@ -223,4 +223,22 @@ class BoardLayoutTest {
             BoardLayout.cells(start, flipped = true).map { it.piece to (it.row to it.col) }.toSet(),
         )
     }
+
+    @Test
+    fun aMoveIsAnArrowBetweenTheDrawnSquares() {
+        assertEquals(BoardArrow(6, 4, 4, 4), BoardLayout.arrow("e2e4"))
+        assertEquals(BoardArrow(7, 6, 5, 5), BoardLayout.arrow("g1f3"))
+        // castling is the king's move, a promotion's letter is ignored
+        assertEquals(BoardArrow(7, 4, 7, 6), BoardLayout.arrow("e1g1"))
+        assertEquals(BoardArrow(1, 4, 0, 4), BoardLayout.arrow("e7e8q"))
+    }
+
+    @Test
+    fun theArrowTurnsWithTheBoardWhenItIsFlipped() {
+        assertEquals(BoardArrow(1, 3, 3, 3), BoardLayout.arrow("e2e4", flipped = true))
+        // the squares of the arrow are where the flipped board's pieces are
+        val cells = BoardLayout.cells("rnbqkbnr/pppppppp/8/8/8/8/PPPPPPPP/RNBQKBNR w KQkq - 0 1", flipped = true)
+        val arrow = BoardLayout.arrow("e2e4", flipped = true)
+        assertEquals(PieceKind.PAWN, cells.single { it.row == arrow.fromRow && it.col == arrow.fromCol }.piece.kind)
+    }
 }
