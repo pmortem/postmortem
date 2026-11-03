@@ -21,6 +21,19 @@ sealed interface BestMove {
     data object None : BestMove
 }
 
+/** One principal variation an `info` line reports: line [multiPv] (1 is the best), at [depth], with its exact [score]. */
+data class PvInfo(
+    val multiPv: Int,
+    val depth: Int,
+    val score: Score,
+    val nodes: Long,
+    val timeMs: Long,
+    val pv: List<String>,
+) {
+    /** Nodes per second, or null when the engine reported no time. */
+    val nodesPerSecond: Long? get() = if (timeMs > 0) nodes * 1000 / timeMs else null
+}
+
 object UciParser {
     private const val NO_MOVE = "(none)"
 
@@ -37,6 +50,21 @@ object UciParser {
             "mate" -> Score.Mate(value)
             else -> null
         }
+    }
+
+    /**
+     * The line of a `MultiPV` `info` that carries a depth, an exact score and a move list, or null for any other line. A line
+     * without `multipv` is line 1. Lower and upper bounds are ignored, as in [score].
+     */
+    fun pv(line: String): PvInfo? {
+        val words = line.trim().split(' ').filter { it.isNotEmpty() }
+        val score = score(line) ?: return null
+        val depth = words.getOrNull(words.indexOf("depth") + 1)?.toIntOrNull() ?: return null
+        val pvAt = words.indexOf("pv")
+        if (pvAt < 0 || pvAt == words.lastIndex) return null
+        val multiPv = if (words.contains("multipv")) words.getOrNull(words.indexOf("multipv") + 1)?.toIntOrNull() ?: return null else 1
+        val (nodes, time) = effort(line) ?: (0L to 0L)
+        return PvInfo(multiPv, depth, score, nodes, time, words.subList(pvAt + 1, words.size))
     }
 
     /** The `nodes` and `time` (ms) an `info` line reports, or null when it carries no such pair. */
