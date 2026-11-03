@@ -86,6 +86,7 @@ class MainViewModel(
     ) {
         stopLive()
         state = UiState.Analysing(pgn, game, done = 0, total = game.positionCount)
+        var furthest = 0
         job =
             viewModelScope.launch {
                 analysis(game)
@@ -96,7 +97,8 @@ class MainViewModel(
                             if (progress.finished) {
                                 UiState.Result(pgn, game, progress.evals, analysisSettings = analysisSettings)
                             } else {
-                                UiState.Analysing(pgn, game, progress.done, progress.total)
+                                furthest = maxOf(furthest, progress.done)
+                                UiState.Analysing(pgn, game, furthest, progress.total)
                             }
                         if (progress.finished) restartLive()
                     }
