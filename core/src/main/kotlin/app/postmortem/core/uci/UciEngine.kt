@@ -1,13 +1,16 @@
 package app.postmortem.core.uci
 
 import app.postmortem.core.analysis.AnalysisConfig
+import kotlinx.coroutines.NonCancellable
 import kotlinx.coroutines.TimeoutCancellationException
 import kotlinx.coroutines.channels.Channel
+import kotlinx.coroutines.withContext
 import kotlinx.coroutines.withTimeout
 import java.io.IOException
 import java.io.OutputStream
 import java.util.concurrent.TimeUnit
 import kotlin.concurrent.thread
+import kotlin.coroutines.cancellation.CancellationException
 
 /** Starts the engine process. On the phone and in the JVM tests this is `ProcessBuilder(path).start()`. */
 typealias ProcessFactory = () -> Process
@@ -121,6 +124,42 @@ class UciEngine private constructor(
                 UciParser.bestMove(line)
             }
         return SearchResult(score, best, effort?.first ?: 0, effort?.second ?: 0)
+    }
+
+    /** Sets an engine option and waits until the engine has taken it. */
+    suspend fun setOption(
+        name: String,
+        value: Any,
+    ) {
+        send("setoption name $name value $value")
+        send("isready")
+        readUntil(config.handshakeTimeoutMs, "readyok") { if (it.trim() == "readyok") Unit else null }
+    }
+
+    /**
+     * Searches [fen] for at most [movetimeMs] and passes every principal-variation `info` line to [onInfo]. Returns when the
+     * engine has chosen its move. Cancelling it sends `stop` and waits for the engine's answer first, so the engine can be used
+     * for the next position (unlike a cancelled [search]); the hash is kept.
+     */
+    suspend fun searchLive(
+        fen: String,
+        movetimeMs: Long,
+        onInfo: (PvInfo) -> Unit,
+    ) {
+        send("position fen $fen")
+        send("go movetime $movetimeMs")
+        try {
+            readUntil(movetimeMs + config.searchTimeoutMs, "bestmove") { line ->
+                UciParser.pv(line)?.let(onInfo)
+                UciParser.bestMove(line)
+            }
+        } catch (e: CancellationException) {
+            withContext(NonCancellable) {
+                send("stop")
+                readUntil(config.handshakeTimeoutMs, "bestmove after stop") { UciParser.bestMove(it) }
+            }
+            throw e
+        }
     }
 
     val isAlive: Boolean get() = process.isAlive
