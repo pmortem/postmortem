@@ -87,7 +87,7 @@ fun EvalChart(
     ) {
         Canvas(Modifier.fillMaxSize()) { drawChart(palette, chances, state.selectedPly, report.judgements) }
         MarkerLabel(
-            text = labelText(position, evalText, report.judgements.getOrNull(state.selectedPly - 1)),
+            text = labelText(position.takeIf { state.selectedPly > 0 }, evalText, report.judgements.getOrNull(state.selectedPly - 1)),
             ply = state.selectedPly,
             positions = chances.size,
             modifier = Modifier.testTag(UiTags.CHART_LABEL),
@@ -95,15 +95,19 @@ fun EvalChart(
     }
 }
 
-/** `4.Qxf7#  1-0`, with the judgement's marks (`?!`, `?`, `??`) after the move in the judgement's colour. */
+/** `4.Qxf7#  1-0`, with the judgement's marks (`?!`, `?`, `??`) after the move in the judgement's colour. At the start position [position] is null and only the eval shows. */
 @Composable
 private fun labelText(
-    position: String,
+    position: String?,
     evalText: String,
     judgement: Judgement?,
 ): AnnotatedString {
     val marks = judgement?.let { stringResource(it.marksRes()) }.orEmpty()
     return buildAnnotatedString {
+        if (position == null) {
+            append(evalText)
+            return@buildAnnotatedString
+        }
         append(position)
         if (judgement != null) withStyle(SpanStyle(color = judgement.color())) { append(marks) }
         append(stringResource(R.string.chart_label_eval, evalText))
