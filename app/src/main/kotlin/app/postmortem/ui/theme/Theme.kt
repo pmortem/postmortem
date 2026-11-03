@@ -166,6 +166,7 @@ object Spacing {
     val chartMarker = 2.dp
     val chartZeroLine = 1.dp
     val engineToggleIcon = 18.dp
+    val touchTarget = 48.dp
     val engineOffAlpha = 0.38f
 }
 

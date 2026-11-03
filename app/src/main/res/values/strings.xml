@@ -17,6 +17,10 @@
     <string name="result_previous">Previous move</string>
     <string name="result_flip">Flip board</string>
     <string name="result_engine_toggle">Engine arrows on/off</string>
+    <string name="engine_readout">Live engine: depth %1$d, %2$d kn/s, %3$s</string>
+    <string name="engine_readout_searching">searching</string>
+    <string name="engine_readout_done">done</string>
+    <string name="engine_readout_idle">Live engine: waiting for the position to stay</string>
     <string name="result_next">Next move</string>
     <string name="paste_engine_failed">The engine stopped before it finished. Try again.</string>
     <string name="analysing_title">Analysing</string>

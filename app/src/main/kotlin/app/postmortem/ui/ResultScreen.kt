@@ -3,6 +3,7 @@ package app.postmortem.ui
 import androidx.annotation.StringRes
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
+import androidx.compose.foundation.combinedClickable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.BoxWithConstraints
@@ -18,6 +19,7 @@ import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.lazy.rememberLazyListState
+import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.ArrowBack
 import androidx.compose.material.icons.automirrored.filled.ArrowForward
@@ -36,10 +38,12 @@ import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.platform.testTag
 import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.res.stringResource
+import androidx.compose.ui.semantics.Role
 import androidx.compose.ui.semantics.contentDescription
 import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.semantics.testTagsAsResourceId
@@ -65,6 +69,7 @@ fun ResultScreen(
     engineOn: Boolean = true,
     onToggleEngine: () -> Unit = {},
 ) {
+    var showReadout by rememberSaveable { mutableStateOf(false) }
     Surface(
         modifier =
             Modifier
@@ -77,7 +82,8 @@ fun ResultScreen(
             verticalArrangement = Arrangement.spacedBy(Spacing.gap),
         ) {
             BoardWithEvalBar(state, arrowsOf(live?.lines.orEmpty(), state.flipped))
-            StepButtons(state, onStep, onFlip, engineOn, onToggleEngine)
+            if (showReadout && engineOn) EngineReadout(live)
+            StepButtons(state, onStep, onFlip, engineOn, onToggleEngine, onToggleReadout = { showReadout = !showReadout })
             ResultTabs(state.tab, onTab)
             when (state.tab) {
                 ResultTab.Moves -> MoveList(state, onSelect, Modifier.weight(1f).fillMaxWidth())
@@ -150,6 +156,27 @@ private fun positionName(state: UiState.Result): String =
         state.game.plies[state.selectedPly - 1].let { plyLabel(state.selectedPly, it.san) }
     }
 
+/** Depth and speed of the live search, small, under the board: a help for judging heat and battery. */
+@Composable
+private fun EngineReadout(live: LiveUpdate?) {
+    val text =
+        live?.let {
+            stringResource(
+                R.string.engine_readout,
+                it.depth,
+                it.nodesPerSecond?.div(NODES_PER_KILONODE) ?: 0L,
+                stringResource(if (it.finished) R.string.engine_readout_done else R.string.engine_readout_searching),
+            )
+        } ?: stringResource(R.string.engine_readout_idle)
+    Text(
+        text,
+        style = MaterialTheme.typography.labelSmall,
+        modifier = Modifier.testTag(UiTags.ENGINE_READOUT),
+    )
+}
+
+private const val NODES_PER_KILONODE = 1000L
+
 @Composable
 private fun StepButtons(
     state: UiState.Result,
@@ -157,6 +184,7 @@ private fun StepButtons(
     onFlip: () -> Unit,
     engineOn: Boolean,
     onToggleEngine: () -> Unit,
+    onToggleReadout: () -> Unit,
 ) {
     Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween, verticalAlignment = Alignment.CenterVertically) {
         IconButton(
@@ -169,7 +197,15 @@ private fun StepButtons(
             IconButton(onClick = onFlip, modifier = Modifier.testTag(UiTags.FLIP_BUTTON)) {
                 Icon(painterResource(R.drawable.ic_flip_board), stringResource(R.string.result_flip))
             }
-            IconButton(onClick = onToggleEngine, modifier = Modifier.testTag(UiTags.ENGINE_TOGGLE)) {
+            // A tap turns the arrows on and off; a long press shows or hides the readout of the live search.
+            Box(
+                Modifier
+                    .size(Spacing.touchTarget)
+                    .clip(CircleShape)
+                    .combinedClickable(role = Role.Button, onClick = onToggleEngine, onLongClick = onToggleReadout)
+                    .testTag(UiTags.ENGINE_TOGGLE),
+                contentAlignment = Alignment.Center,
+            ) {
                 Icon(
                     painterResource(R.drawable.ic_engine_arrows),
                     stringResource(R.string.result_engine_toggle),
@@ -178,9 +214,7 @@ private fun StepButtons(
                         if (engineOn) {
                             MaterialTheme.colorScheme.primary
                         } else {
-                            MaterialTheme.colorScheme.onSurface.copy(
-                                alpha = Spacing.engineOffAlpha,
-                            )
+                            MaterialTheme.colorScheme.onSurface.copy(alpha = Spacing.engineOffAlpha)
                         },
                 )
             }
