@@ -262,4 +262,40 @@ class MainViewModelTest {
         vm.analyse()
         assertEquals("test engine, 123 nodes", vm.result().analysisSettings)
     }
+
+    @Test
+    fun theEvalBarSaysRipOnTheLastPositionOnly() {
+        val vm = viewModel()
+        vm.onPgnChange(fixture("lichess-draw"))
+        vm.analyse()
+        val last =
+            vm
+                .result()
+                .game.plies.size
+        assertFalse(vm.result().atEndOfGame, "the start position")
+        vm.selectPly(last - 1)
+        assertFalse(vm.result().atEndOfGame, "the one before last")
+        vm.step(1)
+        assertTrue(vm.result().atEndOfGame, "the last position, a draw")
+        vm.step(-1)
+        assertFalse(vm.result().atEndOfGame)
+    }
+
+    @Test
+    fun theLastPositionIsTheEndWhateverTheEndingIsMateOrResignation() {
+        for (name in listOf("scholars-mate", "chesscom-short-resign")) {
+            val vm = viewModel()
+            vm.onPgnChange(fixture(name))
+            vm.analyse()
+            vm.selectPly(Int.MAX_VALUE)
+            assertTrue(vm.result().atEndOfGame, name)
+            assertEquals(
+                vm
+                    .result()
+                    .game.plies.size,
+                vm.result().selectedPly,
+                name,
+            )
+        }
+    }
 }

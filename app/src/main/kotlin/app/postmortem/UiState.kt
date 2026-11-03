@@ -45,6 +45,9 @@ sealed interface UiState {
     ) : UiState {
         val canStepBack: Boolean get() = selectedPly > 0
         val canStepForward: Boolean get() = selectedPly < game.plies.size
+
+        /** The position after the final move, whatever the ending: the eval bar says RIP there. */
+        val atEndOfGame: Boolean get() = game.plies.isNotEmpty() && selectedPly == game.plies.size
         val selectedEval: Eval get() = evals[selectedPly]
 
         /** Accuracy, ACPL and the judged moves; worked out once, when the Summary or the chart first asks. */

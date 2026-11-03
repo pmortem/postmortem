@@ -113,7 +113,12 @@ private fun BoardWithEvalBar(
                     .semantics { contentDescription = description },
         )
         // The side at the bottom of the board fills from the left.
-        EvalBar(state.selectedEval, Modifier.fillMaxWidth().height(Spacing.evalBarHeight), whiteOnLeft = !state.flipped)
+        EvalBar(
+            state.selectedEval,
+            Modifier.fillMaxWidth().height(Spacing.evalBarHeight),
+            whiteOnLeft = !state.flipped,
+            endOfGame = state.atEndOfGame,
+        )
     }
 }
 
