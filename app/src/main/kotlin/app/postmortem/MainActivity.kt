@@ -18,6 +18,8 @@ import androidx.lifecycle.viewmodel.initializer
 import androidx.lifecycle.viewmodel.viewModelFactory
 import app.postmortem.core.analysis.Analyser
 import app.postmortem.core.analysis.AnalysisConfig
+import app.postmortem.core.analysis.LiveConfig
+import app.postmortem.core.analysis.LiveSearch
 import app.postmortem.core.analysis.format
 import app.postmortem.ui.AnalysingScreen
 import app.postmortem.ui.PasteScreen
@@ -40,6 +42,8 @@ class MainActivity : ComponentActivity() {
                         Log.i(ANALYSIS_TAG, "search: ${result.nodes} nodes in ${result.timeMs} ms, ${result.nodesPerSecond} nodes/s")
                     }
                 MainViewModel(
+                    live = LiveSearch(LiveConfig(), EngineLocator.factory(applicationContext)),
+                    arrowsSetting = DataStoreEngineArrowsSetting(applicationContext),
                     analysisSettings = config.describe(BuildConfig.ENGINE_NAME),
                     analysis = { game ->
                         var started = 0L
@@ -90,11 +94,25 @@ class MainActivity : ComponentActivity() {
                             onStep = viewModel::step,
                             onTab = viewModel::selectTab,
                             onFlip = viewModel::flip,
+                            live = viewModel.liveUpdate,
+                            engineOn = viewModel.engineOn,
+                            onToggleEngine = { viewModel.showEngineArrows(!viewModel.engineOn) },
                         )
                     }
                 }
             }
         }
+    }
+
+    /** The live engine runs only while the app is on screen: it stops when the app goes to the background or the screen turns off. */
+    override fun onStart() {
+        super.onStart()
+        viewModel.onForeground(true)
+    }
+
+    override fun onStop() {
+        viewModel.onForeground(false)
+        super.onStop()
     }
 
     /** Android only lets the focused app read the clipboard, so this is the first moment we can. */

@@ -63,6 +63,8 @@ fun BoardView(
     fen: String,
     modifier: Modifier = Modifier,
     flipped: Boolean = false,
+    /** The live engine's best moves, drawn above the pieces. */
+    arrows: List<ArrowSpec> = emptyList(),
 ) {
     val cells: List<BoardCell> = remember(fen, flipped) { BoardLayout.cells(fen, flipped) }
     val labels = remember(flipped) { BoardLabels.all(flipped) }
@@ -78,6 +80,7 @@ fun BoardView(
                 modifier = Modifier.offset(square * cell.col, square * cell.row).size(square),
             )
         }
+        if (arrows.isNotEmpty()) Canvas(Modifier.fillMaxSize()) { drawArrows(palette, arrows) }
     }
 }
 

@@ -36,6 +36,10 @@ data class BoardPalette(
     val darkSquare: Color,
     val selectedMove: Color,
     val onSelectedMove: Color,
+    /** The live engine's arrows (one colour; rank is shown by width and opacity) and the pill with the eval at their head. */
+    val arrow: Color,
+    val arrowLabel: Color,
+    val onArrowLabel: Color,
 )
 
 private val LightBoard =
@@ -44,6 +48,9 @@ private val LightBoard =
         darkSquare = Color(0xFF8CA38F),
         selectedMove = Color(0xFF2B3A33),
         onSelectedMove = Color(0xFFF3EBDD),
+        arrow = Color(0xFF2F6FA8),
+        arrowLabel = Color(0xCC1B1C1A),
+        onArrowLabel = Color(0xFFFFFBF5),
     )
 
 private val DarkBoard =
@@ -52,6 +59,9 @@ private val DarkBoard =
         darkSquare = Color(0xFF4F6354),
         selectedMove = Color(0xFFB9CDBF),
         onSelectedMove = Color(0xFF14181A),
+        arrow = Color(0xFF6FB1F0),
+        arrowLabel = Color(0xCC0B0E0F),
+        onArrowLabel = Color(0xFFE6E2DA),
     )
 
 val LocalBoardPalette = staticCompositionLocalOf { LightBoard }
@@ -96,6 +106,37 @@ object JudgementColors {
     val blunder = Color(0xFFDB3031)
 }
 
+/**
+ * The live engine's arrows by rank (1 is the best move): the best is the thickest, most opaque and has the biggest label, the
+ * others get less of each. A rank beyond the list gets what the last one gets.
+ */
+object ArrowStyle {
+    private val widths = listOf(1f, 0.7f, 0.5f)
+    private val alphas = listOf(0.85f, 0.6f, 0.45f)
+    private val labelScales = listOf(1f, 0.85f, 0.7f)
+
+    /** The widest shaft, as a fraction of a square, and the head's length and width relative to it. */
+    const val SHAFT = 0.2f
+    const val HEAD_LENGTH = 0.5f
+    const val HEAD_WIDTH = 0.6f
+
+    /** Where the arrow starts and stops, as fractions of a square from the centre of its squares. */
+    const val START_GAP = 0.2f
+    const val TIP_GAP = 0.08f
+
+    /** The eval label: text size and padding as fractions of a square, scaled by rank; its centre sits this far above the head. */
+    const val LABEL_TEXT = 0.26f
+    const val LABEL_PADDING_X = 0.12f
+    const val LABEL_PADDING_Y = 0.06f
+    const val LABEL_RISE = 0.55f
+
+    fun width(rank: Int) = widths[(rank - 1).coerceIn(0, widths.lastIndex)]
+
+    fun alpha(rank: Int) = alphas[(rank - 1).coerceIn(0, alphas.lastIndex)]
+
+    fun labelScale(rank: Int) = labelScales[(rank - 1).coerceIn(0, labelScales.lastIndex)]
+}
+
 val LocalChartPalette = staticCompositionLocalOf { LightChart }
 
 /** Sizes and spacing used across the screens. */
@@ -124,6 +165,8 @@ object Spacing {
     val chartLine = 2.dp
     val chartMarker = 2.dp
     val chartZeroLine = 1.dp
+    val engineToggleIcon = 18.dp
+    val engineOffAlpha = 0.38f
 }
 
 @Composable

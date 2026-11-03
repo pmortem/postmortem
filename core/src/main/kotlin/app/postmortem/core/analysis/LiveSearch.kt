@@ -55,6 +55,18 @@ data class LiveUpdate(
     val finished: Boolean,
 )
 
+/** What the screen needs from the live engine, so it can be replaced in tests. */
+interface LiveLines {
+    /** The finished lines of [fen] if it has been searched to the end, else null. */
+    fun cached(fen: String): List<LiveLine>?
+
+    /** Updates for [fen] (see [LiveSearch.lines]); cancelling the collection stops the search. */
+    fun lines(fen: String): Flow<LiveUpdate>
+
+    /** Ends the engine process once no search runs; the next [lines] starts one again. The cache stays. */
+    suspend fun release()
+}
+
 /**
  * The live engine: one separate process that searches the shown position for its best moves, one position at a time. Collecting
  * [lines] of another position while one runs needs the first collection to be cancelled; the engine is stopped and the new
@@ -64,20 +76,20 @@ class LiveSearch(
     private val config: LiveConfig,
     private val processFactory: ProcessFactory,
     private val clock: () -> Long = System::nanoTime,
-) : AutoCloseable {
+) : LiveLines,
+    AutoCloseable {
     private val cache = HashMap<String, List<LiveLine>>()
     private val lock = Mutex()
     private var engine: UciEngine? = null
 
-    /** The finished lines of [fen] if it has been searched to the end, else null. */
-    fun cached(fen: String): List<LiveLine>? = synchronized(cache) { cache[fen] }
+    override fun cached(fen: String): List<LiveLine>? = synchronized(cache) { cache[fen] }
 
     /**
      * Updates for [fen]: the cached lines at once, or partial lines as the search finds them (at most one per
      * [LiveConfig.updateIntervalMs]), then a last one with `finished = true`. A position that is mated or stalemated has no lines and
      * starts no engine. Cancelling the collection stops the search; only a search that ran to its end is cached.
      */
-    fun lines(fen: String): Flow<LiveUpdate> =
+    override fun lines(fen: String): Flow<LiveUpdate> =
         channelFlow {
             cached(fen)?.let {
                 send(LiveUpdate(it, it.firstOrNull()?.depth ?: 0, null, true))
@@ -136,6 +148,12 @@ class LiveSearch(
         }
         return started
     }
+
+    override suspend fun release() =
+        lock.withLock {
+            engine?.close()
+            engine = null
+        }
 
     override fun close() {
         engine?.close()

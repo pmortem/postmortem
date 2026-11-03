@@ -34,6 +34,7 @@ import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.runtime.setValue
+import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.platform.testTag
@@ -46,6 +47,7 @@ import app.postmortem.R
 import app.postmortem.ResultTab
 import app.postmortem.UiState
 import app.postmortem.UiTags
+import app.postmortem.core.analysis.LiveUpdate
 import app.postmortem.core.analysis.format
 import app.postmortem.core.pgn.Game
 import app.postmortem.core.pgn.plyLabel
@@ -59,6 +61,9 @@ fun ResultScreen(
     onStep: (Int) -> Unit,
     onTab: (ResultTab) -> Unit,
     onFlip: () -> Unit,
+    live: LiveUpdate? = null,
+    engineOn: Boolean = true,
+    onToggleEngine: () -> Unit = {},
 ) {
     Surface(
         modifier =
@@ -71,8 +76,8 @@ fun ResultScreen(
             Modifier.safeDrawingPadding().padding(Spacing.screen),
             verticalArrangement = Arrangement.spacedBy(Spacing.gap),
         ) {
-            BoardWithEvalBar(state)
-            StepButtons(state, onStep, onFlip)
+            BoardWithEvalBar(state, arrowsOf(live?.lines.orEmpty(), state.flipped))
+            StepButtons(state, onStep, onFlip, engineOn, onToggleEngine)
             ResultTabs(state.tab, onTab)
             when (state.tab) {
                 ResultTab.Moves -> MoveList(state, onSelect, Modifier.weight(1f).fillMaxWidth())
@@ -85,12 +90,16 @@ fun ResultScreen(
 
 /** The board at the full width, with the eval bar right under it. */
 @Composable
-private fun BoardWithEvalBar(state: UiState.Result) {
+private fun BoardWithEvalBar(
+    state: UiState.Result,
+    arrows: List<ArrowSpec>,
+) {
     Column {
         val description = stringResource(R.string.result_board_description, positionName(state))
         BoardView(
             fen = state.game.fenAt(state.selectedPly),
             flipped = state.flipped,
+            arrows = arrows,
             modifier =
                 Modifier
                     .fillMaxWidth()
@@ -146,15 +155,35 @@ private fun StepButtons(
     state: UiState.Result,
     onStep: (Int) -> Unit,
     onFlip: () -> Unit,
+    engineOn: Boolean,
+    onToggleEngine: () -> Unit,
 ) {
-    Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween) {
+    Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween, verticalAlignment = Alignment.CenterVertically) {
         IconButton(
             onClick = { onStep(-1) },
             enabled = state.canStepBack,
             modifier = Modifier.testTag(UiTags.PREVIOUS_BUTTON),
         ) { Icon(Icons.AutoMirrored.Filled.ArrowBack, stringResource(R.string.result_previous)) }
-        IconButton(onClick = onFlip, modifier = Modifier.testTag(UiTags.FLIP_BUTTON)) {
-            Icon(painterResource(R.drawable.ic_flip_board), stringResource(R.string.result_flip))
+        // The flip button and the engine toggle sit together in the middle, the toggle to the right of the flip button.
+        Row(verticalAlignment = Alignment.CenterVertically) {
+            IconButton(onClick = onFlip, modifier = Modifier.testTag(UiTags.FLIP_BUTTON)) {
+                Icon(painterResource(R.drawable.ic_flip_board), stringResource(R.string.result_flip))
+            }
+            IconButton(onClick = onToggleEngine, modifier = Modifier.testTag(UiTags.ENGINE_TOGGLE)) {
+                Icon(
+                    painterResource(R.drawable.ic_engine_arrows),
+                    stringResource(R.string.result_engine_toggle),
+                    modifier = Modifier.size(Spacing.engineToggleIcon),
+                    tint =
+                        if (engineOn) {
+                            MaterialTheme.colorScheme.primary
+                        } else {
+                            MaterialTheme.colorScheme.onSurface.copy(
+                                alpha = Spacing.engineOffAlpha,
+                            )
+                        },
+                )
+            }
         }
         IconButton(
             onClick = { onStep(1) },

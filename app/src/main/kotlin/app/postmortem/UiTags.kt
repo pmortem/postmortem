@@ -11,6 +11,7 @@ object UiTags {
     const val PREVIOUS_BUTTON = "prev_button"
     const val FLIP_BUTTON = "flip_button"
     const val NEXT_BUTTON = "next_button"
+    const val ENGINE_TOGGLE = "engine_toggle"
     const val SUMMARY = "summary"
     const val ANALYSIS_SETTINGS = "analysis_settings"
     const val OPENING = "opening"
