@@ -1,8 +1,8 @@
 wait paste_input
 shot paste
 tap analyse_button
+shot analysing
 wait result_board
-shot result
 wait move_6
 tap move_6
 sleep 5

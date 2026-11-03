@@ -27,7 +27,10 @@ sealed interface UiState {
         val done: Int,
         val total: Int,
     ) : UiState {
-        val fraction: Float get() = if (total == 0) 0f else done.toFloat() / total
+        val fraction: Float get() = if (total == 0) 0f else (done.toFloat() / total).coerceIn(0f, 1f)
+
+        /** The whole percentage shown in the ring: 0 at the start, 100 when every position is done, rounded to the nearest. */
+        val percent: Int get() = if (total == 0) 0 else ((100L * done + total / 2) / total).toInt().coerceIn(0, 100)
     }
 
     /** [selectedPly] 0 is the start position; ply n is the position after the n-th half-move. [evals] has one entry per position. */

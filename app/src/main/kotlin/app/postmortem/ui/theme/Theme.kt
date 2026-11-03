@@ -167,6 +167,10 @@ object Spacing {
     val chartZeroLine = 1.dp
     val engineToggleIcon = 18.dp
     val touchTarget = 48.dp
+    val ringSize = 160.dp
+    val ringStroke = 12.dp
+    val ringMillis = 250
+    val ringTrackAlpha = 0.15f
     val engineOffAlpha = 0.38f
 }
 

@@ -298,4 +298,36 @@ class MainViewModelTest {
             )
         }
     }
+
+    @Test
+    fun thePercentageIsRoundedStartsAtZeroEndsAtHundredAndNeverGoesDown() {
+        val game = (PgnParser.parse(fixture("lichess-draw")) as PgnResult.Success).game
+
+        fun percent(
+            done: Int,
+            total: Int,
+        ) = UiState.Analysing("", game, done, total).percent
+        assertEquals(0, percent(0, 81))
+        assertEquals(100, percent(81, 81))
+        assertEquals(42, percent(34, 81))
+        assertEquals(1, percent(1, 165), "0.6 % rounds to 1")
+        assertEquals(0, percent(0, 0), "a game without positions")
+        val all = (0..165).map { percent(it, 165) }
+        assertEquals(all.sorted(), all, "more positions done never gives a lower percentage")
+    }
+
+    @Test
+    fun theProgressShownNeverMovesBackwardsEvenIfAReportArrivesWithAnOlderCount() {
+        val vm =
+            viewModel { game ->
+                flow {
+                    emit(AnalysisProgress(5, game.positionCount, List(5) { Eval.Cp(0) }))
+                    emit(AnalysisProgress(3, game.positionCount, List(3) { Eval.Cp(0) }))
+                    awaitCancellation()
+                }
+            }
+        vm.onPgnChange(fixture("lichess-draw"))
+        vm.analyse()
+        assertEquals(5, assertIs<UiState.Analysing>(vm.state).done)
+    }
 }

@@ -23,7 +23,7 @@ object UiTags {
     const val EVAL_CHART = "eval_chart"
     const val MOVE_LIST = "move_list"
     const val EVAL_BAR = "eval_bar"
-    const val ANALYSING_PROGRESS = "analysing_progress"
+    const val ANALYSIS_PROGRESS = "analysis_progress"
 
     /** The cell for a half-move; [ply] counts from 1. */
     fun move(ply: Int) = "move_$ply"
