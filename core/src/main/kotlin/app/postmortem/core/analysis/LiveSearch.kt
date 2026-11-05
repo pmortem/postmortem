@@ -102,21 +102,28 @@ class LiveSearch(
             }
             lock.withLock {
                 val live = engine ?: startEngine().also { engine = it }
-                val found = HashMap<Int, PvInfo>()
+                // What the engine reported, by depth then rank. Lines of different depths are never shown together: after the best
+                // move changes, a rank still at the older depth could repeat the move that is now first.
+                val found = HashMap<Int, HashMap<Int, PvInfo>>()
+                val expected = minOf(config.lines, board.legalMoves().size)
                 var lastSent: Long? = null
                 var latest: PvInfo? = null
 
-                fun snapshot(finished: Boolean) =
-                    LiveUpdate(
-                        found.toSortedMap().values.map { LiveLine(it.multiPv, it.pv.first(), it.score, it.depth, it.pv) },
-                        found.values.maxOfOrNull { it.depth } ?: 0,
+                fun snapshot(finished: Boolean): LiveUpdate {
+                    // The deepest depth with every line, or while there is none yet, the deepest one.
+                    val depth = found.filterValues { it.size >= expected }.keys.maxOrNull() ?: found.keys.maxOrNull()
+                    val infos = depth?.let { found.getValue(it).toSortedMap().values }.orEmpty()
+                    return LiveUpdate(
+                        infos.map { LiveLine(it.multiPv, it.pv.first(), it.score, it.depth, it.pv) },
+                        depth ?: 0,
                         latest?.nodesPerSecond,
                         finished,
                     )
+                }
                 try {
                     live.searchLive(fen, config.maxSearchMs) { info ->
                         if (info.multiPv > config.lines) return@searchLive
-                        if ((found[info.multiPv]?.depth ?: 0) <= info.depth) found[info.multiPv] = info
+                        found.getOrPut(info.depth) { HashMap() }[info.multiPv] = info
                         latest = info
                         val now = clock()
                         if (lastSent.let { it == null || now - it >= config.updateIntervalMs * NANOS_PER_MILLI }) {

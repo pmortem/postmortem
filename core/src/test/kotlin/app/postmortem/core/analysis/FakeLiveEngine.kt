@@ -11,6 +11,8 @@ import java.io.File
 class FakeLiveEngine(
     private val log: File,
     private val waitForStop: Boolean = false,
+    /** The `info` lines printed for `go`, instead of the canned ones. */
+    private val infoLines: List<String>? = null,
 ) {
     var started = 0
         private set
@@ -19,7 +21,7 @@ class FakeLiveEngine(
 
     val factory: ProcessFactory = {
         started++
-        ProcessBuilder("bash", "-c", SCRIPT, "fake", log.path, waitForStop.toString()).start()
+        ProcessBuilder("bash", "-c", SCRIPT, "fake", log.path, waitForStop.toString(), infoLines?.joinToString("\n") ?: "").start()
     }
 
     private companion object {
@@ -31,11 +33,13 @@ class FakeLiveEngine(
                 uci) echo uciok ;;
                 isready) echo readyok ;;
                 go*)
+                  if [ -n "${'$'}3" ]; then echo "${'$'}3"; else
                   echo "info depth 5 multipv 1 score cp 10 nodes 1000 time 10 pv e2e4 e7e5"
                   echo "info depth 6 multipv 2 score cp 30 nodes 2000 time 20 pv d2d4 d7d5"
                   echo "info depth 6 multipv 1 score cp 50 nodes 3000 time 30 pv g1f3 g8f6"
                   echo "info depth 6 multipv 3 score mate -2 nodes 4000 time 40 pv c2c4"
                   echo "info depth 4 multipv 2 score cp 99 nodes 5000 time 50 pv a2a3"
+                  fi
                   if [ "${'$'}2" != "true" ]; then echo "bestmove g1f3"; fi ;;
                 stop) echo "bestmove g1f3" ;;
                 quit) exit 0 ;;
