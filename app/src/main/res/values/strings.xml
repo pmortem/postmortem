@@ -15,6 +15,9 @@
     <string name="result_board_description">Board after %1$s</string>
     <string name="result_start_position">the start position</string>
     <string name="result_previous">Previous move</string>
+    <string name="result_settings">Settings</string>
+    <string name="settings_title">Settings</string>
+    <string name="settings_back">Back</string>
     <string name="result_flip">Flip board</string>
     <string name="result_engine_toggle">Engine arrows on/off</string>
     <string name="engine_readout">Live engine: depth %1$d, %2$d kn/s, %3$s</string>

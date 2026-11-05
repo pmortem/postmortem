@@ -46,6 +46,10 @@ class MainViewModel(
     var liveUpdate: LiveUpdate? by mutableStateOf(null)
         private set
 
+    /** The Settings page is open over the Result screen; the game, selected move, tab and flip stay in [state]. */
+    var settingsOpen: Boolean by mutableStateOf(false)
+        private set
+
     private var liveJob: Job? = null
     private var foreground = true
 
@@ -115,6 +119,12 @@ class MainViewModel(
         viewModelScope.launch { arrowsSetting.set(on) }
     }
 
+    fun openSettings() {
+        if (state !is UiState.Result) return
+        settingsOpen = true
+        restartLive()
+    }
+
     /** The app is on screen or not. In the background nothing is searched and the engine process ends. */
     fun onForeground(visible: Boolean) {
         foreground = visible
@@ -129,7 +139,7 @@ class MainViewModel(
         stopLive(release = false)
         val current = state as? UiState.Result
         val search = live
-        if (search == null || current == null || !engineOn || !foreground) {
+        if (search == null || current == null || !engineOn || !foreground || settingsOpen) {
             stopLive()
             return
         }
@@ -186,6 +196,11 @@ class MainViewModel(
 
     /** Back stops a running analysis, or leaves the result; either way the game stays in the paste box. */
     fun back(): Boolean {
+        if (settingsOpen) {
+            settingsOpen = false
+            restartLive()
+            return true
+        }
         val pgn =
             when (val current = state) {
                 is UiState.Analysing -> current.pgn

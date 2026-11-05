@@ -330,4 +330,41 @@ class MainViewModelTest {
         vm.analyse()
         assertEquals(5, assertIs<UiState.Analysing>(vm.state).done)
     }
+
+    @Test
+    fun settingsOpensOverTheResultAndBackReturnsToTheSameGameMoveTabAndFlip() {
+        val vm = viewModel()
+        vm.onPgnChange(fixture("chesscom-short-resign"))
+        vm.analyse()
+        vm.selectPly(7)
+        vm.selectTab(ResultTab.Chart)
+        vm.flip()
+        val before = vm.result()
+        vm.openSettings()
+        assertTrue(vm.settingsOpen)
+        assertEquals(before, vm.result())
+        assertTrue(vm.back())
+        assertFalse(vm.settingsOpen)
+        assertEquals(before, vm.result())
+        assertEquals(7, vm.result().selectedPly)
+    }
+
+    @Test
+    fun backOnTheSettingsPageDoesNotLeaveTheResultButTheNextBackDoes() {
+        val vm = viewModel()
+        vm.onPgnChange(fixture("lichess-draw"))
+        vm.analyse()
+        vm.openSettings()
+        vm.back()
+        assertIs<UiState.Result>(vm.state)
+        vm.back()
+        assertIs<UiState.Paste>(vm.state)
+    }
+
+    @Test
+    fun settingsCannotBeOpenedBeforeAResult() {
+        val vm = viewModel()
+        vm.openSettings()
+        assertFalse(vm.settingsOpen)
+    }
 }

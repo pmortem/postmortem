@@ -68,6 +68,7 @@ fun ResultScreen(
     live: LiveUpdate? = null,
     engineOn: Boolean = true,
     onToggleEngine: () -> Unit = {},
+    onSettings: () -> Unit = {},
 ) {
     var showReadout by rememberSaveable { mutableStateOf(false) }
     Surface(
@@ -83,7 +84,7 @@ fun ResultScreen(
         ) {
             BoardWithEvalBar(state, arrowsOf(live?.lines.orEmpty(), state.flipped))
             if (showReadout && engineOn) EngineReadout(live)
-            StepButtons(state, onStep, onFlip, engineOn, onToggleEngine, onToggleReadout = { showReadout = !showReadout })
+            StepButtons(state, onStep, onFlip, onSettings, engineOn, onToggleEngine, onToggleReadout = { showReadout = !showReadout })
             ResultTabs(state.tab, onTab)
             when (state.tab) {
                 ResultTab.Moves -> MoveList(state, onSelect, Modifier.weight(1f).fillMaxWidth())
@@ -188,6 +189,7 @@ private fun StepButtons(
     state: UiState.Result,
     onStep: (Int) -> Unit,
     onFlip: () -> Unit,
+    onSettings: () -> Unit,
     engineOn: Boolean,
     onToggleEngine: () -> Unit,
     onToggleReadout: () -> Unit,
@@ -198,8 +200,11 @@ private fun StepButtons(
             enabled = state.canStepBack,
             modifier = Modifier.testTag(UiTags.PREVIOUS_BUTTON),
         ) { Icon(Icons.AutoMirrored.Filled.ArrowBack, stringResource(R.string.result_previous)) }
-        // The flip button and the engine toggle sit together in the middle, the toggle to the right of the flip button.
+        // The settings cog, the flip button and the engine toggle sit together in the middle, the cog left of the flip button.
         Row(verticalAlignment = Alignment.CenterVertically) {
+            IconButton(onClick = onSettings, modifier = Modifier.testTag(UiTags.SETTINGS_BUTTON)) {
+                Icon(painterResource(R.drawable.ic_settings), stringResource(R.string.result_settings))
+            }
             IconButton(onClick = onFlip, modifier = Modifier.testTag(UiTags.FLIP_BUTTON)) {
                 Icon(painterResource(R.drawable.ic_flip_board), stringResource(R.string.result_flip))
             }
