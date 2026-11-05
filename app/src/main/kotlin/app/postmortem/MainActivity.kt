@@ -24,6 +24,7 @@ import app.postmortem.core.analysis.format
 import app.postmortem.ui.AnalysingScreen
 import app.postmortem.ui.PasteScreen
 import app.postmortem.ui.ResultScreen
+import app.postmortem.ui.SettingsScreen
 import app.postmortem.ui.SplashScreen
 import app.postmortem.ui.theme.PostmortemTheme
 import kotlinx.coroutines.flow.onCompletion
@@ -88,6 +89,10 @@ class MainActivity : ComponentActivity() {
 
                     is UiState.Result -> {
                         BackHandler { viewModel.back() }
+                        if (viewModel.settingsOpen) {
+                            SettingsScreen(onBack = { viewModel.back() })
+                            return@PostmortemTheme
+                        }
                         ResultScreen(
                             state = state,
                             onSelect = viewModel::selectPly,
@@ -97,6 +102,7 @@ class MainActivity : ComponentActivity() {
                             live = viewModel.liveUpdate,
                             engineOn = viewModel.engineOn,
                             onToggleEngine = { viewModel.showEngineArrows(!viewModel.engineOn) },
+                            onSettings = viewModel::openSettings,
                         )
                     }
                 }
