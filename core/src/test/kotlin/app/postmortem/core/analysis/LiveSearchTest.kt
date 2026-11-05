@@ -26,7 +26,10 @@ class LiveSearchTest {
     private val mated = "r1bqkb1r/pppp1Qpp/2n2n2/4p3/2B1P3/8/PPPP1PPP/RNB1K1NR b KQkq - 0 4"
     private val config = LiveConfig(maxSearchMs = 2_000, updateIntervalMs = 100_000)
 
-    private fun fake(waitForStop: Boolean = false) = FakeLiveEngine(tmp.newFile(), waitForStop)
+    private fun fake(
+        waitForStop: Boolean = false,
+        infoLines: List<String>? = null,
+    ) = FakeLiveEngine(tmp.newFile(), waitForStop, infoLines)
 
     @Test
     fun linesArriveByRankKeepingTheDeepestEvenWhenTheyComeOutOfOrder() =
@@ -40,6 +43,34 @@ class LiveSearchTest {
                 assertEquals(listOf("g1f3", "d2d4", "c2c4"), last.lines.map { it.move })
                 assertEquals(listOf<Score>(Score.Cp(50), Score.Cp(30), Score.Mate(-2)), last.lines.map { it.score })
                 assertEquals(6, last.depth)
+            }
+        }
+
+    @Test
+    fun aSearchStoppedMidDepthNeverShowsLinesOfDifferentDepthsTogether() =
+        runBlocking {
+            // Depth 7 changed the best move to d2d4, which was line 2 at depth 6; lines 2 and 3 of depth 7 had not been printed yet.
+            val engine =
+                fake(
+                    infoLines =
+                        listOf(
+                            "info depth 6 multipv 1 score cp 50 nodes 1 time 1 pv g1f3",
+                            "info depth 6 multipv 2 score cp 30 nodes 1 time 1 pv d2d4",
+                            "info depth 6 multipv 3 score cp 20 nodes 1 time 1 pv c2c4",
+                            "info depth 7 multipv 1 score cp 55 nodes 1 time 1 pv d2d4",
+                        ),
+                )
+            LiveSearch(config, engine.factory).use { live ->
+                val last = live.lines(startFen).last()
+                assertEquals(listOf("g1f3", "d2d4", "c2c4"), last.lines.map { it.move })
+                assertEquals(6, last.depth)
+                assertEquals(
+                    3,
+                    last.lines
+                        .map { it.move }
+                        .toSet()
+                        .size,
+                )
             }
         }
 
@@ -129,7 +160,7 @@ class LiveSearchTest {
     @Test
     fun theRealEngineGivesThreeDifferentBestMovesAtTheStart() =
         runBlocking {
-            LiveSearch(LiveConfig(maxSearchMs = 4_000), EngineBinary.require()).use { live ->
+            LiveSearch(LiveConfig(maxSearchMs = 1_000), EngineBinary.require()).use { live ->
                 val last = live.lines(startFen).last()
                 assertEquals(3, last.lines.size, last.toString())
                 assertEquals(
@@ -148,7 +179,7 @@ class LiveSearchTest {
     @Test
     fun theRealEngineSeesTheMateInOneAsTheBestLine() =
         runBlocking {
-            LiveSearch(LiveConfig(maxSearchMs = 4_000), EngineBinary.require()).use { live ->
+            LiveSearch(LiveConfig(maxSearchMs = 1_000), EngineBinary.require()).use { live ->
                 val best =
                     live
                         .lines(mateIn1)
