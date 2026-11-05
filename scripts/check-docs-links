@@ -1,0 +1,28 @@
+#!/usr/bin/env python3
+"""Checks the docs: every relative link and image in README.md and docs/*.md exists, and docs/README.md links every page."""
+import re
+import sys
+from pathlib import Path
+
+root = Path(__file__).resolve().parent.parent
+pages = sorted((root / "docs").glob("*.md"))
+files = [root / "README.md", *pages]
+link = re.compile(r"!?\[[^\]]*\]\(([^)\s]+)\)")
+errors = []
+
+for file in files:
+    for target in link.findall(file.read_text()):
+        if re.match(r"[a-z]+:", target) or target.startswith("#"):
+            continue
+        if not (file.parent / target.split("#")[0]).exists():
+            errors.append(f"{file.relative_to(root)}: broken link {target}")
+
+index = (root / "docs" / "README.md").read_text()
+for page in pages:
+    if page.name != "README.md" and f"({page.name})" not in index:
+        errors.append(f"docs/README.md does not link {page.name}")
+
+if errors:
+    print("\n".join(errors))
+    sys.exit(1)
+print(f"docs ok: {len(files)} files")

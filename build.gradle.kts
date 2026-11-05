@@ -37,3 +37,8 @@ fun stockfishBinary(assetKey: String): Provider<File> =
 extra["stockfishTag"] = stockfishPins.getValue("STOCKFISH_TAG")
 extra["stockfishLinux"] = stockfishBinary("STOCKFISH_LINUX_ASSET")
 extra["stockfishAndroid"] = stockfishBinary("STOCKFISH_ANDROID_ASSET")
+
+tasks.register<Exec>("checkDocs") {
+    description = "Checks that the links in README.md and docs/ resolve and docs/README.md links every page."
+    commandLine("python3", "scripts/check-docs-links")
+}
