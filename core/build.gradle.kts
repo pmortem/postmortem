@@ -33,6 +33,8 @@ val stockfishLinux = rootProject.extra["stockfishLinux"] as Provider<File>
 val coreOnly = providers.gradleProperty("postmortem.coreOnly").isPresent
 
 tasks.test {
+    // A failing test says why in the log, so a flake seen only in CI can be read.
+    testLogging.exceptionFormat = org.gradle.api.tasks.testing.logging.TestExceptionFormat.FULL
     val binary = stockfishLinux.orNull?.takeIf { it.canExecute() }
     systemProperty("postmortem.stockfish", binary?.path ?: "")
     systemProperty("postmortem.engineRequired", (!coreOnly).toString())
