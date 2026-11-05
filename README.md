@@ -9,6 +9,8 @@ Everything runs on the device. The app asks for no Android permission, so it can
 2. Tap Analyse. A progress page shows each position as Stockfish works through it.
 3. Step through the moves on the board. White ahead is positive; a forced mate shows as `M3`.
 
+The user documentation is in [`docs/`](docs/README.md).
+
 ## Layout
 - `core/`: pure Kotlin/JVM. PGN parser, board layout, UCI engine client and the analyser. Tested on real Lichess and Chess.com games and on the real Stockfish binary.
 - `app/`: the Compose UI. Stockfish ships as `libstockfish.so` so Android lets it run from the native library directory.
@@ -19,7 +21,7 @@ Needs JDK 21 and the Android SDK (compileSdk and build-tools versions are in `gr
 
 ```sh
 scripts/lab/prepare                      # downloads the pinned Stockfish binaries into $LAB_CACHE
-./gradlew assembleDebug test lint spotlessCheck  # the same as CI (spotlessApply fixes formatting)
+./gradlew assembleDebug test lint spotlessCheck checkDocs  # the same as CI (spotlessApply fixes formatting)
 ./gradlew test -Ppostmortem.slow=true    # also analyses every fixture game with the real engine
 ```
 

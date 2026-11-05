@@ -8,3 +8,4 @@ The workflow (loop, PRs, Definition of Done) is in the box's global `~/.claude/C
 - The app requests no Android permission. If one is needed, stop and ask the user.
 - Smoke steps are data in `scripts/lab/smoke.steps`; give new screens a `testTag` in `UiTags.kt` and add them there.
 - Check before a merge: `lab-check`, then CI (`ci`) green. Use `./gradlew assembleDebug test lint spotlessCheck` for a quick local run (`spotlessApply` fixes formatting).
+- User docs are in `docs/`; a PR that changes what the user sees updates the matching page. `./gradlew checkDocs` checks the links (it runs in `lab-check` and CI).

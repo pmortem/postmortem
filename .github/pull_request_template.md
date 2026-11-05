@@ -8,6 +8,7 @@ Closes #
 - [ ] `lab-check` passes and CI (`ci`) is green
 - [ ] UI changed: I read the light and dark screenshots
 - [ ] New screen or flow: `scripts/lab/smoke.steps` covers it
+- [ ] User-visible behaviour added or changed: the matching `docs/` page is updated in the same PR
 - [ ] No new Android permission, no hardcoded values
 - [ ] The PR title is a conventional commit
 - [ ] After the merge: the phone test page, naming the app version on the phone
