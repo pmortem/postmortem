@@ -21,6 +21,7 @@ import androidx.compose.ui.graphics.nativeCanvas
 import androidx.compose.ui.graphics.toArgb
 import androidx.compose.ui.res.painterResource
 import app.postmortem.R
+import app.postmortem.core.board.BoardArrow
 import app.postmortem.core.board.BoardCell
 import app.postmortem.core.board.BoardLabel
 import app.postmortem.core.board.BoardLabels
@@ -65,14 +66,17 @@ fun BoardView(
     flipped: Boolean = false,
     /** The live engine's best moves, drawn above the pieces. */
     arrows: List<ArrowSpec> = emptyList(),
+    /** The move that led to [fen] in UCI, whose two squares are tinted; null at the start position. */
+    lastMove: String? = null,
 ) {
     val cells: List<BoardCell> = remember(fen, flipped) { BoardLayout.cells(fen, flipped) }
     val labels = remember(flipped) { BoardLabels.all(flipped) }
+    val moved = remember(lastMove, flipped) { lastMove?.let { BoardLayout.arrow(it, flipped) } }
     val palette = LocalBoardPalette.current
     BoxWithConstraints(modifier.aspectRatio(1f)) {
         val square = maxWidth / BoardLayout.SIZE
         // The squares and their coordinates are drawn together, under the pieces.
-        Canvas(Modifier.fillMaxSize()) { drawSquaresAndLabels(palette, labels) }
+        Canvas(Modifier.fillMaxSize()) { drawSquaresAndLabels(palette, labels, moved) }
         for (cell in cells) {
             Image(
                 painter = painterResource(drawableOf(cell.piece)),
@@ -84,10 +88,11 @@ fun BoardView(
     }
 }
 
-/** Squares, then the coordinates as the Lichess app draws them: regular text at a baseline in a corner, in the other square's colour. */
+/** Squares, the last move's tint, then the coordinates as the Lichess app draws them: regular text at a baseline in a corner, in the other square's colour. */
 private fun DrawScope.drawSquaresAndLabels(
     palette: BoardPalette,
     labels: List<BoardLabel>,
+    lastMove: BoardArrow?,
 ) {
     val square = size.width / BoardLayout.SIZE
     for (row in 0 until BoardLayout.SIZE) {
@@ -97,6 +102,11 @@ private fun DrawScope.drawSquaresAndLabels(
                 topLeft = Offset(col * square, row * square),
                 size = Size(square, square),
             )
+        }
+    }
+    if (lastMove != null) {
+        for ((row, col) in listOf(lastMove.fromRow to lastMove.fromCol, lastMove.toRow to lastMove.toCol)) {
+            drawRect(palette.lastMove, topLeft = Offset(col * square, row * square), size = Size(square, square))
         }
     }
     val paint =

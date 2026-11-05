@@ -9,7 +9,7 @@ sleep 5
 shot move6
 tap next_button
 sleep 1
-shot mate
+shot highlight
 tap tab_chart
 wait eval_chart
 shot chart
