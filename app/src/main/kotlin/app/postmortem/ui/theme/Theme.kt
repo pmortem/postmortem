@@ -40,7 +40,12 @@ data class BoardPalette(
     val arrow: Color,
     val arrowLabel: Color,
     val onArrowLabel: Color,
+    /** The tint of the last move's two squares, drawn over the square colour and under the pieces. */
+    val lastMove: Color,
 )
+
+/** Lichess-like yellow-green at about 40 % alpha; reads on light and dark squares. */
+val LastMoveHighlight = Color(0x669BC700)
 
 private val LightBoard =
     BoardPalette(
@@ -51,6 +56,7 @@ private val LightBoard =
         arrow = Color(0xFF2F6FA8),
         arrowLabel = Color(0xCC1B1C1A),
         onArrowLabel = Color(0xFFFFFBF5),
+        lastMove = LastMoveHighlight,
     )
 
 private val DarkBoard =
@@ -62,6 +68,7 @@ private val DarkBoard =
         arrow = Color(0xFF6FB1F0),
         arrowLabel = Color(0xCC0B0E0F),
         onArrowLabel = Color(0xFFE6E2DA),
+        lastMove = LastMoveHighlight,
     )
 
 val LocalBoardPalette = staticCompositionLocalOf { LightBoard }

@@ -106,6 +106,7 @@ private fun BoardWithEvalBar(
             fen = state.game.fenAt(state.selectedPly),
             flipped = state.flipped,
             arrows = arrows,
+            lastMove = state.game.lastMoveAt(state.selectedPly),
             modifier =
                 Modifier
                     .fillMaxWidth()

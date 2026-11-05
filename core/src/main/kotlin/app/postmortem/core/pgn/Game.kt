@@ -24,6 +24,9 @@ data class Game(
     val startsFromStandardPosition: Boolean get() = startFen == STANDARD_START_FEN
 
     fun fenAt(position: Int): String = if (position == 0) startFen else plies[position - 1].fen
+
+    /** The move that led to [position] in UCI (castling as the king's move), or null at the start, where nothing has moved. */
+    fun lastMoveAt(position: Int): String? = if (position == 0) null else plies[position - 1].uci
 }
 
 /** Why a text is not a game. The UI turns each case into a message. */

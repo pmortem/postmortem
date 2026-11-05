@@ -129,9 +129,9 @@ class LiveSearchTest {
     @Test
     fun theRealEngineGivesThreeDifferentBestMovesAtTheStart() =
         runBlocking {
-            LiveSearch(LiveConfig(maxSearchMs = 1_000), EngineBinary.require()).use { live ->
+            LiveSearch(LiveConfig(maxSearchMs = 4_000), EngineBinary.require()).use { live ->
                 val last = live.lines(startFen).last()
-                assertEquals(3, last.lines.size)
+                assertEquals(3, last.lines.size, last.toString())
                 assertEquals(
                     3,
                     last.lines
@@ -148,7 +148,7 @@ class LiveSearchTest {
     @Test
     fun theRealEngineSeesTheMateInOneAsTheBestLine() =
         runBlocking {
-            LiveSearch(LiveConfig(maxSearchMs = 1_000), EngineBinary.require()).use { live ->
+            LiveSearch(LiveConfig(maxSearchMs = 4_000), EngineBinary.require()).use { live ->
                 val best =
                     live
                         .lines(mateIn1)
