@@ -110,9 +110,19 @@ class LiveSearch(
                 var latest: PvInfo? = null
 
                 fun snapshot(finished: Boolean): LiveUpdate {
-                    // The deepest depth with every line, or while there is none yet, the deepest one.
-                    val depth = found.filterValues { it.size >= expected }.keys.maxOrNull() ?: found.keys.maxOrNull()
-                    val infos = depth?.let { found.getValue(it).toSortedMap().values }.orEmpty()
+                    // The deepest depth with every line, each a different move (the engine can print one line under two ranks when
+                    // the time is up); while there is none yet, the deepest depth, keeping the first line of each move.
+                    fun distinct(depth: Int) =
+                        found
+                            .getValue(depth)
+                            .toSortedMap()
+                            .values
+                            .distinctBy { it.pv.first() }
+                    val depths = found.keys.sortedDescending()
+                    val depth =
+                        depths.firstOrNull { found.getValue(it).size >= expected && distinct(it).size == found.getValue(it).size }
+                            ?: depths.firstOrNull()
+                    val infos = depth?.let(::distinct).orEmpty()
                     return LiveUpdate(
                         infos.map { LiveLine(it.multiPv, it.pv.first(), it.score, it.depth, it.pv) },
                         depth ?: 0,

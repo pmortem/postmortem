@@ -75,6 +75,48 @@ class LiveSearchTest {
         }
 
     @Test
+    fun aDepthWhereTwoRanksShowTheSameMoveIsSkippedForTheDeepestDepthWithDistinctMoves() =
+        runBlocking {
+            // As captured from the real engine at the time cap: ranks 2 and 3 printed as the same line at the deepest depth.
+            val engine =
+                fake(
+                    infoLines =
+                        listOf(
+                            "info depth 13 multipv 1 score cp 30 nodes 1 time 1 pv e2e4 c7c5",
+                            "info depth 13 multipv 2 score cp 24 nodes 1 time 1 pv g1f3 d7d5",
+                            "info depth 13 multipv 3 score cp 20 nodes 1 time 1 pv d2d4 d7d5",
+                            "info depth 14 multipv 1 score cp 32 nodes 1 time 1 pv e2e4 c7c5",
+                            "info depth 14 multipv 2 score cp 25 nodes 1 time 1 pv g1f3 d7d5",
+                            "info depth 14 multipv 3 score cp 25 nodes 1 time 1 pv g1f3 d7d5",
+                        ),
+                )
+            LiveSearch(config, engine.factory).use { live ->
+                val last = live.lines(startFen).last()
+                assertEquals(listOf("e2e4", "g1f3", "d2d4"), last.lines.map { it.move })
+                assertEquals(13, last.depth)
+            }
+        }
+
+    @Test
+    fun withoutAnyDistinctDepthTheFirstLineOfEachMoveIsKept() =
+        runBlocking {
+            val engine =
+                fake(
+                    infoLines =
+                        listOf(
+                            "info depth 14 multipv 1 score cp 32 nodes 1 time 1 pv e2e4 c7c5",
+                            "info depth 14 multipv 2 score cp 25 nodes 1 time 1 pv g1f3 d7d5",
+                            "info depth 14 multipv 3 score cp 25 nodes 1 time 1 pv g1f3 d7d5",
+                        ),
+                )
+            LiveSearch(config, engine.factory).use { live ->
+                val last = live.lines(startFen).last()
+                assertEquals(listOf("e2e4", "g1f3"), last.lines.map { it.move })
+                assertEquals(listOf(1, 2), last.lines.map { it.rank })
+            }
+        }
+
+    @Test
     fun theEngineIsSetUpForThreeLinesOnTwoThreadsWith64MbOfHash() =
         runBlocking {
             val engine = fake()
@@ -169,6 +211,7 @@ class LiveSearchTest {
                         .map { it.move }
                         .toSet()
                         .size,
+                    last.toString(),
                 )
                 assertTrue(last.lines.all { Regex("[a-h][1-8][a-h][1-8]").matches(it.move) })
                 // the lines are not all at the same depth when the time is up, so their order by score is not asserted
