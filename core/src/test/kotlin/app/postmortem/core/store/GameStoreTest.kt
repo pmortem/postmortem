@@ -163,6 +163,18 @@ class GameStoreTest {
     }
 
     @Test
+    fun aSavedGameIsFoundWithItsLinesByTheGameThatWasPasted() {
+        val new = newGame("scholars-mate")
+        assertNull(store.findSaved(new.game))
+        val id = store.save(new)
+        val played = Lines().play(new.game, Cursor.game(4), "d2d4")
+        store.saveLines(id, played.lines, emptyMap())
+        val found = assertNotNull(store.findSaved(Fixtures.game("scholars-mate")))
+        assertEquals(id, found.id)
+        assertEquals(played.lines.all, found.lines.all)
+    }
+
+    @Test
     fun theSameGameCannotBeSavedTwice() {
         val new = newGame("scholars-mate")
         store.save(new)

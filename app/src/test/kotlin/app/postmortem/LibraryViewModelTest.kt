@@ -1,0 +1,295 @@
+package app.postmortem
+
+import app.postmortem.core.analysis.AnalysisProgress
+import app.postmortem.core.analysis.Eval
+import app.postmortem.core.analysis.PositionEvals
+import app.postmortem.core.analysis.positionKey
+import app.postmortem.core.line.Cursor
+import app.postmortem.core.line.Lines
+import app.postmortem.core.pgn.Game
+import app.postmortem.core.store.GameLibrary
+import app.postmortem.core.store.GameSummary
+import app.postmortem.core.store.NewGame
+import app.postmortem.core.store.SavedGame
+import app.postmortem.core.store.gameKey
+import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.ExperimentalCoroutinesApi
+import kotlinx.coroutines.flow.Flow
+import kotlinx.coroutines.flow.flow
+import kotlinx.coroutines.test.UnconfinedTestDispatcher
+import kotlinx.coroutines.test.resetMain
+import kotlinx.coroutines.test.setMain
+import org.junit.After
+import org.junit.Before
+import kotlin.test.Test
+import kotlin.test.assertEquals
+import kotlin.test.assertFalse
+import kotlin.test.assertIs
+import kotlin.test.assertNotNull
+import kotlin.test.assertNull
+import kotlin.test.assertTrue
+
+@OptIn(ExperimentalCoroutinesApi::class)
+class LibraryViewModelTest {
+    private val dispatcher = UnconfinedTestDispatcher()
+
+    @Before
+    fun setUp() = Dispatchers.setMain(dispatcher)
+
+    @After
+    fun tearDown() = Dispatchers.resetMain()
+
+    private fun fixture(name: String) = checkNotNull(javaClass.getResource("/pgn/$name.pgn")) { "no fixture $name" }.readText()
+
+    /** The saved games in memory, as the real store keeps them. [broken] makes every call fail, like a full disk. */
+    private class FakeLibrary : GameLibrary {
+        val games = LinkedHashMap<Long, SavedGame>()
+        var broken = false
+        private var next = 1L
+
+        private fun check() {
+            if (broken) error("disk full")
+        }
+
+        override fun findSaved(game: Game): SavedGame? {
+            check()
+            return games.values.firstOrNull { it.key == gameKey(game) }
+        }
+
+        override fun save(new: NewGame): Long {
+            check()
+            val id = next++
+            games[id] =
+                SavedGame(
+                    id,
+                    gameKey(new.game),
+                    new.pgn,
+                    new.game,
+                    new.evals,
+                    new.analysisSettings,
+                    Lines(),
+                    emptyMap(),
+                    new.whiteAccuracy,
+                    new.blackAccuracy,
+                    new.opening,
+                    1L,
+                    1L,
+                )
+            return id
+        }
+
+        override fun saveLines(
+            id: Long,
+            lines: Lines,
+            lineEvals: Map<String, Eval>,
+        ) {
+            check()
+            games[id] = games.getValue(id).copy(lines = lines, lineEvals = lineEvals)
+        }
+
+        override fun setOpening(
+            id: Long,
+            opening: String?,
+        ) {
+            games[id] = games.getValue(id).copy(opening = opening)
+        }
+
+        override fun load(id: Long): SavedGame? {
+            check()
+            return games[id]
+        }
+
+        override fun list(): List<GameSummary> = emptyList()
+
+        override fun delete(id: Long) {
+            games.remove(id)
+        }
+
+        override fun restore(saved: SavedGame) {
+            games[saved.id] = saved
+        }
+    }
+
+    private class FakePositions : PositionEvals {
+        val asked = ArrayList<String>()
+
+        override fun cached(fen: String): Eval? = null
+
+        override suspend fun evaluate(fen: String): Eval {
+            asked += fen
+            return Eval.Cp(asked.size * 10)
+        }
+
+        override fun seed(
+            game: Game,
+            evals: List<Eval>,
+        ) = Unit
+
+        override suspend fun release() = Unit
+    }
+
+    private var analysed = 0
+
+    private fun canned(game: Game): Flow<AnalysisProgress> =
+        flow {
+            analysed++
+            emit(AnalysisProgress(game.positionCount, game.positionCount, List(game.positionCount) { Eval.Cp(it * 10) }))
+        }
+
+    private fun viewModel(
+        library: FakeLibrary,
+        positions: FakePositions? = null,
+    ) = MainViewModel(::canned, dispatcher, positions = positions, library = library)
+
+    private fun MainViewModel.analyse(name: String) {
+        onPgnChange(fixture(name))
+        analyse()
+    }
+
+    private fun MainViewModel.result() = assertIs<UiState.Result>(state)
+
+    @Test
+    fun aFinishedAnalysisIsSavedWithItsEvalsAndTheScreenKnowsItsId() {
+        val library = FakeLibrary()
+        val vm = viewModel(library)
+        vm.analyse("scholars-mate")
+        val saved = library.games.values.single()
+        assertEquals(vm.result().evals, saved.evals)
+        assertEquals(vm.result().game, saved.game)
+        assertEquals(vm.result().pgn, saved.pgn)
+        assertEquals(vm.result().analysisSettings, saved.analysisSettings)
+        assertNotNull(saved.whiteAccuracy)
+        assertEquals(saved.id, vm.result().gameId)
+    }
+
+    @Test
+    fun everyNewLineMoveEvalEditAndDeleteIsSavedAsItHappens() {
+        val library = FakeLibrary()
+        val vm = viewModel(library, FakePositions())
+        vm.analyse("scholars-mate")
+        vm.selectPly(4)
+        vm.playMove("d2", "d4")
+        vm.playMove("d7", "d5")
+        var saved = library.games.values.single()
+        assertEquals(vm.result().lines, saved.lines)
+        assertEquals(2, saved.lineEvals.size, "the evals that arrived are saved too")
+        vm.editLine(1)
+        vm.selectLineMove(1, 1)
+        vm.playMove("g8", "f6")
+        saved = library.games.values.single()
+        assertEquals(
+            listOf("d2d4", "g8f6"),
+            saved.lines.all
+                .single()
+                .plies
+                .map { it.uci },
+        )
+        vm.deleteLine(1)
+        assertTrue(
+            library.games.values
+                .single()
+                .lines.all
+                .isEmpty(),
+        )
+        vm.undoDelete()
+        assertEquals(
+            1,
+            library.games.values
+                .single()
+                .lines.all.size,
+        )
+    }
+
+    @Test
+    fun pastingASavedGameAgainOpensItWithItsLinesAndNoAnalysis() {
+        val library = FakeLibrary()
+        val first = viewModel(library, FakePositions())
+        first.analyse("scholars-mate")
+        first.selectPly(4)
+        first.playMove("d2", "d4")
+        val savedLines = first.result().lines
+        analysed = 0
+        val second = viewModel(library)
+        second.analyse("scholars-mate")
+        assertEquals(0, analysed, "no analysis ran")
+        assertEquals(savedLines, second.result().lines)
+        assertEquals(first.result().evals, second.result().evals)
+        assertEquals(1L, second.result().gameId)
+        assertTrue(second.openedFromLibrary)
+        second.noticeShown()
+        assertFalse(second.openedFromLibrary)
+        assertEquals(first.result().pgn, second.result().pgn)
+        assertEquals(Cursor.game(0), second.result().cursor)
+    }
+
+    @Test
+    fun aGameThatIsNotSavedIsAnalysedAndAChangedTagIsAnotherGame() {
+        val library = FakeLibrary()
+        val vm = viewModel(library)
+        vm.analyse("scholars-mate")
+        vm.back()
+        vm.onPgnChange(fixture("scholars-mate").replace("Scholar's mate", "Scholar's mate, again"))
+        vm.analyse()
+        assertEquals(2, analysed)
+        assertEquals(2, library.games.size)
+        assertFalse(vm.openedFromLibrary)
+    }
+
+    @Test
+    fun aSavedGameOpensByIdForTheLibraryScreen() {
+        val library = FakeLibrary()
+        val vm = viewModel(library)
+        vm.analyse("lichess-short-resign")
+        vm.back()
+        analysed = 0
+        vm.openGame(1L)
+        assertEquals(0, analysed)
+        assertEquals(1L, vm.result().gameId)
+        assertTrue(vm.openedFromLibrary)
+        vm.openGame(99L)
+        assertEquals(1L, vm.result().gameId, "a game that is not there changes nothing")
+    }
+
+    @Test
+    fun aLinePositionWithoutAnEvalWhenTheGameOpensIsEvaluatedAgain() {
+        val library = FakeLibrary()
+        val first = viewModel(library)
+        first.analyse("scholars-mate")
+        first.selectPly(4)
+        first.playMove("d2", "d4")
+        first.back()
+        first.back()
+        val positions = FakePositions()
+        val second = viewModel(library, positions)
+        second.analyse("scholars-mate")
+        val fen =
+            second
+                .result()
+                .lines.all
+                .single()
+                .plies
+                .single()
+                .fen
+        assertEquals(listOf(fen), positions.asked)
+        assertTrue(second.result().evalOf(fen) != null)
+        assertTrue(positionKey(fen) in second.result().lineEvals)
+    }
+
+    @Test
+    fun aLibraryThatFailsNeverStopsTheAnalysisOrThePlay() {
+        val library = FakeLibrary()
+        library.broken = true
+        val vm = viewModel(library)
+        vm.analyse("scholars-mate")
+        assertNull(vm.result().gameId)
+        vm.selectPly(4)
+        vm.playMove("d2", "d4")
+        assertEquals(
+            1,
+            vm
+                .result()
+                .lines.all.size,
+        )
+        assertTrue(library.games.isEmpty())
+    }
+}

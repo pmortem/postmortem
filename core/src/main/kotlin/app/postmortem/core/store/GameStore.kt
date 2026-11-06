@@ -49,6 +49,33 @@ data class GameSummary(
     val updated: Long,
 )
 
+/** What the app needs of the saved games; [GameStore] is the real one, tests and screens can use a stand-in. */
+interface GameLibrary {
+    /** The saved game with the same key as [game] (same start, moves and tags), or null. */
+    fun findSaved(game: Game): SavedGame?
+
+    fun save(new: NewGame): Long
+
+    fun saveLines(
+        id: Long,
+        lines: Lines,
+        lineEvals: Map<String, Eval>,
+    )
+
+    fun setOpening(
+        id: Long,
+        opening: String?,
+    )
+
+    fun load(id: Long): SavedGame?
+
+    fun list(): List<GameSummary>
+
+    fun delete(id: Long)
+
+    fun restore(saved: SavedGame)
+}
+
 /**
  * The saved games, in the SQLite file behind [db] (see [Schema]). Nothing here knows about Android: the same code runs on the phone
  * and in the tests. Every change is one transaction, so a game is never half saved.
@@ -56,7 +83,7 @@ data class GameSummary(
 class GameStore(
     private val db: SqlDb,
     private val clock: () -> Long = System::currentTimeMillis,
-) {
+) : GameLibrary {
     init {
         Schema.migrate(db)
     }
@@ -64,8 +91,10 @@ class GameStore(
     /** The id of the saved game with the same key as [game] (same start, moves and tags), or null. */
     fun findId(game: Game): Long? = db.query("SELECT id FROM game WHERE game_key = ?", listOf(gameKey(game))).firstOrNull()?.long("id")
 
+    override fun findSaved(game: Game): SavedGame? = findId(game)?.let(::load)
+
     /** Saves a new game with its main-line positions and evals, and returns its id. */
-    fun save(new: NewGame): Long =
+    override fun save(new: NewGame): Long =
         db.transaction {
             val now = clock()
             insertGame(
@@ -161,7 +190,7 @@ class GameStore(
      * Makes the stored lines of [id] these [lines], with the evals found for their positions in [lineEvals]: the old line positions go,
      * the new ones are written. The game's own positions are never touched.
      */
-    fun saveLines(
+    override fun saveLines(
         id: Long,
         lines: Lines,
         lineEvals: Map<String, Eval>,
@@ -184,13 +213,13 @@ class GameStore(
         db.execute("UPDATE game SET updated = ? WHERE id = ?", listOf(clock(), id))
     }
 
-    fun setOpening(
+    override fun setOpening(
         id: Long,
         opening: String?,
     ) = db.execute("UPDATE game SET opening = ? WHERE id = ?", listOf(opening, id))
 
     /** The game with its lines, or null when there is none with [id]. */
-    fun load(id: Long): SavedGame? {
+    override fun load(id: Long): SavedGame? {
         val row = db.query("SELECT * FROM game WHERE id = ?", listOf(id)).firstOrNull() ?: return null
         val nodes =
             db.query(
@@ -239,7 +268,7 @@ class GameStore(
     }
 
     /** The saved games, the one worked on last first. */
-    fun list(): List<GameSummary> =
+    override fun list(): List<GameSummary> =
         db
             .query(
                 "SELECT g.id, g.headers_json, g.opening, g.white_accuracy, g.black_accuracy, g.created, g.updated, " +
@@ -258,10 +287,10 @@ class GameStore(
                 )
             }
 
-    fun delete(id: Long) = db.execute("DELETE FROM game WHERE id = ?", listOf(id))
+    override fun delete(id: Long) = db.execute("DELETE FROM game WHERE id = ?", listOf(id))
 
     /** Puts a game that was deleted back with the id, key, lines and times it had. */
-    fun restore(saved: SavedGame) =
+    override fun restore(saved: SavedGame) =
         db.transaction {
             insertGame(
                 saved.id,

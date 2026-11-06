@@ -27,3 +27,8 @@ A ring fills with the percentage done, and under it a count such as `13/27` show
 Every position of the game is checked (one more than the number of half-moves, because the start counts). A 27-position game takes about 20 seconds on the test phone, an 80-move game about 100 seconds.
 
 How the engine is set up is on the [engine page](engine.md).
+
+## Saved games
+Every game you analyse is saved on the phone, in the app's own storage, and so is everything you do to it: the lines you play, their evaluations, what you edit and delete, as it happens. There is nothing to tap, and closing or killing the app loses nothing. The file is a standard SQLite database, `postmortem.sqlite`; it never leaves the phone.
+
+Pasting a game that is already saved (same moves, same start position and same tags) opens the saved one straight away, with its lines and no analysis. A short message says **Opened from your library**. A game with a changed tag or move counts as another game and is analysed again.
