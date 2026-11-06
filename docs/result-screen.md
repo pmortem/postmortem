@@ -29,6 +29,12 @@ What a move does:
 
 ![A line in the Moves tab](img/line.png)
 
+### Working with lines
+- **Select:** tap a line's row (not a move) to highlight the whole row and show the line's last position on the board. Tapping one move of the row selects that move and highlights the row too.
+- **Delete:** swipe a line's row to the right. The row slides out, the line is gone and the board goes to the position it branched from. A bar at the bottom offers **Undo** for a few seconds, which brings the line back exactly as it was, with its evals.
+- **Edit:** swipe a line's row to the left. The row gets a coloured edge and an **Editing** label with **Done**. Tap a move of the line to go there, then play a new move: the line is **cut after that move** and continues with the new move (no second line is made, the old rest is gone). With the board on the position the line branches from, a move replaces the whole line. **Done**, **Back**, or choosing a move of the game leaves edit mode.
+- Only lines react to a swipe, never the game's rows, and scrolling the list up and down never deletes anything.
+
 ## Eval bar
 A horizontal bar right under the board. The side at the bottom of the board fills from the left. The number is the evaluation from White's point of view: `+0.35` is a small edge for White, `M3` a forced mate in 3. On the last position of the game the bar says **RIP**, whatever the ending.
 

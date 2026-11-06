@@ -164,4 +164,64 @@ class LinesTest {
                 .moveLabels(),
         )
     }
+
+    private fun fiveMoveLine(): Pair<Lines, Cursor> {
+        var played = Lines().play(Cursor.game(4), "d2d4")
+        for (uci in listOf("d7d5", "c2c4", "g8f6", "b1c3")) played = played.lines.play(played.cursor, uci)
+        return played.lines to played.cursor
+    }
+
+    @Test
+    fun deletingALineRemovesItAndRestoringPutsItBackExactlyWhereItWas() {
+        val (lines, _) = fiveMoveLine()
+        val second = lines.play(Cursor.game(4), "g1f3").lines
+        val third = second.play(Cursor.game(2), "g1f3").lines
+        val first = third.find(1)!!
+        val without = third.delete(1)
+        assertNull(without.find(1))
+        assertEquals(listOf(2, 3), without.all.map { it.id })
+        assertEquals(third, without.restore(first))
+        assertEquals(listOf(1, 2, 3), without.restore(first).all.map { it.id })
+        assertEquals(without, without.restore(first).delete(1))
+        assertEquals(third, third.restore(first), "restoring a line that is there changes nothing")
+    }
+
+    @Test
+    fun editingCutsTheLineAfterTheCursorAndContinuesWithTheNewMove() {
+        val (lines, _) = fiveMoveLine()
+        val moved = lines.edit(game, Cursor(1, 2), 1, move(lines.fen(game, Cursor(1, 2)), "g1f3"))!!
+        assertEquals(
+            listOf("d2d4", "d7d5", "g1f3"),
+            moved.lines
+                .find(1)!!
+                .plies
+                .map { it.uci },
+        )
+        assertEquals(Cursor(1, 3), moved.cursor)
+        assertEquals(1, moved.lines.all.size, "no second line")
+    }
+
+    @Test
+    fun editingFromTheBranchPositionReplacesTheWholeLine() {
+        val (lines, _) = fiveMoveLine()
+        val moved = lines.edit(game, Cursor.game(4), 1, move(game.fenAt(4), "g1f3"))!!
+        assertEquals(
+            listOf("g1f3"),
+            moved.lines
+                .find(1)!!
+                .plies
+                .map { it.uci },
+        )
+        assertEquals(Cursor(1, 1), moved.cursor)
+    }
+
+    @Test
+    fun editingWithTheLinesOwnNextMoveOnlyStepsAndElsewhereDoesNothing() {
+        val (lines, _) = fiveMoveLine()
+        val same = lines.edit(game, Cursor(1, 2), 1, move(lines.fen(game, Cursor(1, 2)), "c2c4"))!!
+        assertEquals(lines, same.lines)
+        assertEquals(Cursor(1, 3), same.cursor)
+        assertNull(lines.edit(game, Cursor.game(2), 1, move(game.fenAt(2), "g1f3")), "not on the line or its branch")
+        assertNull(lines.edit(game, Cursor(1, 2), 9, move(lines.fen(game, Cursor(1, 2)), "g1f3")), "no such line")
+    }
 }

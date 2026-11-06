@@ -14,6 +14,7 @@ import app.postmortem.core.analysis.positionKey
 import app.postmortem.core.board.MoveTarget
 import app.postmortem.core.board.Moves
 import app.postmortem.core.line.Cursor
+import app.postmortem.core.line.Line
 import app.postmortem.core.pgn.Game
 import app.postmortem.core.pgn.PgnParser
 import app.postmortem.core.pgn.PgnResult
@@ -77,6 +78,14 @@ class MainViewModel(
     /** The pawn move waiting for a piece to be chosen, or null. */
     val promotion: PromotionAsked? get() = promotionAsked?.takeIf { it.fen == shownFen }
 
+    /** The line being edited (swiped left): a move played on it cuts it there. */
+    var editingLineId: Int? by mutableStateOf(null)
+        private set
+
+    /** The line deleted last, which Undo brings back, with where the board was. */
+    var deletedLine: DeletedLine? by mutableStateOf(null)
+        private set
+
     private var liveJob: Job? = null
     private var foreground = true
 
@@ -121,6 +130,8 @@ class MainViewModel(
         game: Game,
     ) {
         stopLive()
+        editingLineId = null
+        deletedLine = null
         state = UiState.Analysing(pgn, game, done = 0, total = game.positionCount)
         var furthest = 0
         job =
@@ -144,6 +155,7 @@ class MainViewModel(
 
     fun selectPly(ply: Int) {
         val current = state as? UiState.Result ?: return
+        editingLineId = null
         state = current.copy(cursor = Cursor.game(ply.coerceIn(0, current.game.plies.size)))
         restartLive()
     }
@@ -207,8 +219,52 @@ class MainViewModel(
     ) {
         val current = state as? UiState.Result ?: return
         val line = current.lines.find(lineId) ?: return
+        if (editingLineId != lineId) editingLineId = null
         state = current.copy(cursor = Cursor(lineId, move.coerceIn(1, line.plies.size)))
         restartLive()
+    }
+
+    /** Selects the whole line: the board shows its last position. */
+    fun selectLine(lineId: Int) {
+        val current = state as? UiState.Result ?: return
+        val line = current.lines.find(lineId) ?: return
+        selectLineMove(lineId, line.plies.size)
+    }
+
+    /** Deletes the line and remembers it for [undoDelete]; the board goes to the position it branched from if it was on it. */
+    fun deleteLine(lineId: Int) {
+        val current = state as? UiState.Result ?: return
+        val line = current.lines.find(lineId) ?: return
+        deletedLine = DeletedLine(line, current.cursor)
+        if (editingLineId == lineId) editingLineId = null
+        val cursor = if (current.cursor.lineId == lineId) Cursor.game(line.branchPly) else current.cursor
+        state = current.copy(lines = current.lines.delete(lineId), cursor = cursor)
+        restartLive()
+    }
+
+    /** Brings the last deleted line back as it was, with its evals, and the board to where it was if it was on that line. */
+    fun undoDelete() {
+        val current = state as? UiState.Result ?: return
+        val deleted = deletedLine ?: return
+        deletedLine = null
+        val back = if (deleted.cursorBefore.lineId == deleted.line.id) deleted.cursorBefore else current.cursor
+        state = current.copy(lines = current.lines.restore(deleted.line), cursor = back)
+        restartLive()
+    }
+
+    /** The undo offer is over (its time ran out). */
+    fun dismissUndo() {
+        deletedLine = null
+    }
+
+    fun editLine(lineId: Int) {
+        val current = state as? UiState.Result ?: return
+        if (current.lines.find(lineId) == null) return
+        editingLineId = lineId
+    }
+
+    fun doneEditing() {
+        editingLineId = null
     }
 
     /**
@@ -222,7 +278,10 @@ class MainViewModel(
     ) {
         val current = state as? UiState.Result ?: return
         val ply = Moves.play(current.fen, from, to, promotion) ?: return
-        val played = current.lines.play(current.game, current.cursor, ply)
+        val editing = editingLineId
+        val edited = editing?.let { current.lines.edit(current.game, current.cursor, it, ply) }
+        if (editing != null && edited == null) editingLineId = null
+        val played = edited ?: current.lines.play(current.game, current.cursor, ply)
         selection = null
         state = current.copy(lines = played.lines, cursor = played.cursor)
         evaluateSoon(ply.fen)
@@ -373,6 +432,10 @@ class MainViewModel(
             promotionAsked = null
             return true
         }
+        if (editingLineId != null) {
+            editingLineId = null
+            return true
+        }
         (state as? UiState.Result)?.let { current ->
             if (current.cursor.lineId != null) {
                 state = current.copy(cursor = current.lines.leave(current.cursor))
@@ -390,6 +453,8 @@ class MainViewModel(
         job = null
         stopLive()
         stopEvaluating()
+        editingLineId = null
+        deletedLine = null
         state = UiState.Paste(pgn = pgn)
         return true
     }
@@ -407,4 +472,10 @@ data class PromotionAsked(
     val fen: String,
     val from: String,
     val to: String,
+)
+
+/** A line the user deleted, and where the board was, so Undo can put both back. */
+data class DeletedLine(
+    val line: Line,
+    val cursorBefore: Cursor,
 )

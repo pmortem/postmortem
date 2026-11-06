@@ -26,13 +26,23 @@ import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.ArrowBack
 import androidx.compose.material.icons.automirrored.filled.ArrowForward
 import androidx.compose.material3.CircularProgressIndicator
+import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.PrimaryTabRow
+import androidx.compose.material3.Snackbar
+import androidx.compose.material3.SnackbarDuration
+import androidx.compose.material3.SnackbarHost
+import androidx.compose.material3.SnackbarHostState
+import androidx.compose.material3.SnackbarResult
 import androidx.compose.material3.Surface
+import androidx.compose.material3.SwipeToDismissBox
+import androidx.compose.material3.SwipeToDismissBoxValue
 import androidx.compose.material3.Tab
 import androidx.compose.material3.Text
+import androidx.compose.material3.TextButton
+import androidx.compose.material3.rememberSwipeToDismissBoxState
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
@@ -43,6 +53,8 @@ import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
+import androidx.compose.ui.draw.drawBehind
+import androidx.compose.ui.geometry.Size
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.platform.testTag
 import androidx.compose.ui.res.painterResource
@@ -54,6 +66,7 @@ import androidx.compose.ui.semantics.testTagsAsResourceId
 import androidx.compose.ui.text.SpanStyle
 import androidx.compose.ui.text.buildAnnotatedString
 import androidx.compose.ui.text.withStyle
+import app.postmortem.DeletedLine
 import app.postmortem.R
 import app.postmortem.ResultTab
 import app.postmortem.UiState
@@ -68,6 +81,19 @@ import app.postmortem.core.pgn.plyLabel
 import app.postmortem.ui.theme.LocalBoardPalette
 import app.postmortem.ui.theme.Spacing
 
+/** What the Moves tab does with the lines the user played: select, delete (with Undo), edit, and leave edit mode. */
+data class LineActions(
+    val editing: Int? = null,
+    val deleted: DeletedLine? = null,
+    val onSelectMove: (Int, Int) -> Unit = { _, _ -> },
+    val onSelectLine: (Int) -> Unit = {},
+    val onDelete: (Int) -> Unit = {},
+    val onEdit: (Int) -> Unit = {},
+    val onDoneEditing: () -> Unit = {},
+    val onUndo: () -> Unit = {},
+    val onUndoExpired: () -> Unit = {},
+)
+
 @Composable
 fun ResultScreen(
     state: UiState.Result,
@@ -79,7 +105,7 @@ fun ResultScreen(
     engineOn: Boolean = true,
     onToggleEngine: () -> Unit = {},
     onSettings: () -> Unit = {},
-    onSelectLineMove: (Int, Int) -> Unit = { _, _ -> },
+    lineActions: LineActions = LineActions(),
     boardInput: BoardInput? = null,
 ) {
     var showReadout by rememberSaveable { mutableStateOf(false) }
@@ -90,18 +116,39 @@ fun ResultScreen(
                 .semantics { testTagsAsResourceId = true },
         color = MaterialTheme.colorScheme.background,
     ) {
-        Column(
-            Modifier.safeDrawingPadding().padding(Spacing.screen),
-            verticalArrangement = Arrangement.spacedBy(Spacing.gap),
-        ) {
-            BoardWithEvalBar(state, arrowsOf(live?.lines.orEmpty(), state.flipped), boardInput)
-            if (showReadout && engineOn) EngineReadout(live)
-            StepButtons(state, onStep, onFlip, onSettings, engineOn, onToggleEngine, onToggleReadout = { showReadout = !showReadout })
-            ResultTabs(state.tab, onTab)
-            when (state.tab) {
-                ResultTab.Moves -> MoveList(state, onSelect, onSelectLineMove, Modifier.weight(1f).fillMaxWidth())
-                ResultTab.Chart -> EvalChart(state, onSelect, Modifier.weight(1f).fillMaxWidth())
-                ResultTab.Summary -> SummaryScreen(state, Modifier.weight(1f).fillMaxWidth())
+        val snackbars = remember { SnackbarHostState() }
+        val deletedMessage = stringResource(R.string.line_deleted)
+        val undoLabel = stringResource(R.string.line_undo)
+        LaunchedEffect(lineActions.deleted) {
+            if (lineActions.deleted == null) return@LaunchedEffect
+            when (snackbars.showSnackbar(deletedMessage, undoLabel, duration = SnackbarDuration.Short)) {
+                SnackbarResult.ActionPerformed -> lineActions.onUndo()
+                SnackbarResult.Dismissed -> lineActions.onUndoExpired()
+            }
+        }
+        Box(Modifier.fillMaxSize()) {
+            Column(
+                Modifier.safeDrawingPadding().padding(Spacing.screen),
+                verticalArrangement = Arrangement.spacedBy(Spacing.gap),
+            ) {
+                BoardWithEvalBar(state, arrowsOf(live?.lines.orEmpty(), state.flipped), boardInput)
+                if (showReadout && engineOn) EngineReadout(live)
+                StepButtons(state, onStep, onFlip, onSettings, engineOn, onToggleEngine, onToggleReadout = { showReadout = !showReadout })
+                ResultTabs(state.tab, onTab)
+                when (state.tab) {
+                    ResultTab.Moves -> MoveList(state, onSelect, lineActions, Modifier.weight(1f).fillMaxWidth())
+                    ResultTab.Chart -> EvalChart(state, onSelect, Modifier.weight(1f).fillMaxWidth())
+                    ResultTab.Summary -> SummaryScreen(state, Modifier.weight(1f).fillMaxWidth())
+                }
+            }
+            SnackbarHost(snackbars, Modifier.align(Alignment.BottomCenter).safeDrawingPadding()) { data ->
+                Snackbar(
+                    action = {
+                        TextButton(onClick = { data.performAction() }, modifier = Modifier.testTag(UiTags.UNDO)) {
+                            Text(data.visuals.actionLabel.orEmpty())
+                        }
+                    },
+                ) { Text(data.visuals.message) }
             }
         }
     }
@@ -273,7 +320,7 @@ private sealed interface MoveListItem {
 private fun MoveList(
     state: UiState.Result,
     onSelect: (Int) -> Unit,
-    onSelectLineMove: (Int, Int) -> Unit,
+    actions: LineActions,
     modifier: Modifier,
 ) {
     val game: Game = state.game
@@ -299,10 +346,10 @@ private fun MoveList(
         if (target >= 0) listState.animateScrollToItem(target)
     }
     LazyColumn(modifier.testTag(UiTags.MOVE_LIST), state = listState) {
-        items(items) { item ->
+        items(items, key = { if (it is MoveListItem.LineRow) "line${it.line.id}" else "row${(it as MoveListItem.Row).row}" }) { item ->
             when (item) {
                 is MoveListItem.Row -> GameRow(item.row, state, onSelect)
-                is MoveListItem.LineRow -> LineRow(item.line, state, onSelectLineMove)
+                is MoveListItem.LineRow -> LineRow(item.line, state, actions)
             }
         }
     }
@@ -341,69 +388,151 @@ private fun GameRow(
 }
 
 /**
- * A line as Lichess writes it (`3... Nf6 4. Nf3 Qe7`), indented; each move can be tapped. After a move come its mark (`?!`, `?`, `??`,
- * as on the chart) and its eval, a spinner while the eval is being worked out.
+ * A line as Lichess writes it (`3... Nf6 4. Nf3 Qe7`), indented; each move can be tapped, and the row itself selects the whole line.
+ * After a move come its mark (`?!`, `?`, `??`, as on the chart) and its eval, a spinner while the eval is being worked out.
+ * Swiping the row right deletes the line (with Undo), swiping it left edits it.
  */
-@OptIn(ExperimentalLayoutApi::class)
+@OptIn(ExperimentalMaterial3Api::class)
 @Composable
 private fun LineRow(
     line: Line,
     state: UiState.Result,
-    onSelectLineMove: (Int, Int) -> Unit,
+    actions: LineActions,
+) {
+    val dismiss =
+        rememberSwipeToDismissBoxState(
+            confirmValueChange = { target ->
+                when (target) {
+                    SwipeToDismissBoxValue.StartToEnd -> {
+                        actions.onDelete(line.id)
+                        true
+                    }
+
+                    SwipeToDismissBoxValue.EndToStart -> {
+                        actions.onEdit(line.id)
+                        false
+                    }
+
+                    SwipeToDismissBoxValue.Settled -> {
+                        false
+                    }
+                }
+            },
+        )
+    SwipeToDismissBox(
+        state = dismiss,
+        backgroundContent = { SwipeBackground(dismiss.dismissDirection) },
+        modifier = Modifier.testTag(UiTags.lineRow(line.id)),
+    ) {
+        LineRowContent(line, state, actions)
+    }
+}
+
+/** What shows behind a row being swiped: a delete icon on red to the right, an edit icon to the left. */
+@Composable
+private fun SwipeBackground(direction: SwipeToDismissBoxValue) {
+    val deleting = direction == SwipeToDismissBoxValue.StartToEnd
+    val editing = direction == SwipeToDismissBoxValue.EndToStart
+    if (!deleting && !editing) return
+    Box(
+        Modifier
+            .fillMaxSize()
+            .background(if (deleting) MaterialTheme.colorScheme.errorContainer else MaterialTheme.colorScheme.tertiaryContainer)
+            .padding(horizontal = Spacing.swipeIconPadding),
+        contentAlignment = if (deleting) Alignment.CenterStart else Alignment.CenterEnd,
+    ) {
+        Icon(
+            painterResource(if (deleting) R.drawable.ic_delete else R.drawable.ic_edit),
+            stringResource(if (deleting) R.string.line_delete_action else R.string.line_edit_action),
+        )
+    }
+}
+
+@OptIn(ExperimentalLayoutApi::class)
+@Composable
+private fun LineRowContent(
+    line: Line,
+    state: UiState.Result,
+    actions: LineActions,
 ) {
     val palette = LocalBoardPalette.current
     val labels = line.moveLabels()
     val judgements = state.judgementsOf(line)
-    FlowRow(
+    val editing = actions.editing == line.id
+    val onRow = state.cursor.lineId == line.id
+    val edge = MaterialTheme.colorScheme.tertiary
+    Column(
         Modifier
             .fillMaxWidth()
-            .padding(start = Spacing.lineIndent)
-            .testTag(UiTags.LINE_ROW),
+            .background(MaterialTheme.colorScheme.background)
+            .background(if (onRow) palette.selectedMove.copy(alpha = Spacing.SELECTED_ROW_ALPHA) else Color.Transparent)
+            .clickable { actions.onSelectLine(line.id) }
+            .drawBehind { if (editing) drawRect(edge, size = Size(Spacing.editEdge.toPx(), size.height)) }
+            .padding(start = Spacing.lineIndent),
     ) {
-        labels.forEachIndexed { index, label ->
-            val selected = state.cursor.lineId == line.id && state.cursor.ply == index + 1
-            val color = if (selected) palette.onSelectedMove else MaterialTheme.colorScheme.onBackground
-            val fen = line.plies[index].fen
-            val judgement = judgements.getOrNull(index)
-            Row(
-                verticalAlignment = Alignment.CenterVertically,
-                horizontalArrangement = Arrangement.spacedBy(Spacing.small),
-                modifier =
-                    Modifier
-                        .testTag(UiTags.lineMove(line.id, index + 1))
-                        .background(if (selected) palette.selectedMove else Color.Transparent)
-                        .clickable { onSelectLineMove(line.id, index + 1) }
-                        .padding(Spacing.moveCell),
-            ) {
+        if (editing) {
+            Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(Spacing.small)) {
                 Text(
-                    buildAnnotatedString {
-                        append(label)
-                        if (judgement !=
-                            null
-                        ) {
-                            withStyle(SpanStyle(color = judgement.color())) { append(stringResource(judgement.marksRes())) }
-                        }
-                    },
-                    style = MaterialTheme.typography.bodyLarge,
-                    color = color,
+                    stringResource(R.string.line_editing),
+                    style = MaterialTheme.typography.labelLarge,
+                    color = MaterialTheme.colorScheme.onTertiary,
+                    modifier =
+                        Modifier
+                            .testTag(UiTags.LINE_EDITING)
+                            .background(edge, MaterialTheme.shapes.small)
+                            .padding(horizontal = Spacing.gap, vertical = Spacing.small),
                 )
-                val eval = state.evalOf(fen)
-                when {
-                    eval != null -> {
-                        Text(eval.formatShort(), style = MaterialTheme.typography.bodySmall, color = color)
-                    }
+                TextButton(onClick = actions.onDoneEditing, modifier = Modifier.testTag(UiTags.LINE_EDIT_DONE)) {
+                    Text(stringResource(R.string.line_edit_done))
+                }
+            }
+        }
+        FlowRow(Modifier.fillMaxWidth()) {
+            labels.forEachIndexed { index, label ->
+                val selected = onRow && state.cursor.ply == index + 1
+                val color = if (selected) palette.onSelectedMove else MaterialTheme.colorScheme.onBackground
+                val fen = line.plies[index].fen
+                val judgement = judgements.getOrNull(index)
+                Row(
+                    verticalAlignment = Alignment.CenterVertically,
+                    horizontalArrangement = Arrangement.spacedBy(Spacing.small),
+                    modifier =
+                        Modifier
+                            .testTag(UiTags.lineMove(line.id, index + 1))
+                            .background(if (selected) palette.selectedMove else Color.Transparent)
+                            .clickable { actions.onSelectMove(line.id, index + 1) }
+                            .padding(Spacing.moveCell),
+                ) {
+                    Text(
+                        buildAnnotatedString {
+                            append(label)
+                            if (judgement !=
+                                null
+                            ) {
+                                withStyle(SpanStyle(color = judgement.color())) { append(stringResource(judgement.marksRes())) }
+                            }
+                        },
+                        style = MaterialTheme.typography.bodyLarge,
+                        color = color,
+                    )
+                    val eval = state.evalOf(fen)
+                    when {
+                        eval != null -> {
+                            Text(eval.formatShort(), style = MaterialTheme.typography.bodySmall, color = color)
+                        }
 
-                    state.isPending(fen) -> {
-                        val description = stringResource(R.string.line_eval_pending)
-                        CircularProgressIndicator(
-                            modifier = Modifier.size(Spacing.pendingSpinner).semantics { contentDescription = description },
-                            strokeWidth = Spacing.pendingStroke,
-                            color = color,
-                        )
-                    }
+                        state.isPending(fen) -> {
+                            val description = stringResource(R.string.line_eval_pending)
+                            CircularProgressIndicator(
+                                modifier = Modifier.size(Spacing.pendingSpinner).semantics { contentDescription = description },
+                                strokeWidth = Spacing.pendingStroke,
+                                color = color,
+                            )
+                        }
 
-                    else -> {
-                        Text(stringResource(R.string.line_eval_missing), style = MaterialTheme.typography.bodySmall, color = color)
+                        else -> {
+                            Text(stringResource(R.string.line_eval_missing), style = MaterialTheme.typography.bodySmall, color = color)
+                        }
                     }
                 }
             }

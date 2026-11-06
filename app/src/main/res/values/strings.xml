@@ -37,6 +37,12 @@
     <string name="tab_moves">Moves</string>
     <string name="tab_chart">Chart</string>
     <string name="tab_summary">Summary</string>
+    <string name="line_deleted">Line deleted</string>
+    <string name="line_undo">Undo</string>
+    <string name="line_editing">Editing</string>
+    <string name="line_edit_done">Done</string>
+    <string name="line_delete_action">Delete line</string>
+    <string name="line_edit_action">Edit line</string>
     <string name="line_eval_pending">Evaluating</string>
     <string name="line_eval_missing">–</string>
     <string name="chart_label_eval">"  %1$s"</string>

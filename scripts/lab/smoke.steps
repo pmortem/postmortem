@@ -9,7 +9,7 @@ sleep 5
 shot move6
 tap square_g1
 tap square_f3
-wait line_row
+wait line_row_1
 sleep 5
 shot line
 tap prev_button
