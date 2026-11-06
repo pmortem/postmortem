@@ -9,8 +9,5 @@ object DebugInput {
     fun pgn(intent: Intent): String? = null
 
     @Suppress("UNUSED_PARAMETER")
-    fun resetData(
-        context: Context,
-        databaseName: String,
-    ) = Unit
+    fun resetData(context: Context) = Unit
 }

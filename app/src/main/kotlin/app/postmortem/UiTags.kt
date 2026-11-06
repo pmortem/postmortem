@@ -24,6 +24,14 @@ object UiTags {
     const val TAB_SUMMARY = "tab_summary"
     const val CHART_LABEL = "chart_label"
     const val EVAL_CHART = "eval_chart"
+    const val SETTINGS_DB = "settings_db"
+    const val DB_NAME = "db_name"
+    const val DB_NAME_SAVE = "db_name_save"
+    const val DB_EXPORT = "db_export"
+    const val DB_OPEN = "db_open"
+    const val DB_BROWSE = "db_browse"
+    const val DB_IMPORT = "db_import"
+    const val DB_MESSAGE = "db_message"
     const val LIBRARY_BUTTON = "library_button"
     const val LIBRARY = "library"
     const val LIBRARY_BACK = "library_back"
@@ -43,6 +51,9 @@ object UiTags {
 
     /** The promotion picker's button for [piece]: `q`, `r`, `b` or `n`. */
     fun promotion(piece: Char) = "promotion_$piece"
+
+    /** The [index]-th database file in the list, counting from 0. */
+    fun dbFile(index: Int) = "db_file_$index"
 
     /** The [index]-th saved game in the Library, counting from 0, newest first. */
     fun libraryItem(index: Int) = "library_item_$index"

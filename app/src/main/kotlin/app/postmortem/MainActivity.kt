@@ -1,18 +1,24 @@
 package app.postmortem
 
 import android.content.ClipboardManager
+import android.content.Intent
+import android.net.Uri
 import android.os.Bundle
 import android.os.SystemClock
+import android.provider.OpenableColumns
 import android.util.Log
 import androidx.activity.ComponentActivity
 import androidx.activity.compose.BackHandler
 import androidx.activity.compose.setContent
 import androidx.activity.enableEdgeToEdge
+import androidx.activity.result.contract.ActivityResultContracts
 import androidx.activity.viewModels
+import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.runtime.setValue
+import androidx.core.content.FileProvider
 import androidx.core.splashscreen.SplashScreen.Companion.installSplashScreen
 import androidx.lifecycle.viewmodel.initializer
 import androidx.lifecycle.viewmodel.viewModelFactory
@@ -23,8 +29,8 @@ import app.postmortem.core.analysis.LiveSearch
 import app.postmortem.core.analysis.PositionEvaluator
 import app.postmortem.core.analysis.format
 import app.postmortem.core.board.Moves
-import app.postmortem.data.DATABASE_NAME
-import app.postmortem.data.LazyGameLibrary
+import app.postmortem.data.ActiveDatabaseName
+import app.postmortem.data.DatabaseManager
 import app.postmortem.ui.AnalysingScreen
 import app.postmortem.ui.BoardInput
 import app.postmortem.ui.LibraryScreen
@@ -32,15 +38,19 @@ import app.postmortem.ui.LineActions
 import app.postmortem.ui.PasteScreen
 import app.postmortem.ui.PromotionPrompt
 import app.postmortem.ui.ResultScreen
+import app.postmortem.ui.SettingsActions
 import app.postmortem.ui.SettingsScreen
 import app.postmortem.ui.SplashScreen
 import app.postmortem.ui.theme.PostmortemTheme
 import kotlinx.coroutines.flow.onCompletion
 import kotlinx.coroutines.flow.onEach
 import kotlinx.coroutines.flow.onStart
+import java.io.File
 
 private const val ANALYSIS_TAG = "Analysis"
 private const val LIBRARY_TAG = "Library"
+private const val SQLITE_MIME_TYPE = "application/vnd.sqlite3"
+private val ANY_FILE = arrayOf("*/*")
 
 class MainActivity : ComponentActivity() {
     private val viewModel: MainViewModel by viewModels {
@@ -51,13 +61,15 @@ class MainActivity : ComponentActivity() {
                     Analyser(config, EngineLocator.factory(applicationContext)) { result ->
                         Log.i(ANALYSIS_TAG, "search: ${result.nodes} nodes in ${result.timeMs} ms, ${result.nodesPerSecond} nodes/s")
                     }
+                val databases = DatabaseManager(applicationContext, ActiveDatabaseName(applicationContext))
                 val positions =
                     PositionEvaluator(config, EngineLocator.factory(applicationContext)) { result ->
                         Log.i(ANALYSIS_TAG, "line search: ${result.nodes} nodes in ${result.timeMs} ms, ${result.nodesPerSecond} nodes/s")
                     }
                 MainViewModel(
                     positions = positions,
-                    library = LazyGameLibrary(applicationContext),
+                    library = databases,
+                    databases = databases,
                     libraryLog = { Log.i(LIBRARY_TAG, it) },
                     live = LiveSearch(LiveConfig(), EngineLocator.factory(applicationContext)),
                     arrowsSetting = DataStoreEngineArrowsSetting(applicationContext),
@@ -80,15 +92,48 @@ class MainActivity : ComponentActivity() {
         }
     }
 
+    /** The file picker, used twice: to open a database as the active one, and to merge one into it. It needs no permission. */
+    private val browseDatabase =
+        registerForActivityResult(ActivityResultContracts.OpenDocument()) { uri ->
+            uri?.let { viewModel.openPickedDatabase(displayName(it)) { contentResolver.openInputStream(it) } }
+        }
+    private val importDatabase =
+        registerForActivityResult(ActivityResultContracts.OpenDocument()) { uri ->
+            uri?.let { viewModel.importPickedDatabase { contentResolver.openInputStream(it) } }
+        }
+
+    private fun displayName(uri: Uri): String? =
+        contentResolver.query(uri, arrayOf(OpenableColumns.DISPLAY_NAME), null, null, null)?.use { cursor ->
+            if (cursor.moveToFirst()) cursor.getString(0) else null
+        }
+
+    /** Hands the exported copy to the share sheet (OneDrive, Drive, Files, mail, ...). */
+    private fun share(file: File) {
+        val uri = FileProvider.getUriForFile(this, "$packageName.files", file)
+        val send =
+            Intent(Intent.ACTION_SEND)
+                .setType(SQLITE_MIME_TYPE)
+                .putExtra(Intent.EXTRA_STREAM, uri)
+                .addFlags(Intent.FLAG_GRANT_READ_URI_PERMISSION)
+        startActivity(Intent.createChooser(send, getString(R.string.db_share_title)))
+    }
+
     override fun onCreate(savedInstanceState: Bundle?) {
         installSplashScreen()
         super.onCreate(savedInstanceState)
         enableEdgeToEdge()
-        if (savedInstanceState == null && DebugInput.pgn(intent) != null) DebugInput.resetData(this, DATABASE_NAME)
+        if (savedInstanceState == null && DebugInput.pgn(intent) != null) DebugInput.resetData(this)
         if (savedInstanceState == null) DebugInput.pgn(intent)?.let(viewModel::onPgnChange)
         val coldStart = savedInstanceState == null
         setContent {
             var showSplash by rememberSaveable { mutableStateOf(coldStart) }
+            val pending = viewModel.pendingExport
+            LaunchedEffect(pending) {
+                if (pending != null) {
+                    viewModel.exportShared()
+                    share(pending)
+                }
+            }
             PostmortemTheme {
                 if (showSplash) {
                     SplashScreen(onFinished = { showSplash = false })
@@ -97,7 +142,19 @@ class MainActivity : ComponentActivity() {
                 BackHandler(enabled = viewModel.overlay != null) { viewModel.back() }
                 when (viewModel.overlay) {
                     Overlay.Settings -> {
-                        SettingsScreen(onBack = { viewModel.back() }, onLibrary = viewModel::openLibrary)
+                        SettingsScreen(
+                            database = viewModel.databaseUi,
+                            actions =
+                                SettingsActions(
+                                    onLibrary = viewModel::openLibrary,
+                                    onRename = viewModel::renameDatabase,
+                                    onExport = viewModel::exportDatabase,
+                                    onOpenFile = viewModel::openDatabaseFile,
+                                    onBrowse = { browseDatabase.launch(ANY_FILE) },
+                                    onImport = { importDatabase.launch(ANY_FILE) },
+                                ),
+                            onBack = { viewModel.back() },
+                        )
                         return@PostmortemTheme
                     }
 
@@ -125,6 +182,7 @@ class MainActivity : ComponentActivity() {
                             onPgnChange = viewModel::onPgnChange,
                             onAnalyse = viewModel::analyse,
                             onLibrary = viewModel::openLibrary,
+                            onSettings = viewModel::openSettings,
                         )
                     }
 

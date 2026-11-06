@@ -6,6 +6,7 @@ Postmortem analyses a chess game on your phone: paste a PGN, Stockfish checks ev
 | --- | --- |
 | [Paste and analyse](analysis.md) | Pasting a game, the progress ring, what is checked, errors |
 | [The result screen](result-screen.md) | Board, last-move tint, eval bar (and RIP), arrows, flip, Moves / Chart / Summary tabs |
+| [The database](database.md) | Where the games are saved, naming it, export, switching files, import |
 | [Summary](summary.md) | Overview, opening, accuracy, ACPL, inaccuracies, mistakes and blunders |
 | [Engine](engine.md) | Stockfish, the repeatable analysis settings, live arrows, the long-press readout |
 | [Testing](testing.md) | The smoke run, phone test pages, how bugs are reported |

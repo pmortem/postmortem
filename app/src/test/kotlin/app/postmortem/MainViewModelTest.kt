@@ -364,9 +364,11 @@ class MainViewModelTest {
     }
 
     @Test
-    fun settingsCannotBeOpenedBeforeAResult() {
+    fun settingsOpensBeforeAResultToo() {
         val vm = viewModel()
         vm.openSettings()
+        assertTrue(vm.settingsOpen)
+        assertTrue(vm.back())
         assertFalse(vm.settingsOpen)
     }
 

@@ -11,11 +11,9 @@ object DebugInput {
     fun pgn(intent: Intent): String? =
         intent.getStringExtra(EXTRA_PGN_B64)?.let { String(Base64.decode(it, Base64.DEFAULT), Charsets.UTF_8) }
 
-    /** A smoke run starts from an empty library, so it analyses the game again every time. */
-    fun resetData(
-        context: Context,
-        databaseName: String,
-    ) {
-        context.deleteDatabase(databaseName)
+    /** A smoke run starts from no saved games and the default database name, so it analyses the game again every time. */
+    fun resetData(context: Context) {
+        context.databaseList().forEach { context.deleteDatabase(it) }
+        java.io.File(context.filesDir, "datastore/database.preferences_pb").delete()
     }
 }

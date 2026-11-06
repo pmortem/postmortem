@@ -24,7 +24,12 @@ import app.postmortem.core.store.GameLibrary
 import app.postmortem.core.store.GameSummary
 import app.postmortem.core.store.NewGame
 import app.postmortem.core.store.SavedGame
+import app.postmortem.data.DatabaseControl
+import app.postmortem.data.DbFileInfo
+import app.postmortem.data.DbOutcome
+import app.postmortem.data.DbProblem
 import kotlinx.coroutines.CancellationException
+import kotlinx.coroutines.CompletableDeferred
 import kotlinx.coroutines.CoroutineDispatcher
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.Job
@@ -55,6 +60,8 @@ class MainViewModel(
     private val library: GameLibrary? = null,
     /** Says what the library did (saved, failed), for the log. */
     private val libraryLog: (String) -> Unit = {},
+    /** The database files (rename, open, export, import); none in tests that do not need them. */
+    private val databases: DatabaseControl? = null,
     private val liveDebounceMs: Long = LiveConfig.DEFAULT_DEBOUNCE_MS,
 ) : ViewModel() {
     var state: UiState by mutableStateOf(UiState.Paste())
@@ -86,6 +93,14 @@ class MainViewModel(
         private set
 
     private var deletedHandle: GameHandle? = null
+
+    /** What the Database section of the Settings page shows. */
+    var databaseUi: DatabaseUi by mutableStateOf(DatabaseUi())
+        private set
+
+    /** A complete copy of the active database waiting to be handed to the share sheet; the screen takes it with [exportShared]. */
+    var pendingExport: java.io.File? by mutableStateOf(null)
+        private set
 
     /** The piece the user picked up by tapping, and where it may go. It counts only while the board shows the position it was picked in. */
     private var selection: BoardSelection? by mutableStateOf(null)
@@ -505,11 +520,91 @@ class MainViewModel(
         viewModelScope.launch { arrowsSetting.set(on) }
     }
 
+    /** Opens the Settings page over the Paste screen or the Result; not while a game is being analysed. */
     fun openSettings() {
-        if (state !is UiState.Result) return
+        if (state is UiState.Analysing) return
         overlayBelow = null
         overlay = Overlay.Settings
+        refreshDatabases()
         restartLive()
+    }
+
+    /** Reads the database files again (name, sizes, games). */
+    fun refreshDatabases() {
+        val control = databases ?: return
+        viewModelScope.launch {
+            val (name, files) =
+                withContext(dispatcher) { runCatching { control.activeName() to control.files() }.getOrNull() }
+                    ?: return@launch
+            databaseUi = databaseUi.copy(activeName = name, files = files)
+        }
+    }
+
+    /** The saves made so far are on disk: what is queued before this has run. */
+    private suspend fun savesDone() {
+        if (library == null) return
+        val done = CompletableDeferred<Unit>()
+        saveSoon { done.complete(Unit) }
+        done.await()
+    }
+
+    private fun databaseAction(action: (DatabaseControl) -> DbOutcome) {
+        val control = databases ?: return
+        if (databaseUi.busy) return
+        viewModelScope.launch {
+            databaseUi = databaseUi.copy(busy = true, message = null)
+            savesDone()
+            val outcome = withContext(dispatcher) { runCatching { action(control) }.getOrElse { DbOutcome.Failed(DbProblem.FAILED) } }
+            when (outcome) {
+                is DbOutcome.Opened -> {
+                    // the game on screen belongs to the database that was left, so it is not saved into the new one
+                    handle = GameHandle()
+                    deletedGame = null
+                    libraryGames = null
+                    DbMessage.Opened(outcome.fileName)
+                }
+
+                is DbOutcome.Renamed -> {
+                    DbMessage.Renamed(outcome.fileName)
+                }
+
+                is DbOutcome.Imported -> {
+                    DbMessage.Imported(outcome.result.added, outcome.result.skipped)
+                }
+
+                is DbOutcome.Exported -> {
+                    pendingExport = outcome.file
+                    null
+                }
+
+                is DbOutcome.Failed -> {
+                    DbMessage.Failed(outcome.problem)
+                }
+            }.let { databaseUi = databaseUi.copy(busy = false, message = it) }
+            refreshDatabases()
+        }
+    }
+
+    fun renameDatabase(input: String) = databaseAction { it.rename(input) }
+
+    fun openDatabaseFile(fileName: String) = databaseAction { it.open(fileName) }
+
+    fun exportDatabase() = databaseAction { it.export() }
+
+    /** The share sheet has the exported copy. */
+    fun exportShared() {
+        pendingExport = null
+    }
+
+    fun openPickedDatabase(
+        displayName: String?,
+        source: () -> java.io.InputStream?,
+    ) = databaseAction { it.openPicked(displayName, source) }
+
+    fun importPickedDatabase(source: () -> java.io.InputStream?) = databaseAction { it.importPicked(source) }
+
+    fun dismissDatabaseMessage() {
+        databaseUi = databaseUi.copy(message = null)
     }
 
     /** Opens the Library page over the Paste screen or the Settings page, and reads the saved games. */
@@ -699,3 +794,31 @@ data class DeletedLine(
 
 /** A page that opens over the current screen. */
 enum class Overlay { Settings, Library }
+
+/** The Database section of the Settings page: the active file, the files in the folder, and whether something is going on. */
+data class DatabaseUi(
+    val activeName: String = "",
+    val files: List<DbFileInfo> = emptyList(),
+    val busy: Boolean = false,
+    val message: DbMessage? = null,
+)
+
+/** What the last database action said. */
+sealed interface DbMessage {
+    data class Renamed(
+        val fileName: String,
+    ) : DbMessage
+
+    data class Opened(
+        val fileName: String,
+    ) : DbMessage
+
+    data class Imported(
+        val added: Int,
+        val skipped: Int,
+    ) : DbMessage
+
+    data class Failed(
+        val problem: DbProblem,
+    ) : DbMessage
+}
