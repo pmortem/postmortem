@@ -438,7 +438,7 @@ private fun LineRow(
 
 /** What shows behind a row being swiped: a delete icon on red to the right, an edit icon to the left. */
 @Composable
-private fun SwipeBackground(direction: SwipeToDismissBoxValue) {
+internal fun SwipeBackground(direction: SwipeToDismissBoxValue) {
     val deleting = direction == SwipeToDismissBoxValue.StartToEnd
     val editing = direction == SwipeToDismissBoxValue.EndToStart
     if (!deleting && !editing) return

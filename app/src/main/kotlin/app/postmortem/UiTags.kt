@@ -24,6 +24,10 @@ object UiTags {
     const val TAB_SUMMARY = "tab_summary"
     const val CHART_LABEL = "chart_label"
     const val EVAL_CHART = "eval_chart"
+    const val LIBRARY_BUTTON = "library_button"
+    const val LIBRARY = "library"
+    const val LIBRARY_BACK = "library_back"
+    const val SETTINGS_LIBRARY = "settings_library"
     const val LINE_EDITING = "line_editing"
     const val LINE_EDIT_DONE = "line_edit_done"
     const val UNDO = "undo"
@@ -39,6 +43,9 @@ object UiTags {
 
     /** The promotion picker's button for [piece]: `q`, `r`, `b` or `n`. */
     fun promotion(piece: Char) = "promotion_$piece"
+
+    /** The [index]-th saved game in the Library, counting from 0, newest first. */
+    fun libraryItem(index: Int) = "library_item_$index"
 
     /** The row of line [line]. */
     fun lineRow(line: Int) = "line_row_$line"

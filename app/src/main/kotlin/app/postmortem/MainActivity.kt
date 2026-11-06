@@ -27,6 +27,7 @@ import app.postmortem.data.DATABASE_NAME
 import app.postmortem.data.LazyGameLibrary
 import app.postmortem.ui.AnalysingScreen
 import app.postmortem.ui.BoardInput
+import app.postmortem.ui.LibraryScreen
 import app.postmortem.ui.LineActions
 import app.postmortem.ui.PasteScreen
 import app.postmortem.ui.PromotionPrompt
@@ -93,9 +94,38 @@ class MainActivity : ComponentActivity() {
                     SplashScreen(onFinished = { showSplash = false })
                     return@PostmortemTheme
                 }
+                BackHandler(enabled = viewModel.overlay != null) { viewModel.back() }
+                when (viewModel.overlay) {
+                    Overlay.Settings -> {
+                        SettingsScreen(onBack = { viewModel.back() }, onLibrary = viewModel::openLibrary)
+                        return@PostmortemTheme
+                    }
+
+                    Overlay.Library -> {
+                        LibraryScreen(
+                            games = viewModel.libraryGames,
+                            deletedOffered = viewModel.deletedGame != null,
+                            onOpen = viewModel::openGame,
+                            onDelete = viewModel::deleteSavedGame,
+                            onUndo = viewModel::undoDeleteGame,
+                            onUndoExpired = viewModel::dismissDeletedGame,
+                            onBack = { viewModel.back() },
+                        )
+                        return@PostmortemTheme
+                    }
+
+                    null -> {
+                        Unit
+                    }
+                }
                 when (val state = viewModel.state) {
                     is UiState.Paste -> {
-                        PasteScreen(state = state, onPgnChange = viewModel::onPgnChange, onAnalyse = viewModel::analyse)
+                        PasteScreen(
+                            state = state,
+                            onPgnChange = viewModel::onPgnChange,
+                            onAnalyse = viewModel::analyse,
+                            onLibrary = viewModel::openLibrary,
+                        )
                     }
 
                     is UiState.Analysing -> {
@@ -105,10 +135,6 @@ class MainActivity : ComponentActivity() {
 
                     is UiState.Result -> {
                         BackHandler { viewModel.back() }
-                        if (viewModel.settingsOpen) {
-                            SettingsScreen(onBack = { viewModel.back() })
-                            return@PostmortemTheme
-                        }
                         ResultScreen(
                             state = state,
                             onSelect = viewModel::selectPly,

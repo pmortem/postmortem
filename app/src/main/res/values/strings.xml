@@ -37,6 +37,20 @@
     <string name="tab_moves">Moves</string>
     <string name="tab_chart">Chart</string>
     <string name="tab_summary">Summary</string>
+    <string name="library_button">Library</string>
+    <string name="library_title">Library</string>
+    <string name="library_back">Back</string>
+    <string name="library_empty">Analysed games appear here</string>
+    <string name="library_game_deleted">Game deleted</string>
+    <string name="library_players">%1$s – %2$s</string>
+    <string name="library_untitled">Game</string>
+    <string name="library_accuracies">%1$.0f%% · %2$.0f%%</string>
+    <string name="library_separator">" · "</string>
+    <plurals name="library_lines">
+        <item quantity="one">%1$d line</item>
+        <item quantity="other">%1$d lines</item>
+    </plurals>
+    <string name="library_delete_action">Delete game</string>
     <string name="opened_from_library">Opened from your library</string>
     <string name="line_deleted">Line deleted</string>
     <string name="line_undo">Undo</string>
