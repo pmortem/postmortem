@@ -125,6 +125,37 @@ class LiveViewModelTest {
     }
 
     @Test
+    fun holdingAnArrowStartsNoSearchUntilItIsReleasedAndThenExactlyOneForTheFinalPosition() {
+        val live = FakeLive()
+        val vm = viewModel(live)
+        vm.analyseGame("chesscom-short-resign")
+        dispatcher.scheduler.advanceTimeBy(301)
+        dispatcher.scheduler.runCurrent()
+        assertEquals(1, live.searched.size)
+        // a hold: the first step after 400 ms, then every 120 ms, and every 60 ms after two seconds
+        val steps = ArrayList<Long>()
+        var held = 400L
+        repeat(30) {
+            steps += held
+            held += if (held >= 2000) 60 else 120
+        }
+        var now = 0L
+        for (at in steps) {
+            dispatcher.scheduler.advanceTimeBy(at - now)
+            dispatcher.scheduler.runCurrent()
+            now = at
+            vm.step(1)
+            assertNull(vm.liveUpdate, "no arrows of an old position during a hold")
+        }
+        assertEquals(1, live.searched.size, "no search while the button is held")
+        val last = vm.fen()
+        dispatcher.scheduler.advanceTimeBy(301)
+        dispatcher.scheduler.runCurrent()
+        assertEquals(2, live.searched.size, "one search for the position the hold ended on")
+        assertEquals(last, live.searched.last())
+    }
+
+    @Test
     fun aPositionSearchedBeforeShowsItsLinesAtOnceWithoutASearch() {
         val live = FakeLive()
         val vm = viewModel(live)

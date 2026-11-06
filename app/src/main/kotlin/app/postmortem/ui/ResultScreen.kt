@@ -1,5 +1,6 @@
 package app.postmortem.ui
 
+import android.os.SystemClock
 import androidx.annotation.StringRes
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
@@ -46,6 +47,7 @@ import androidx.compose.material3.rememberSwipeToDismissBoxState
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableLongStateOf
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.saveable.rememberSaveable
@@ -266,11 +268,9 @@ private fun StepButtons(
     onToggleReadout: () -> Unit,
 ) {
     Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween, verticalAlignment = Alignment.CenterVertically) {
-        IconButton(
-            onClick = { onStep(-1) },
-            enabled = state.canStepBack,
-            modifier = Modifier.testTag(UiTags.PREVIOUS_BUTTON),
-        ) { Icon(Icons.AutoMirrored.Filled.ArrowBack, stringResource(R.string.result_previous)) }
+        StepArrow(state.canStepBack, UiTags.PREVIOUS_BUTTON, { onStep(-1) }) {
+            Icon(Icons.AutoMirrored.Filled.ArrowBack, stringResource(R.string.result_previous), tint = it)
+        }
         // The settings cog, the flip button and the engine toggle sit together in the middle, the cog left of the flip button.
         Row(verticalAlignment = Alignment.CenterVertically) {
             IconButton(onClick = onSettings, modifier = Modifier.testTag(UiTags.SETTINGS_BUTTON)) {
@@ -301,13 +301,34 @@ private fun StepButtons(
                 )
             }
         }
-        IconButton(
-            onClick = { onStep(1) },
-            enabled = state.canStepForward,
-            modifier = Modifier.testTag(UiTags.NEXT_BUTTON),
-        ) { Icon(Icons.AutoMirrored.Filled.ArrowForward, stringResource(R.string.result_next)) }
+        StepArrow(state.canStepForward, UiTags.NEXT_BUTTON, { onStep(1) }) {
+            Icon(Icons.AutoMirrored.Filled.ArrowForward, stringResource(R.string.result_next), tint = it)
+        }
     }
 }
+
+/** An arrow button: a tap steps once, holding it keeps stepping (see [repeatingClick]); it dims when there is nothing to step to. */
+@Composable
+private fun StepArrow(
+    enabled: Boolean,
+    tag: String,
+    onStep: () -> Unit,
+    icon: @Composable (Color) -> Unit,
+) {
+    Box(
+        Modifier
+            .size(Spacing.touchTarget)
+            .clip(CircleShape)
+            .repeatingClick(enabled, onStep = onStep)
+            .testTag(tag),
+        contentAlignment = Alignment.Center,
+    ) {
+        icon(MaterialTheme.colorScheme.onSurface.copy(alpha = if (enabled) 1f else Spacing.DISABLED_ALPHA))
+    }
+}
+
+/** What the Moves tab does while stepping: a hold steps faster than a scroll can animate, so the list jumps instead. */
+private const val RAPID_STEP_MS = 250L
 
 /** What the list shows, in order: a full-move row of the game, or a line that branches at it. */
 private sealed interface MoveListItem {
@@ -343,6 +364,7 @@ private fun MoveList(
             }
         }
     val listState = rememberLazyListState()
+    var lastScroll by remember { mutableLongStateOf(0L) }
     LaunchedEffect(state.cursor) {
         val target =
             items.indexOfFirst {
@@ -351,7 +373,12 @@ private fun MoveList(
                     is MoveListItem.LineRow -> it.line.id == state.cursor.lineId
                 }
             }
-        if (target >= 0) listState.animateScrollToItem(target)
+        if (target >= 0) {
+            val now = SystemClock.uptimeMillis()
+            // two selections within a quarter of a second are a hold: follow instantly, never lag behind with an animation
+            if (now - lastScroll < RAPID_STEP_MS) listState.scrollToItem(target) else listState.animateScrollToItem(target)
+            lastScroll = now
+        }
     }
     LazyColumn(modifier.testTag(UiTags.MOVE_LIST), state = listState) {
         items(items, key = { if (it is MoveListItem.LineRow) "line${it.line.id}" else "row${(it as MoveListItem.Row).row}" }) { item ->

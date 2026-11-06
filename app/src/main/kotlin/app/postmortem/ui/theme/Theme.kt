@@ -186,6 +186,9 @@ object Spacing {
 
     /** The coloured edge of a line being edited, and the room the swipe icons get. */
     val editEdge = 4.dp
+
+    /** How faint an arrow button is when there is nothing to step to. */
+    const val DISABLED_ALPHA = 0.38f
     val swipeIconPadding = 20.dp
     const val SELECTED_ROW_ALPHA = 0.25f
     val splashFade = 96.dp

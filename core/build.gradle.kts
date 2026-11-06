@@ -24,6 +24,7 @@ dependencies {
 
     testImplementation(libs.junit)
     testImplementation(libs.kotlin.test)
+    testImplementation(libs.kotlinx.coroutines.test)
     // A real SQLite for the store tests; the phone uses the one in Android.
     testImplementation(libs.sqlite.jdbc)
 }
