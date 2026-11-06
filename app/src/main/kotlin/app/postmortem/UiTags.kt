@@ -32,6 +32,12 @@ object UiTags {
     /** The cell for a half-move; [ply] counts from 1. */
     fun move(ply: Int) = "move_$ply"
 
+    /** The square [name] such as `e2`, whichever way the board is turned. */
+    fun square(name: String) = "square_$name"
+
+    /** The promotion picker's button for [piece]: `q`, `r`, `b` or `n`. */
+    fun promotion(piece: Char) = "promotion_$piece"
+
     /** The [move]-th move of line [line], counting from 1. */
     fun lineMove(
         line: Int,

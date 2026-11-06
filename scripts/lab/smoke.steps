@@ -7,6 +7,11 @@ wait move_6
 tap move_6
 sleep 5
 shot move6
+tap square_g1
+tap square_f3
+wait line_row
+shot line
+tap prev_button
 tap next_button
 shot highlight
 tap tab_chart

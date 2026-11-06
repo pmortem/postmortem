@@ -75,6 +75,7 @@ fun ResultScreen(
     onToggleEngine: () -> Unit = {},
     onSettings: () -> Unit = {},
     onSelectLineMove: (Int, Int) -> Unit = { _, _ -> },
+    boardInput: BoardInput? = null,
 ) {
     var showReadout by rememberSaveable { mutableStateOf(false) }
     Surface(
@@ -88,7 +89,7 @@ fun ResultScreen(
             Modifier.safeDrawingPadding().padding(Spacing.screen),
             verticalArrangement = Arrangement.spacedBy(Spacing.gap),
         ) {
-            BoardWithEvalBar(state, arrowsOf(live?.lines.orEmpty(), state.flipped))
+            BoardWithEvalBar(state, arrowsOf(live?.lines.orEmpty(), state.flipped), boardInput)
             if (showReadout && engineOn) EngineReadout(live)
             StepButtons(state, onStep, onFlip, onSettings, engineOn, onToggleEngine, onToggleReadout = { showReadout = !showReadout })
             ResultTabs(state.tab, onTab)
@@ -106,6 +107,7 @@ fun ResultScreen(
 private fun BoardWithEvalBar(
     state: UiState.Result,
     arrows: List<ArrowSpec>,
+    boardInput: BoardInput?,
 ) {
     Column {
         val description = stringResource(R.string.result_board_description, positionName(state))
@@ -114,6 +116,7 @@ private fun BoardWithEvalBar(
             flipped = state.flipped,
             arrows = arrows,
             lastMove = state.lastMove,
+            input = boardInput,
             modifier =
                 Modifier
                     .fillMaxWidth()

@@ -117,4 +117,10 @@ class MovesTest {
         val inCheck = "k7/8/8/8/8/8/8/r3K3 w - - 0 1"
         assertNull(Moves.play(inCheck, "e1", "d1"), "still on the checking rook's rank")
     }
+
+    @Test
+    fun theSideToMoveComesFromTheFen() {
+        assertEquals(PieceColor.WHITE, Moves.sideToMove(STANDARD_START_FEN))
+        assertEquals(PieceColor.BLACK, Moves.sideToMove("rnbqkbnr/pppppppp/8/8/4P3/8/PPPP1PPP/RNBQKBNR b KQkq e3 0 1"))
+    }
 }
