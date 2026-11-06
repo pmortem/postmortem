@@ -49,6 +49,12 @@ data class GameSummary(
     val updated: Long,
 )
 
+/** How a merge went: [added] games came in, [skipped] were already there. */
+data class MergeResult(
+    val added: Int,
+    val skipped: Int,
+)
+
 /** What the app needs of the saved games; [GameStore] is the real one, tests and screens can use a stand-in. */
 interface GameLibrary {
     /** The saved game with the same key as [game] (same start, moves and tags), or null. */
@@ -288,6 +294,48 @@ class GameStore(
             }
 
     override fun delete(id: Long) = db.execute("DELETE FROM game WHERE id = ?", listOf(id))
+
+    /**
+     * Adds every game of [other] this store does not have yet (the same key counts as the same game), with its lines and evals and the
+     * times it had, in one transaction: either all of them are added or none. The games of [other] are only read.
+     */
+    fun mergeFrom(other: GameStore): MergeResult =
+        db.transaction {
+            var added = 0
+            var skipped = 0
+            for (id in other.ids()) {
+                val saved = other.load(id) ?: continue
+                if (findId(saved.game) != null) {
+                    skipped++
+                } else {
+                    add(saved)
+                    added++
+                }
+            }
+            MergeResult(added, skipped)
+        }
+
+    private fun ids(): List<Long> = db.query("SELECT id FROM game ORDER BY id").map { it.long("id") }
+
+    /** Saves [saved] as a new game here (a new id), with its lines, evals, accuracies and times. */
+    private fun add(saved: SavedGame) {
+        insertGame(
+            null,
+            saved.key,
+            saved.pgn,
+            saved.game,
+            saved.created,
+            saved.updated,
+            saved.analysisSettings,
+            saved.whiteAccuracy,
+            saved.blackAccuracy,
+            saved.opening,
+        )
+        val id = db.lastInsertId()
+        insertMainLine(id, saved.game, saved.evals)
+        saveLines(id, saved.lines, saved.lineEvals)
+        db.execute("UPDATE game SET updated = ? WHERE id = ?", listOf(saved.updated, id))
+    }
 
     /** Puts a game that was deleted back with the id, key, lines and times it had. */
     override fun restore(saved: SavedGame) =
