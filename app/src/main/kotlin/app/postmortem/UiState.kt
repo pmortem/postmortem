@@ -2,6 +2,8 @@ package app.postmortem
 
 import app.postmortem.core.analysis.Eval
 import app.postmortem.core.analysis.GameReport
+import app.postmortem.core.line.Cursor
+import app.postmortem.core.line.Lines
 import app.postmortem.core.pgn.Game
 import app.postmortem.core.pgn.GameOverview
 import app.postmortem.core.pgn.PgnError
@@ -33,12 +35,17 @@ sealed interface UiState {
         val percent: Int get() = if (total == 0) 0 else ((100L * done + total / 2) / total).toInt().coerceIn(0, 100)
     }
 
-    /** [selectedPly] 0 is the start position; ply n is the position after the n-th half-move. [evals] has one entry per position. */
+    /**
+     * [cursor] is where the board is: a position of the game (ply 0 is the start, ply n the position after the n-th half-move) or of
+     * a [lines] entry the user played. [evals] has one entry per position of the game; the lines have none yet.
+     */
     data class Result(
         val pgn: String,
         val game: Game,
         val evals: List<Eval>,
-        val selectedPly: Int = 0,
+        val cursor: Cursor = Cursor.game(0),
+        /** The lines played from the game; the game, its evals, chart and summary never change with them. */
+        val lines: Lines = Lines(),
         /** The one source of the selected tab: the tab bar and the content below it both read it. Each new result starts on Moves. */
         val tab: ResultTab = ResultTab.Moves,
         /** Black at the bottom. A newly analysed game starts with White at the bottom; later features can set it. */
@@ -46,11 +53,17 @@ sealed interface UiState {
         /** How the evals were made (engine, nodes, hash), so a saved analysis can say. */
         val analysisSettings: String = "",
     ) : UiState {
-        val canStepBack: Boolean get() = selectedPly > 0
-        val canStepForward: Boolean get() = selectedPly < game.plies.size
+        /** The game position shown, or the one the line the board is on branches from (the chart marks it). */
+        val selectedPly: Int get() = lines.gamePly(cursor)
+        val fen: String get() = lines.fen(game, cursor)
+        val lastMove: String? get() = lines.lastMove(game, cursor)
+        val canStepBack: Boolean get() = lines.canStepBack(cursor)
+        val canStepForward: Boolean get() = lines.canStepForward(game, cursor)
 
         /** The position after the final move, whatever the ending: the eval bar says RIP there. */
-        val atEndOfGame: Boolean get() = game.plies.isNotEmpty() && selectedPly == game.plies.size
+        val atEndOfGame: Boolean get() = cursor.lineId == null && game.plies.isNotEmpty() && cursor.ply == game.plies.size
+
+        /** The eval of the shown game position; on a line, the one it branches from (lines get evals later). */
         val selectedEval: Eval get() = evals[selectedPly]
 
         /** Accuracy, ACPL and the judged moves; worked out once, when the Summary or the chart first asks. */

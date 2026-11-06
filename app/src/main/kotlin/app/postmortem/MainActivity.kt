@@ -103,6 +103,7 @@ class MainActivity : ComponentActivity() {
                             engineOn = viewModel.engineOn,
                             onToggleEngine = { viewModel.showEngineArrows(!viewModel.engineOn) },
                             onSettings = viewModel::openSettings,
+                            onSelectLineMove = viewModel::selectLineMove,
                         )
                     }
                 }

@@ -141,4 +141,27 @@ class LinesTest {
         assertEquals(before, game)
         assertNull(played.lines.find(99))
     }
+
+    @Test
+    fun aLineIsWrittenWithNumbersFromItsBranchPly() {
+        // after 1.e4 e5 2.Qh5 Nc6 3.Bc4 it is Black's third move: a line there starts with `3... d6`
+        var played = Lines().play(Cursor.game(5), "d7d6")
+        played = played.lines.play(played.cursor, "d2d3")
+        played = played.lines.play(played.cursor, "c8g4")
+        assertEquals(
+            listOf("3... d6", "4. d3", "Bg4"),
+            played.lines.all
+                .single()
+                .moveLabels(),
+        )
+        var white = Lines().play(Cursor.game(4), "d2d4")
+        white = white.lines.play(white.cursor, "d7d5")
+        white = white.lines.play(white.cursor, "c2c4")
+        assertEquals(
+            listOf("3. d4", "d5", "4. c4"),
+            white.lines.all
+                .single()
+                .moveLabels(),
+        )
+    }
 }
