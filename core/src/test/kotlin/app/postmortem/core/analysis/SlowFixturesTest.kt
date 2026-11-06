@@ -10,9 +10,9 @@ import kotlin.test.Test
 import kotlin.test.assertEquals
 import kotlin.test.assertTrue
 
-/** The slow pass, run by lab-check and CI (-Ppostmortem.slow=true): every fixture game through the real engine. */
+/** The slow pass, run by lab-check and CI (-Ppostmortem.slow=true): every fixture game through the real engine. 30,000 nodes are plenty for these coarse checks and keep lab-check inside its 10-minute budget. */
 class SlowFixturesTest {
-    private val config = AnalysisConfig(nodes = 100_000, workers = 2, hashMb = 16)
+    private val config = AnalysisConfig(nodes = 30_000, workers = 2, hashMb = 16)
     private val lichessEval = Regex("""\[%eval (#?-?\d+(?:\.\d+)?)]""")
     private val decisiveCentipawns = 300
     private val quietCentipawns = 100
