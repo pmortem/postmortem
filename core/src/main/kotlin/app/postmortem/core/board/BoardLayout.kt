@@ -85,6 +85,13 @@ object BoardLayout {
     /** The cell of an algebraic square such as `e4`, as (row, col). */
     fun position(square: String): Pair<Int, Int> = (SIZE - (square[1] - '0')) to (square[0] - 'a')
 
+    /** The algebraic square (`e4`) drawn at screen cell ([row], [col]): the inverse of [position], for a board that may be [flipped]. */
+    fun squareAt(
+        row: Int,
+        col: Int,
+        flipped: Boolean = false,
+    ): String = "${fileName(col, flipped)}${rankName(row, flipped)}"
+
     /** The squares of a move in UCI (`e2e4`, `e7e8q`, `e1g1`), where they are drawn: rotated half a turn when [flipped]. */
     fun arrow(
         uci: String,

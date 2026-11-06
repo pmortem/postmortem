@@ -241,4 +241,21 @@ class BoardLayoutTest {
         val arrow = BoardLayout.arrow("e2e4", flipped = true)
         assertEquals(PieceKind.PAWN, cells.single { it.row == arrow.fromRow && it.col == arrow.fromCol }.piece.kind)
     }
+
+    @Test
+    fun aCellIsTheSquareDrawnThereWithAndWithoutFlip() {
+        assertEquals("a8", BoardLayout.squareAt(0, 0))
+        assertEquals("h1", BoardLayout.squareAt(7, 7))
+        assertEquals("e4", BoardLayout.squareAt(4, 4))
+        assertEquals("h1", BoardLayout.squareAt(0, 0, flipped = true))
+        assertEquals("a8", BoardLayout.squareAt(7, 7, flipped = true))
+        for (row in 0 until BoardLayout.SIZE) {
+            for (col in 0 until BoardLayout.SIZE) {
+                val (r, c) = BoardLayout.position(BoardLayout.squareAt(row, col))
+                assertEquals(row to col, r to c)
+                val (fr, fc) = BoardLayout.position(BoardLayout.squareAt(row, col, flipped = true))
+                assertEquals(BoardLayout.SIZE - 1 - row to BoardLayout.SIZE - 1 - col, fr to fc)
+            }
+        }
+    }
 }
