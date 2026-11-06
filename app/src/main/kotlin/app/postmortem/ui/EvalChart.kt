@@ -114,7 +114,7 @@ private fun labelText(
     }
 }
 
-private fun Judgement.color(): Color =
+internal fun Judgement.color(): Color =
     when (this) {
         Judgement.INACCURACY -> JudgementColors.inaccuracy
         Judgement.MISTAKE -> JudgementColors.mistake
@@ -122,7 +122,7 @@ private fun Judgement.color(): Color =
     }
 
 @StringRes
-private fun Judgement.marksRes(): Int =
+internal fun Judgement.marksRes(): Int =
     when (this) {
         Judgement.INACCURACY -> R.string.marks_inaccuracy
         Judgement.MISTAKE -> R.string.marks_mistake

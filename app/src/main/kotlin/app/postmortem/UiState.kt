@@ -2,7 +2,12 @@ package app.postmortem
 
 import app.postmortem.core.analysis.Eval
 import app.postmortem.core.analysis.GameReport
+import app.postmortem.core.analysis.Judgement
+import app.postmortem.core.analysis.positionKey
+import app.postmortem.core.board.Moves
+import app.postmortem.core.board.PieceColor
 import app.postmortem.core.line.Cursor
+import app.postmortem.core.line.Line
 import app.postmortem.core.line.Lines
 import app.postmortem.core.pgn.Game
 import app.postmortem.core.pgn.GameOverview
@@ -46,6 +51,10 @@ sealed interface UiState {
         val cursor: Cursor = Cursor.game(0),
         /** The lines played from the game; the game, its evals, chart and summary never change with them. */
         val lines: Lines = Lines(),
+        /** The evals of line positions found so far, by [positionKey]; a position that is also in the game uses the game's eval. */
+        val lineEvals: Map<String, Eval> = emptyMap(),
+        /** Line positions waiting for an eval (queued or being searched), by [positionKey]. */
+        val pendingEvals: Set<String> = emptySet(),
         /** The one source of the selected tab: the tab bar and the content below it both read it. Each new result starts on Moves. */
         val tab: ResultTab = ResultTab.Moves,
         /** Black at the bottom. A newly analysed game starts with White at the bottom; later features can set it. */
@@ -63,8 +72,32 @@ sealed interface UiState {
         /** The position after the final move, whatever the ending: the eval bar says RIP there. */
         val atEndOfGame: Boolean get() = cursor.lineId == null && game.plies.isNotEmpty() && cursor.ply == game.plies.size
 
-        /** The eval of the shown game position; on a line, the one it branches from (lines get evals later). */
-        val selectedEval: Eval get() = evals[selectedPly]
+        private val gameEvalsByKey: Map<String, Eval> by lazy(LazyThreadSafetyMode.NONE) {
+            evals.withIndex().associate { (position, eval) -> positionKey(game.fenAt(position)) to eval }
+        }
+
+        /** The eval of [fen] if the game or the lines' search has it. */
+        fun evalOf(fen: String): Eval? = positionKey(fen).let { lineEvals[it] ?: gameEvalsByKey[it] }
+
+        fun isPending(fen: String): Boolean = positionKey(fen) in pendingEvals
+
+        /** The eval of the shown position; on a line whose eval is not known yet, the one of the position it branches from. */
+        val selectedEval: Eval get() = if (cursor.lineId == null) evals[cursor.ply] else evalOf(fen) ?: evals[selectedPly]
+
+        /**
+         * The judgements of the moves of [line] (null for a move that is fine) as far as their evals are known, worked out the way
+         * the game's are, from the position the line branches off. Accuracy and ACPL are for the game only.
+         */
+        fun judgementsOf(line: Line): List<Judgement?> {
+            val known =
+                line.plies
+                    .map { evalOf(it.fen) }
+                    .takeWhile { it != null }
+                    .filterNotNull()
+            if (known.isEmpty()) return emptyList()
+            val whiteToMove = Moves.sideToMove(game.fenAt(line.branchPly)) == PieceColor.WHITE
+            return GameReport.of(listOf(evals[line.branchPly]) + known, whiteToMove).judgements
+        }
 
         /** Accuracy, ACPL and the judged moves; worked out once, when the Summary or the chart first asks. */
         val report: GameReport by lazy(

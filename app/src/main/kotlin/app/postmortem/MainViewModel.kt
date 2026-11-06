@@ -9,6 +9,8 @@ import app.postmortem.core.analysis.AnalysisProgress
 import app.postmortem.core.analysis.LiveConfig
 import app.postmortem.core.analysis.LiveLines
 import app.postmortem.core.analysis.LiveUpdate
+import app.postmortem.core.analysis.PositionEvals
+import app.postmortem.core.analysis.positionKey
 import app.postmortem.core.board.MoveTarget
 import app.postmortem.core.board.Moves
 import app.postmortem.core.line.Cursor
@@ -16,16 +18,21 @@ import app.postmortem.core.pgn.Game
 import app.postmortem.core.pgn.PgnParser
 import app.postmortem.core.pgn.PgnResult
 import app.postmortem.core.pgn.looksLikePgn
+import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.CoroutineDispatcher
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.Job
+import kotlinx.coroutines.channels.Channel
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.flow.Flow
+import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.catch
+import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.flow.flowOn
 import kotlinx.coroutines.flow.launchIn
 import kotlinx.coroutines.flow.onEach
 import kotlinx.coroutines.launch
+import kotlinx.coroutines.withContext
 
 /** [analysis] evaluates a game; it runs on [dispatcher] and is cancelled with the screen or on Back. */
 class MainViewModel(
@@ -36,6 +43,8 @@ class MainViewModel(
     /** The live engine that shows the best moves of the shown position; none in tests that do not need it. */
     private val live: LiveLines? = null,
     private val arrowsSetting: EngineArrowsSetting = InMemoryEngineArrowsSetting(),
+    /** Evaluates the positions of the lines the user plays; none in tests that do not need it. */
+    private val positions: PositionEvals? = null,
     private val liveDebounceMs: Long = LiveConfig.DEFAULT_DEBOUNCE_MS,
 ) : ViewModel() {
     var state: UiState by mutableStateOf(UiState.Paste())
@@ -70,6 +79,11 @@ class MainViewModel(
 
     private var liveJob: Job? = null
     private var foreground = true
+
+    // The positions of the user's lines wait here, in the order they were played, for the one engine that evaluates them.
+    private var evalQueue = Channel<String>(Channel.UNLIMITED)
+    private var evalJob: Job? = null
+    private val appVisible = MutableStateFlow(true)
 
     init {
         arrowsSetting.enabled
@@ -117,6 +131,7 @@ class MainViewModel(
                     .collect { progress ->
                         state =
                             if (progress.finished) {
+                                positions?.seed(game, progress.evals)
                                 UiState.Result(pgn, game, progress.evals, analysisSettings = analysisSettings)
                             } else {
                                 furthest = maxOf(furthest, progress.done)
@@ -210,7 +225,58 @@ class MainViewModel(
         val played = current.lines.play(current.game, current.cursor, ply)
         selection = null
         state = current.copy(lines = played.lines, cursor = played.cursor)
+        evaluateSoon(ply.fen)
         restartLive()
+    }
+
+    /**
+     * Gets the eval of a position of a line: at once when the game or an earlier search has it, otherwise it is queued behind the
+     * positions played before it, and shows as pending until the engine has answered.
+     */
+    private fun evaluateSoon(fen: String) {
+        val evaluator = positions ?: return
+        val current = state as? UiState.Result ?: return
+        val key = positionKey(fen)
+        if (current.evalOf(fen) != null || key in current.pendingEvals) return
+        val known = evaluator.cached(fen)
+        if (known != null) {
+            state = current.copy(lineEvals = current.lineEvals + (key to known))
+            return
+        }
+        state = current.copy(pendingEvals = current.pendingEvals + key)
+        evalQueue.trySend(fen)
+        if (evalJob == null) {
+            evalJob =
+                viewModelScope.launch {
+                    for (queued in evalQueue) {
+                        appVisible.first { it }
+                        val found =
+                            try {
+                                withContext(dispatcher) { evaluator.evaluate(queued) }
+                            } catch (e: CancellationException) {
+                                throw e
+                            } catch (e: Exception) {
+                                null
+                            }
+                        val now = state as? UiState.Result ?: continue
+                        val queuedKey = positionKey(queued)
+                        state =
+                            now.copy(
+                                lineEvals = if (found != null) now.lineEvals + (queuedKey to found) else now.lineEvals,
+                                pendingEvals = now.pendingEvals - queuedKey,
+                            )
+                    }
+                }
+        }
+    }
+
+    /** Drops what waits for an eval and ends the engine that evaluates lines. */
+    private fun stopEvaluating() {
+        evalJob?.cancel()
+        evalJob = null
+        evalQueue.close()
+        evalQueue = Channel(Channel.UNLIMITED)
+        positions?.let { viewModelScope.launch { it.release() } }
     }
 
     fun showEngineArrows(on: Boolean) {
@@ -226,6 +292,8 @@ class MainViewModel(
     /** The app is on screen or not. In the background nothing is searched and the engine process ends. */
     fun onForeground(visible: Boolean) {
         foreground = visible
+        appVisible.value = visible
+        if (!visible) positions?.let { viewModelScope.launch { it.release() } }
         restartLive()
     }
 
@@ -274,6 +342,7 @@ class MainViewModel(
 
     override fun onCleared() {
         (live as? AutoCloseable)?.close()
+        (positions as? AutoCloseable)?.close()
     }
 
     /** Turns the board half around; the selected move, the tab and the chart stay as they are. */
@@ -320,6 +389,7 @@ class MainViewModel(
         job?.cancel()
         job = null
         stopLive()
+        stopEvaluating()
         state = UiState.Paste(pgn = pgn)
         return true
     }

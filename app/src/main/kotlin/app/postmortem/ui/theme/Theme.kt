@@ -179,6 +179,10 @@ object Spacing {
 
     /** How far a line row is indented from the game's rows. */
     val lineIndent = 40.dp
+
+    /** The spinner shown where a line move's eval is still being worked out. */
+    val pendingSpinner = 12.dp
+    val pendingStroke = 2.dp
     val splashFade = 96.dp
     val splashSpinner = 16.dp
     val evalBarHeight = 20.dp

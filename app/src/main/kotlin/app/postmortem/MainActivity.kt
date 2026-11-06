@@ -20,6 +20,7 @@ import app.postmortem.core.analysis.Analyser
 import app.postmortem.core.analysis.AnalysisConfig
 import app.postmortem.core.analysis.LiveConfig
 import app.postmortem.core.analysis.LiveSearch
+import app.postmortem.core.analysis.PositionEvaluator
 import app.postmortem.core.analysis.format
 import app.postmortem.core.board.Moves
 import app.postmortem.ui.AnalysingScreen
@@ -45,7 +46,12 @@ class MainActivity : ComponentActivity() {
                     Analyser(config, EngineLocator.factory(applicationContext)) { result ->
                         Log.i(ANALYSIS_TAG, "search: ${result.nodes} nodes in ${result.timeMs} ms, ${result.nodesPerSecond} nodes/s")
                     }
+                val positions =
+                    PositionEvaluator(config, EngineLocator.factory(applicationContext)) { result ->
+                        Log.i(ANALYSIS_TAG, "line search: ${result.nodes} nodes in ${result.timeMs} ms, ${result.nodesPerSecond} nodes/s")
+                    }
                 MainViewModel(
+                    positions = positions,
                     live = LiveSearch(LiveConfig(), EngineLocator.factory(applicationContext)),
                     arrowsSetting = DataStoreEngineArrowsSetting(applicationContext),
                     analysisSettings = config.describe(BuildConfig.ENGINE_NAME),

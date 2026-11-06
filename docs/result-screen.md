@@ -22,7 +22,10 @@ What a move does:
 - Any other move from a game position starts a **line**: its own indented row in the Moves tab, under the full move where it branches, written like `3... Nf6 4. Nf3 Qe7`. The new line is selected.
 - A move at the end of a line extends it. A move in the middle of a line starts another line from the same game position, with the line's earlier moves copied in. Playing the same move again selects the line that already has it.
 - ← and → walk along the line; ← at its first move goes back to the game position it branched from. **Back** from a line also goes to that position.
-- The chart marks the position the line branches from, and the Summary is always about the game. Lines have no evaluations yet: the eval bar shows the branch position's.
+- Every move of a line is evaluated as soon as it is played, one after the other in the order played, with the same engine settings as the game's analysis, so a line's `+0.8` means what the game's `+0.8` means and the same position always gets the same number. The eval shows after the move; a small spinner is there until it arrives. A position that is also in the game, or was evaluated before, needs no search. The eval bar shows the line position's eval once it is known.
+- Moves in a line get the same marks as in the game (`?!`, `?`, `??`). Accuracy and ACPL stay about the game only.
+- In the background the evaluation pauses and its engine ends; it carries on when you return.
+- The chart marks the position the line branches from, and the Summary is always about the game.
 
 ![A line in the Moves tab](img/line.png)
 
