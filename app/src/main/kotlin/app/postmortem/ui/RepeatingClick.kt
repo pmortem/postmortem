@@ -1,12 +1,9 @@
 package app.postmortem.ui
 
+import androidx.compose.foundation.clickable
 import androidx.compose.foundation.gestures.awaitEachGesture
 import androidx.compose.foundation.gestures.awaitFirstDown
 import androidx.compose.foundation.gestures.waitForUpOrCancellation
-import androidx.compose.foundation.indication
-import androidx.compose.foundation.interaction.MutableInteractionSource
-import androidx.compose.foundation.interaction.PressInteraction
-import androidx.compose.material3.ripple
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.rememberUpdatedState
@@ -16,8 +13,6 @@ import androidx.compose.ui.input.pointer.pointerInput
 import androidx.compose.ui.platform.LocalHapticFeedback
 import androidx.compose.ui.semantics.Role
 import androidx.compose.ui.semantics.disabled
-import androidx.compose.ui.semantics.onClick
-import androidx.compose.ui.semantics.role
 import androidx.compose.ui.semantics.semantics
 import app.postmortem.core.input.HoldTiming
 import app.postmortem.core.input.holdSteps
@@ -25,9 +20,11 @@ import kotlinx.coroutines.coroutineScope
 import kotlinx.coroutines.launch
 
 /**
- * A button that steps once on a tap, and keeps stepping while it is held (see [HoldTiming]). Releasing, or dragging the finger off
- * the button, stops at once. Each repeated step gives a light haptic tick, which needs no permission. Stepping ends by itself when
- * [enabled] turns false (the end of the game or line). Screen readers still get one step from a click.
+ * A button that steps once on a tap, and keeps stepping while it is held (see [HoldTiming]). The tap, the ripple and the screen
+ * reader's click are the ordinary `clickable`; on top of it, a press held past the first delay starts the repeat, and the click that
+ * ends such a press makes no extra step. Releasing, or dragging the finger off the button, stops the repeat at once. Each repeated
+ * step gives a light haptic tick, which needs no permission. The repeat ends by itself when [enabled] turns false (the end of the
+ * game or line), and a click then does nothing.
  */
 @Composable
 fun Modifier.repeatingClick(
@@ -35,46 +32,37 @@ fun Modifier.repeatingClick(
     timing: HoldTiming = HoldTiming(),
     onStep: () -> Unit,
 ): Modifier {
-    val source = remember { MutableInteractionSource() }
     val haptics = LocalHapticFeedback.current
     val step = rememberUpdatedState(onStep)
     val stillEnabled = rememberUpdatedState(enabled)
+    // whether the press in progress (or the last one) has started repeating, so that its click is not a step too
+    val repeated = remember { BooleanArray(1) }
+    // The click stays enabled even at the end of the line: turning it off in the middle of a press leaves its ripple stuck on the
+    // button. At the end it does nothing, and the button looks and reads as disabled.
     return this
-        .indication(source, ripple())
-        .pointerInput(enabled, timing) {
-            if (!enabled) return@pointerInput
+        .clickable(role = Role.Button) {
+            if (stillEnabled.value && !repeated[0]) step.value()
+        }.semantics { if (!enabled) disabled() }
+        .pointerInput(timing) {
             coroutineScope {
                 val scope = this
                 awaitEachGesture {
-                    val down = awaitFirstDown()
-                    val press = PressInteraction.Press(down.position)
-                    source.tryEmit(press)
-                    var repeated = false
+                    awaitFirstDown(requireUnconsumed = false)
+                    repeated[0] = false
                     val hold =
                         scope.launch {
                             holdSteps(timing) {
-                                repeated = true
-                                step.value()
-                                haptics.performHapticFeedback(HapticFeedbackType.SegmentFrequentTick)
+                                if (stillEnabled.value) {
+                                    repeated[0] = true
+                                    step.value()
+                                    haptics.performHapticFeedback(HapticFeedbackType.SegmentFrequentTick)
+                                }
                                 stillEnabled.value
                             }
                         }
-                    val up = waitForUpOrCancellation()
+                    waitForUpOrCancellation()
                     hold.cancel()
-                    source.tryEmit(if (up != null) PressInteraction.Release(press) else PressInteraction.Cancel(press))
-                    // a press that ended before the repeat began is a tap: one step
-                    if (up != null && !repeated) step.value()
                 }
-            }
-        }.semantics {
-            role = Role.Button
-            if (enabled) {
-                onClick {
-                    step.value()
-                    true
-                }
-            } else {
-                disabled()
             }
         }
 }
