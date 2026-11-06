@@ -24,6 +24,8 @@ dependencies {
 
     testImplementation(libs.junit)
     testImplementation(libs.kotlin.test)
+    // A real SQLite for the store tests; the phone uses the one in Android.
+    testImplementation(libs.sqlite.jdbc)
 }
 
 // The real engine for the tests: the Linux build of the same Stockfish release the phone runs.
