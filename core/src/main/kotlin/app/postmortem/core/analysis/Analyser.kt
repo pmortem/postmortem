@@ -59,7 +59,7 @@ class Analyser(
                                 val eval =
                                     terminalEval(fen) ?: run {
                                         val started = engine ?: UciEngine.start(config, processFactory).also { engine = it }
-                                        searchEval(started, fen)
+                                        searchEval(started, fen, onSearch)
                                     }
                                 lock.withLock {
                                     results[position] = eval
@@ -74,26 +74,29 @@ class Analyser(
                 }
             }
         }
-
-    private fun terminalEval(fen: String): Eval? {
-        val board = Board().apply { loadFromFen(fen) }
-        val whiteToMove = isWhiteToMove(fen)
-        return when {
-            board.isMated -> Eval.Checkmate(if (whiteToMove) PieceColor.BLACK else PieceColor.WHITE)
-            board.isStaleMate -> Eval.Cp(0)
-            else -> null
-        }
-    }
-
-    private suspend fun searchEval(
-        engine: UciEngine,
-        fen: String,
-    ): Eval {
-        val result = engine.search(fen)
-        onSearch(result)
-        val score = result.score ?: throw EngineException("the engine gave no score for $fen")
-        return Eval.fromScore(score, isWhiteToMove(fen))
-    }
-
-    private fun isWhiteToMove(fen: String) = fen.split(' ').getOrNull(1) != "b"
 }
+
+/** The score of a position that is over (checkmate, stalemate), without the engine; null while the game goes on. */
+internal fun terminalEval(fen: String): Eval? {
+    val board = Board().apply { loadFromFen(fen) }
+    val whiteToMove = isWhiteToMove(fen)
+    return when {
+        board.isMated -> Eval.Checkmate(if (whiteToMove) PieceColor.BLACK else PieceColor.WHITE)
+        board.isStaleMate -> Eval.Cp(0)
+        else -> null
+    }
+}
+
+/** The engine's evaluation of [fen] under the engine's settings, in White's point of view. */
+internal suspend fun searchEval(
+    engine: UciEngine,
+    fen: String,
+    onSearch: (SearchResult) -> Unit,
+): Eval {
+    val result = engine.search(fen)
+    onSearch(result)
+    val score = result.score ?: throw EngineException("the engine gave no score for $fen")
+    return Eval.fromScore(score, isWhiteToMove(fen))
+}
+
+private fun isWhiteToMove(fen: String) = fen.split(' ').getOrNull(1) != "b"

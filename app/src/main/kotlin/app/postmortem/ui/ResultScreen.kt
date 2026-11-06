@@ -25,6 +25,7 @@ import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.ArrowBack
 import androidx.compose.material.icons.automirrored.filled.ArrowForward
+import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
@@ -50,12 +51,16 @@ import androidx.compose.ui.semantics.Role
 import androidx.compose.ui.semantics.contentDescription
 import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.semantics.testTagsAsResourceId
+import androidx.compose.ui.text.SpanStyle
+import androidx.compose.ui.text.buildAnnotatedString
+import androidx.compose.ui.text.withStyle
 import app.postmortem.R
 import app.postmortem.ResultTab
 import app.postmortem.UiState
 import app.postmortem.UiTags
 import app.postmortem.core.analysis.LiveUpdate
 import app.postmortem.core.analysis.format
+import app.postmortem.core.analysis.formatShort
 import app.postmortem.core.line.Line
 import app.postmortem.core.line.moveLabels
 import app.postmortem.core.pgn.Game
@@ -335,7 +340,10 @@ private fun GameRow(
     }
 }
 
-/** A line as Lichess writes it (`3... Nf6 4. Nf3 Qe7`), indented; each move can be tapped. The eval column stays empty for now. */
+/**
+ * A line as Lichess writes it (`3... Nf6 4. Nf3 Qe7`), indented; each move can be tapped. After a move come its mark (`?!`, `?`, `??`,
+ * as on the chart) and its eval, a spinner while the eval is being worked out.
+ */
 @OptIn(ExperimentalLayoutApi::class)
 @Composable
 private fun LineRow(
@@ -345,6 +353,7 @@ private fun LineRow(
 ) {
     val palette = LocalBoardPalette.current
     val labels = line.moveLabels()
+    val judgements = state.judgementsOf(line)
     FlowRow(
         Modifier
             .fillMaxWidth()
@@ -353,17 +362,51 @@ private fun LineRow(
     ) {
         labels.forEachIndexed { index, label ->
             val selected = state.cursor.lineId == line.id && state.cursor.ply == index + 1
-            Text(
-                label,
-                style = MaterialTheme.typography.bodyLarge,
-                color = if (selected) palette.onSelectedMove else MaterialTheme.colorScheme.onBackground,
+            val color = if (selected) palette.onSelectedMove else MaterialTheme.colorScheme.onBackground
+            val fen = line.plies[index].fen
+            val judgement = judgements.getOrNull(index)
+            Row(
+                verticalAlignment = Alignment.CenterVertically,
+                horizontalArrangement = Arrangement.spacedBy(Spacing.small),
                 modifier =
                     Modifier
                         .testTag(UiTags.lineMove(line.id, index + 1))
                         .background(if (selected) palette.selectedMove else Color.Transparent)
                         .clickable { onSelectLineMove(line.id, index + 1) }
                         .padding(Spacing.moveCell),
-            )
+            ) {
+                Text(
+                    buildAnnotatedString {
+                        append(label)
+                        if (judgement !=
+                            null
+                        ) {
+                            withStyle(SpanStyle(color = judgement.color())) { append(stringResource(judgement.marksRes())) }
+                        }
+                    },
+                    style = MaterialTheme.typography.bodyLarge,
+                    color = color,
+                )
+                val eval = state.evalOf(fen)
+                when {
+                    eval != null -> {
+                        Text(eval.formatShort(), style = MaterialTheme.typography.bodySmall, color = color)
+                    }
+
+                    state.isPending(fen) -> {
+                        val description = stringResource(R.string.line_eval_pending)
+                        CircularProgressIndicator(
+                            modifier = Modifier.size(Spacing.pendingSpinner).semantics { contentDescription = description },
+                            strokeWidth = Spacing.pendingStroke,
+                            color = color,
+                        )
+                    }
+
+                    else -> {
+                        Text(stringResource(R.string.line_eval_missing), style = MaterialTheme.typography.bodySmall, color = color)
+                    }
+                }
+            }
         }
     }
 }

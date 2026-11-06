@@ -8,6 +8,9 @@ Each position gets **1,000,000 nodes** from a single-threaded engine with a clea
 
 The settings are shown at the bottom of the Summary and are defined in `AnalysisConfig`.
 
+## Lines you play
+The moves of your own lines are evaluated with exactly the settings above, by one more engine process, one position at a time in the order you played them (see [the result screen](result-screen.md)). A position that is also in the game, or was already evaluated, is not searched again. Checkmate and stalemate are scored without the engine.
+
 ## Live arrows
 The result screen shows what the engine thinks of the position on the board, as arrows:
 - Up to **three** arrows, the best three moves. The best is the thickest and most opaque.

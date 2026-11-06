@@ -37,6 +37,8 @@
     <string name="tab_moves">Moves</string>
     <string name="tab_chart">Chart</string>
     <string name="tab_summary">Summary</string>
+    <string name="line_eval_pending">Evaluating</string>
+    <string name="line_eval_missing">–</string>
     <string name="chart_label_eval">"  %1$s"</string>
     <string name="marks_inaccuracy">\?!</string>
     <string name="marks_mistake">\?</string>
