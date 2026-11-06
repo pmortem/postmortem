@@ -7,6 +7,7 @@ import app.postmortem.core.analysis.positionKey
 import app.postmortem.core.line.Cursor
 import app.postmortem.core.line.Lines
 import app.postmortem.core.pgn.Game
+import app.postmortem.core.pgn.GameOverview
 import app.postmortem.core.store.GameLibrary
 import app.postmortem.core.store.GameSummary
 import app.postmortem.core.store.NewGame
@@ -99,7 +100,19 @@ class LibraryViewModelTest {
             return games[id]
         }
 
-        override fun list(): List<GameSummary> = emptyList()
+        override fun list(): List<GameSummary> =
+            games.values.reversed().map {
+                GameSummary(
+                    it.id,
+                    GameOverview.of(it.game.headers),
+                    it.opening,
+                    it.whiteAccuracy,
+                    it.blackAccuracy,
+                    it.lines.all.size,
+                    it.created,
+                    it.updated,
+                )
+            }
 
         override fun delete(id: Long) {
             games.remove(id)
@@ -291,5 +304,139 @@ class LibraryViewModelTest {
                 .lines.all.size,
         )
         assertTrue(library.games.isEmpty())
+    }
+
+    @Test
+    fun theLibraryOpensOverPasteListsTheGamesNewestFirstAndBackReturnsToPaste() {
+        val library = FakeLibrary()
+        val vm = viewModel(library)
+        vm.analyse("scholars-mate")
+        vm.back()
+        vm.analyse("lichess-short-resign")
+        vm.back()
+        vm.onPgnChange("keep this text")
+        vm.openLibrary()
+        assertEquals(Overlay.Library, vm.overlay)
+        assertEquals(listOf(2L, 1L), vm.libraryGames?.map { it.id })
+        assertTrue(vm.back())
+        assertNull(vm.overlay)
+        assertEquals("keep this text", assertIs<UiState.Paste>(vm.state).pgn)
+        assertFalse(vm.back(), "on Paste with nothing open, Back is the system's")
+    }
+
+    @Test
+    fun theLibraryFromSettingsGoesBackToSettingsThenToTheGame() {
+        val library = FakeLibrary()
+        val vm = viewModel(library)
+        vm.analyse("scholars-mate")
+        vm.selectPly(3)
+        vm.openSettings()
+        vm.openLibrary()
+        assertEquals(Overlay.Library, vm.overlay)
+        assertTrue(vm.back())
+        assertEquals(Overlay.Settings, vm.overlay)
+        assertTrue(vm.back())
+        assertNull(vm.overlay)
+        assertEquals(Cursor.game(3), vm.result().cursor)
+    }
+
+    @Test
+    fun openingAGameFromTheLibraryClosesItAndShowsTheGameWithoutAnalysis() {
+        val library = FakeLibrary()
+        val vm = viewModel(library, FakePositions())
+        vm.analyse("scholars-mate")
+        vm.selectPly(4)
+        vm.playMove("d2", "d4")
+        vm.back()
+        vm.back()
+        analysed = 0
+        vm.openLibrary()
+        vm.openGame(vm.libraryGames!!.first().id)
+        assertNull(vm.overlay)
+        assertEquals(0, analysed)
+        assertEquals(
+            1,
+            vm
+                .result()
+                .lines.all.size,
+        )
+        assertEquals(1, library.list().first().lineCount)
+    }
+
+    @Test
+    fun theLibraryCannotBeOpenedWhileAnalysing() {
+        val vm = MainViewModel({ flow { } }, dispatcher, library = FakeLibrary())
+        vm.onPgnChange(fixture("scholars-mate"))
+        vm.analyse()
+        assertIs<UiState.Analysing>(vm.state)
+        vm.openLibrary()
+        assertNull(vm.overlay)
+    }
+
+    @Test
+    fun deletingAGameFromTheLibraryAndUndoingItKeepsTheListAndTheLinesRight() {
+        val library = FakeLibrary()
+        val vm = viewModel(library, FakePositions())
+        vm.analyse("scholars-mate")
+        vm.selectPly(4)
+        vm.playMove("d2", "d4")
+        vm.back()
+        vm.back()
+        vm.openLibrary()
+        vm.deleteSavedGame(1L)
+        assertTrue(library.games.isEmpty())
+        assertEquals(emptyList(), vm.libraryGames)
+        assertEquals(1L, vm.deletedGame?.id)
+        vm.undoDeleteGame()
+        assertNull(vm.deletedGame)
+        assertEquals(listOf(1L), vm.libraryGames?.map { it.id })
+        assertEquals(
+            1,
+            library.games
+                .getValue(1L)
+                .lines.all.size,
+            "the lines came back with it",
+        )
+        vm.deleteSavedGame(1L)
+        vm.dismissDeletedGame()
+        vm.undoDeleteGame()
+        assertTrue(library.games.isEmpty(), "an expired undo does nothing")
+    }
+
+    @Test
+    fun aGameDeletedWhileItIsOnScreenIsNotSavedAgain() {
+        val library = FakeLibrary()
+        val vm = viewModel(library, FakePositions())
+        vm.analyse("scholars-mate")
+        vm.openSettings()
+        vm.openLibrary()
+        vm.deleteSavedGame(1L)
+        vm.back()
+        vm.back()
+        assertNull(vm.deletedGame, "leaving the Library ends the undo offer")
+        vm.selectPly(4)
+        vm.playMove("d2", "d4")
+        assertTrue(library.games.isEmpty(), "no save for a deleted game")
+    }
+
+    @Test
+    fun undoingTheDeletionOfTheGameOnScreenSavesItAgain() {
+        val library = FakeLibrary()
+        val vm = viewModel(library, FakePositions())
+        vm.analyse("scholars-mate")
+        vm.selectPly(4)
+        vm.openSettings()
+        vm.openLibrary()
+        vm.deleteSavedGame(1L)
+        vm.undoDeleteGame()
+        vm.back()
+        vm.back()
+        vm.playMove("d2", "d4")
+        assertEquals(
+            1,
+            library.games
+                .getValue(1L)
+                .lines.all.size,
+        )
     }
 }

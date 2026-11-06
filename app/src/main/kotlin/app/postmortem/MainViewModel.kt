@@ -21,6 +21,7 @@ import app.postmortem.core.pgn.PgnResult
 import app.postmortem.core.pgn.looksLikePgn
 import app.postmortem.core.pgn.overview
 import app.postmortem.core.store.GameLibrary
+import app.postmortem.core.store.GameSummary
 import app.postmortem.core.store.NewGame
 import app.postmortem.core.store.SavedGame
 import kotlinx.coroutines.CancellationException
@@ -67,9 +68,24 @@ class MainViewModel(
     var liveUpdate: LiveUpdate? by mutableStateOf(null)
         private set
 
-    /** The Settings page is open over the Result screen; the game, selected move, tab and flip stay in [state]. */
-    var settingsOpen: Boolean by mutableStateOf(false)
+    /** The page open over the current screen (Settings from the Result, Library from Paste or Settings); [state] stays as it is under it. */
+    var overlay: Overlay? by mutableStateOf(null)
         private set
+
+    val settingsOpen: Boolean get() = overlay == Overlay.Settings
+
+    /** What Back from the Library returns to. */
+    private var overlayBelow: Overlay? = null
+
+    /** The saved games for the Library page, newest worked on first; null while they are being read. */
+    var libraryGames: List<GameSummary>? by mutableStateOf(null)
+        private set
+
+    /** The game deleted from the Library last, which Undo brings back. */
+    var deletedGame: SavedGame? by mutableStateOf(null)
+        private set
+
+    private var deletedHandle: GameHandle? = null
 
     /** The piece the user picked up by tapping, and where it may go. It counts only while the board shows the position it was picked in. */
     private var selection: BoardSelection? by mutableStateOf(null)
@@ -187,6 +203,8 @@ class MainViewModel(
         stopLive()
         editingLineId = null
         deletedLine = null
+        overlay = null
+        overlayBelow = null
         handle = GameHandle().also { it.id = saved.id }
         positions?.seed(saved.game, saved.evals)
         val opened =
@@ -489,8 +507,58 @@ class MainViewModel(
 
     fun openSettings() {
         if (state !is UiState.Result) return
-        settingsOpen = true
+        overlayBelow = null
+        overlay = Overlay.Settings
         restartLive()
+    }
+
+    /** Opens the Library page over the Paste screen or the Settings page, and reads the saved games. */
+    fun openLibrary() {
+        if (library == null || overlay == Overlay.Library) return
+        if (state is UiState.Analysing) return
+        overlayBelow = overlay
+        overlay = Overlay.Library
+        deletedGame = null
+        refreshLibrary()
+        restartLive()
+    }
+
+    private fun refreshLibrary() {
+        val saved = library ?: return
+        viewModelScope.launch {
+            val games = withContext(dispatcher) { runCatching { saved.list() }.getOrDefault(emptyList()) }
+            libraryGames = games
+        }
+    }
+
+    /** Deletes a saved game and keeps it for [undoDeleteGame]. */
+    fun deleteSavedGame(id: Long) {
+        val saved = library ?: return
+        viewModelScope.launch {
+            val found = withContext(dispatcher) { runCatching { saved.load(id)?.also { saved.delete(id) } }.getOrNull() } ?: return@launch
+            // the game on screen, if it is this one, stops being saved until it is brought back
+            deletedHandle = handle.takeIf { it.id == id }?.also { it.id = null }
+            deletedGame = found
+            refreshLibrary()
+        }
+    }
+
+    fun undoDeleteGame() {
+        val saved = library ?: return
+        val found = deletedGame ?: return
+        deletedGame = null
+        viewModelScope.launch {
+            withContext(dispatcher) { runCatching { saved.restore(found) } }
+            deletedHandle?.id = found.id
+            deletedHandle = null
+            refreshLibrary()
+        }
+    }
+
+    /** The undo offer for the deleted game is over. */
+    fun dismissDeletedGame() {
+        deletedGame = null
+        deletedHandle = null
     }
 
     /** The app is on screen or not. In the background nothing is searched and the engine process ends. */
@@ -509,7 +577,7 @@ class MainViewModel(
         stopLive(release = false)
         val current = state as? UiState.Result
         val search = live
-        if (search == null || current == null || !engineOn || !foreground || settingsOpen) {
+        if (search == null || current == null || !engineOn || !foreground || overlay != null) {
             stopLive()
             return
         }
@@ -568,8 +636,10 @@ class MainViewModel(
 
     /** Back stops a running analysis, or leaves the result; either way the game stays in the paste box. */
     fun back(): Boolean {
-        if (settingsOpen) {
-            settingsOpen = false
+        overlay?.let { open ->
+            if (open == Overlay.Library) dismissDeletedGame()
+            overlay = if (open == Overlay.Library) overlayBelow else null
+            overlayBelow = null
             restartLive()
             return true
         }
@@ -626,3 +696,6 @@ data class DeletedLine(
     val line: Line,
     val cursorBefore: Cursor,
 )
+
+/** A page that opens over the current screen. */
+enum class Overlay { Settings, Library }

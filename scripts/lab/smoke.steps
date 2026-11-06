@@ -33,4 +33,8 @@ tap engine_toggle
 tap settings_button
 wait settings
 shot settings
+tap settings_library
+wait library
+shot library
+tap library_back
 tap settings_back
