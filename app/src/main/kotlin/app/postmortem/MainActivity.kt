@@ -39,6 +39,7 @@ import kotlinx.coroutines.flow.onEach
 import kotlinx.coroutines.flow.onStart
 
 private const val ANALYSIS_TAG = "Analysis"
+private const val LIBRARY_TAG = "Library"
 
 class MainActivity : ComponentActivity() {
     private val viewModel: MainViewModel by viewModels {
@@ -56,6 +57,7 @@ class MainActivity : ComponentActivity() {
                 MainViewModel(
                     positions = positions,
                     library = LazyGameLibrary(applicationContext),
+                    libraryLog = { Log.i(LIBRARY_TAG, it) },
                     live = LiveSearch(LiveConfig(), EngineLocator.factory(applicationContext)),
                     arrowsSetting = DataStoreEngineArrowsSetting(applicationContext),
                     analysisSettings = config.describe(BuildConfig.ENGINE_NAME),

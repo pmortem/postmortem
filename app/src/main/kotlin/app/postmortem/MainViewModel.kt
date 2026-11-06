@@ -52,6 +52,8 @@ class MainViewModel(
     private val positions: PositionEvals? = null,
     /** The saved games: every analysed game and what is done to it is kept; none in tests that do not need it. */
     private val library: GameLibrary? = null,
+    /** Says what the library did (saved, failed), for the log. */
+    private val libraryLog: (String) -> Unit = {},
     private val liveDebounceMs: Long = LiveConfig.DEFAULT_DEBOUNCE_MS,
 ) : ViewModel() {
     var state: UiState by mutableStateOf(UiState.Paste())
@@ -246,7 +248,7 @@ class MainViewModel(
         if (saveJob == null) {
             saveJob =
                 viewModelScope.launch(dispatcher) {
-                    for (queued in saveQueue) runCatching(queued)
+                    for (queued in saveQueue) runCatching(queued).onFailure { libraryLog("save failed: ${it.message}") }
                 }
         }
     }
@@ -268,6 +270,7 @@ class MainViewModel(
             )
         saveSoon {
             mine.id = saved.save(new)
+            libraryLog("saved game ${mine.id}")
             viewModelScope.launch {
                 val now = state as? UiState.Result
                 if (handle === mine && now != null) state = now.copy(gameId = mine.id)
@@ -282,7 +285,12 @@ class MainViewModel(
         val mine = handle
         val lines = current.lines
         val lineEvals = current.lineEvals
-        saveSoon { mine.id?.let { saved.saveLines(it, lines, lineEvals) } }
+        saveSoon {
+            mine.id?.let {
+                saved.saveLines(it, lines, lineEvals)
+                libraryLog("saved ${lines.all.size} lines of game $it")
+            }
+        }
     }
 
     fun selectPly(ply: Int) {
