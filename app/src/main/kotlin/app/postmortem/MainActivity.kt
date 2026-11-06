@@ -25,6 +25,7 @@ import app.postmortem.core.analysis.format
 import app.postmortem.core.board.Moves
 import app.postmortem.ui.AnalysingScreen
 import app.postmortem.ui.BoardInput
+import app.postmortem.ui.LineActions
 import app.postmortem.ui.PasteScreen
 import app.postmortem.ui.PromotionPrompt
 import app.postmortem.ui.ResultScreen
@@ -112,7 +113,18 @@ class MainActivity : ComponentActivity() {
                             engineOn = viewModel.engineOn,
                             onToggleEngine = { viewModel.showEngineArrows(!viewModel.engineOn) },
                             onSettings = viewModel::openSettings,
-                            onSelectLineMove = viewModel::selectLineMove,
+                            lineActions =
+                                LineActions(
+                                    editing = viewModel.editingLineId,
+                                    deleted = viewModel.deletedLine,
+                                    onSelectMove = viewModel::selectLineMove,
+                                    onSelectLine = viewModel::selectLine,
+                                    onDelete = viewModel::deleteLine,
+                                    onEdit = viewModel::editLine,
+                                    onDoneEditing = viewModel::doneEditing,
+                                    onUndo = viewModel::undoDelete,
+                                    onUndoExpired = viewModel::dismissUndo,
+                                ),
                             boardInput =
                                 BoardInput(
                                     selected = viewModel.selectedSquare,

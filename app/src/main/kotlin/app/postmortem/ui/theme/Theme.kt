@@ -183,6 +183,11 @@ object Spacing {
     /** The spinner shown where a line move's eval is still being worked out. */
     val pendingSpinner = 12.dp
     val pendingStroke = 2.dp
+
+    /** The coloured edge of a line being edited, and the room the swipe icons get. */
+    val editEdge = 4.dp
+    val swipeIconPadding = 20.dp
+    const val SELECTED_ROW_ALPHA = 0.25f
     val splashFade = 96.dp
     val splashSpinner = 16.dp
     val evalBarHeight = 20.dp
