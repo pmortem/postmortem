@@ -8,6 +8,8 @@ import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.safeDrawingPadding
 import androidx.compose.material3.Button
+import androidx.compose.material3.Icon
+import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.Surface
@@ -17,6 +19,7 @@ import androidx.compose.runtime.Composable
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.platform.testTag
+import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.semantics.testTagsAsResourceId
@@ -34,6 +37,7 @@ fun PasteScreen(
     onPgnChange: (String) -> Unit,
     onAnalyse: () -> Unit,
     onLibrary: () -> Unit = {},
+    onSettings: () -> Unit = {},
 ) {
     Surface(
         modifier =
@@ -77,8 +81,13 @@ fun PasteScreen(
                     color = MaterialTheme.colorScheme.onSurfaceVariant,
                     modifier = Modifier.testTag(UiTags.VERSION_LABEL),
                 )
-                TextButton(onClick = onLibrary, modifier = Modifier.testTag(UiTags.LIBRARY_BUTTON)) {
-                    Text(stringResource(R.string.library_button))
+                Row(verticalAlignment = Alignment.CenterVertically) {
+                    TextButton(onClick = onLibrary, modifier = Modifier.testTag(UiTags.LIBRARY_BUTTON)) {
+                        Text(stringResource(R.string.library_button))
+                    }
+                    IconButton(onClick = onSettings, modifier = Modifier.testTag(UiTags.SETTINGS_BUTTON)) {
+                        Icon(painterResource(R.drawable.ic_settings), stringResource(R.string.result_settings))
+                    }
                 }
             }
         }

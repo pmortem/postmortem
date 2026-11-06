@@ -31,7 +31,7 @@ sleep 1
 shot arrowsoff
 tap engine_toggle
 tap settings_button
-wait settings
+wait settings_db
 shot settings
 tap settings_library
 wait library

@@ -1,0 +1,7 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- The copy of the database that is handed to the share sheet; nothing else is shared. -->
+<paths>
+    <cache-path
+        name="export"
+        path="export/" />
+</paths>

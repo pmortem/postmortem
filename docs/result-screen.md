@@ -40,7 +40,7 @@ A horizontal bar right under the board. The side at the bottom of the board fill
 
 ## Buttons
 - **← and →** step to the previous or next move. The arrow that cannot go further is dimmed.
-- **Settings** (the cog, left of the flip button) opens the Settings page: a top bar with the title and a back arrow, and the entry to the [Library](analysis.md#the-library). The back arrow or the system Back returns to the same game, move, tab and board side.
+- **Settings** (the cog, left of the flip button) opens the Settings page: a top bar with the title and a back arrow, the entry to the [Library](analysis.md#the-library) and the [Database](database.md) section. The back arrow or the system Back returns to the same game, move, tab and board side.
 - **Flip** (up-down arrows) turns the board around so Black is at the bottom. The bar, the tint and the arrows follow.
 - **Engine arrows** (the diagonal arrow) turns the live engine's arrows on and off. See the [engine page](engine.md). A long press shows or hides a readout of the search.
 
