@@ -42,6 +42,10 @@ data class BoardPalette(
     val onArrowLabel: Color,
     /** The tint of the last move's two squares, drawn over the square colour and under the pieces. */
     val lastMove: Color,
+    /** The picked-up piece's square, the dots and rings on the squares it may go to, and the promotion picker's card. */
+    val selection: Color,
+    val moveHint: Color,
+    val promotionCard: Color,
 )
 
 /** Lichess-like yellow-green at about 40 % alpha; reads on light and dark squares. */
@@ -57,6 +61,9 @@ private val LightBoard =
         arrowLabel = Color(0xCC1B1C1A),
         onArrowLabel = Color(0xFFFFFBF5),
         lastMove = LastMoveHighlight,
+        selection = Color(0x6614551E),
+        moveHint = Color(0x8014551E),
+        promotionCard = Color(0xFFF3EBDD),
     )
 
 private val DarkBoard =
@@ -69,6 +76,9 @@ private val DarkBoard =
         arrowLabel = Color(0xCC0B0E0F),
         onArrowLabel = Color(0xFFE6E2DA),
         lastMove = LastMoveHighlight,
+        selection = Color(0x66B9CDBF),
+        moveHint = Color(0x99E6E2DA),
+        promotionCard = Color(0xFF2B3A33),
     )
 
 val LocalBoardPalette = staticCompositionLocalOf { LightBoard }
@@ -145,6 +155,19 @@ object ArrowStyle {
 }
 
 val LocalChartPalette = staticCompositionLocalOf { LightChart }
+
+/** Sizes of the hints for a picked-up piece, as fractions of a square. */
+object HintStyle {
+    /** The dot on an empty square the piece may go to. */
+    const val DOT = 0.16f
+
+    /** The ring on a square where it captures: its outer radius and its width. */
+    const val RING_RADIUS = 0.46f
+    const val RING_WIDTH = 0.08f
+
+    /** The picked-up piece follows the finger a little bigger than it sits. */
+    const val DRAG_SCALE = 1.2f
+}
 
 /** Sizes and spacing used across the screens. */
 object Spacing {

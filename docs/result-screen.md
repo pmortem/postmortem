@@ -10,6 +10,22 @@ When the analysis is done you see the board, an eval bar, a row of buttons, and 
 
 ![The last move tinted, and the end of the game](img/highlight.png)
 
+## Playing your own moves
+Ask "what if I had played this?" by moving a piece on the board:
+- **Tap a piece** of the side to move: its square is tinted and its legal moves show as dots (a ring where it captures). Tap a dot to play it. Tap the piece again, another piece, or anywhere else to change or cancel.
+- **Or drag** the piece to a square. If the move is legal it is played; if not, the piece snaps back.
+- A pawn reaching the last rank opens a small picker (queen, rook, bishop, knight) over its square. Tap a piece to promote, tap elsewhere or press Back to cancel.
+- Only legal moves are accepted. It works with the board flipped.
+
+What a move does:
+- The game's own next move just steps forward.
+- Any other move from a game position starts a **line**: its own indented row in the Moves tab, under the full move where it branches, written like `3... Nf6 4. Nf3 Qe7`. The new line is selected.
+- A move at the end of a line extends it. A move in the middle of a line starts another line from the same game position, with the line's earlier moves copied in. Playing the same move again selects the line that already has it.
+- ← and → walk along the line; ← at its first move goes back to the game position it branched from. **Back** from a line also goes to that position.
+- The chart marks the position the line branches from, and the Summary is always about the game. Lines have no evaluations yet: the eval bar shows the branch position's.
+
+![A line in the Moves tab](img/line.png)
+
 ## Eval bar
 A horizontal bar right under the board. The side at the bottom of the board fills from the left. The number is the evaluation from White's point of view: `+0.35` is a small edge for White, `M3` a forced mate in 3. On the last position of the game the bar says **RIP**, whatever the ending.
 
@@ -25,7 +41,7 @@ A horizontal bar right under the board. The side at the bottom of the board fill
 Switching tabs never changes the board or the selected move.
 
 ### Moves
-Every move with its evaluation, two moves per row. Tap a move to show it on the board. The selected one is highlighted.
+Every move with its evaluation, two moves per row. Tap a move to show it on the board. The selected one is highlighted. Lines you played appear as indented rows under the move where they branch (see above); tap any move in one to show it.
 
 ### Chart
 ![The evaluation chart](img/chartmid.png)

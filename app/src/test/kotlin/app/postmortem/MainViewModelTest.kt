@@ -23,6 +23,7 @@ import kotlin.test.Test
 import kotlin.test.assertEquals
 import kotlin.test.assertFalse
 import kotlin.test.assertIs
+import kotlin.test.assertNotNull
 import kotlin.test.assertNull
 import kotlin.test.assertTrue
 
@@ -495,5 +496,105 @@ class MainViewModelTest {
         assertFalse(vm.result().atEndOfGame)
         vm.selectPly(last)
         assertTrue(vm.result().atEndOfGame)
+    }
+
+    @Test
+    fun tappingAPieceShowsItsTargetsAndTappingATargetPlaysTheMove() {
+        val vm = scholars()
+        vm.selectPly(4)
+        vm.tapSquare("d2")
+        assertEquals("d2", vm.selectedSquare)
+        assertEquals(listOf("d3", "d4"), vm.moveTargets.map { it.square })
+        vm.tapSquare("d4")
+        assertNull(vm.selectedSquare)
+        assertEquals("d2d4", vm.result().lastMove)
+        assertEquals(
+            1,
+            vm
+                .result()
+                .lines.all.size,
+        )
+    }
+
+    @Test
+    fun tappingElsewherePutsThePieceDownAndAnotherOwnPiecePicksThatOneUp() {
+        val vm = scholars()
+        vm.selectPly(4)
+        vm.tapSquare("d2")
+        vm.tapSquare("g1")
+        assertEquals("g1", vm.selectedSquare)
+        vm.tapSquare("e5")
+        assertNull(vm.selectedSquare, "an empty square that is not a target")
+        vm.tapSquare("e7")
+        assertNull(vm.selectedSquare, "the other side's piece")
+        vm.tapSquare("g1")
+        vm.tapSquare("g1")
+        assertNull(vm.selectedSquare, "tapping the picked piece again puts it down")
+        assertTrue(
+            vm
+                .result()
+                .lines.all
+                .isEmpty(),
+        )
+    }
+
+    @Test
+    fun aPickedPieceIsDroppedWhenTheBoardShowsAnotherPosition() {
+        val vm = scholars()
+        vm.selectPly(4)
+        vm.tapSquare("d2")
+        vm.step(-1)
+        assertNull(vm.selectedSquare)
+        assertTrue(vm.moveTargets.isEmpty())
+        vm.step(1)
+        assertEquals("d2", vm.selectedSquare, "back on the position it was picked on, it is still picked")
+    }
+
+    @Test
+    fun aDragPlaysALegalMoveAndDoesNothingForAnIllegalOne() {
+        val vm = scholars()
+        vm.selectPly(4)
+        vm.dragMove("g1", "f3")
+        assertEquals("g1f3", vm.result().lastMove)
+        val before = vm.result()
+        vm.dragMove("g1", "g5")
+        vm.dragMove("e7", "e6")
+        vm.dragMove("f3", "f3")
+        assertEquals(before, vm.result())
+    }
+
+    @Test
+    fun aPromotionAsksForThePieceAndPlaysIt() {
+        val vm = viewModel()
+        vm.onPgnChange("[FEN \"8/4P3/8/8/8/8/k7/4K3 w - - 0 1\"]\n[SetUp \"1\"]\n\n1. e8=Q")
+        vm.analyse()
+        vm.tapSquare("e7")
+        assertTrue(vm.moveTargets.single().promotion)
+        vm.dragMove("e7", "e8")
+        assertEquals(PromotionAsked(vm.result().fen, "e7", "e8"), vm.promotion)
+        assertEquals(Cursor.game(0), vm.result().cursor, "nothing is played until a piece is chosen")
+        vm.tapSquare("a2")
+        assertNotNull(vm.promotion, "taps are ignored while the picker is open")
+        vm.choosePromotion('n')
+        assertNull(vm.promotion)
+        assertEquals("e7e8n", vm.result().lastMove)
+        assertEquals(
+            1,
+            vm
+                .result()
+                .lines.all.size,
+            "the game's own move is a queen, so a knight is a line",
+        )
+    }
+
+    @Test
+    fun backClosesThePromotionPickerBeforeAnythingElse() {
+        val vm = viewModel()
+        vm.onPgnChange("[FEN \"8/4P3/8/8/8/8/k7/4K3 w - - 0 1\"]\n[SetUp \"1\"]\n\n1. e8=Q")
+        vm.analyse()
+        vm.dragMove("e7", "e8")
+        assertTrue(vm.back())
+        assertNull(vm.promotion)
+        assertIs<UiState.Result>(vm.state)
     }
 }

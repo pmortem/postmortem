@@ -9,6 +9,7 @@ import app.postmortem.core.analysis.AnalysisProgress
 import app.postmortem.core.analysis.LiveConfig
 import app.postmortem.core.analysis.LiveLines
 import app.postmortem.core.analysis.LiveUpdate
+import app.postmortem.core.board.MoveTarget
 import app.postmortem.core.board.Moves
 import app.postmortem.core.line.Cursor
 import app.postmortem.core.pgn.Game
@@ -51,6 +52,21 @@ class MainViewModel(
     /** The Settings page is open over the Result screen; the game, selected move, tab and flip stay in [state]. */
     var settingsOpen: Boolean by mutableStateOf(false)
         private set
+
+    /** The piece the user picked up by tapping, and where it may go. It counts only while the board shows the position it was picked in. */
+    private var selection: BoardSelection? by mutableStateOf(null)
+    private var promotionAsked: PromotionAsked? by mutableStateOf(null)
+
+    private val shownFen: String? get() = (state as? UiState.Result)?.fen
+
+    /** The square of the picked-up piece on the shown position, or null. */
+    val selectedSquare: String? get() = selection?.takeIf { it.fen == shownFen }?.square
+
+    /** Where the picked-up piece may go. */
+    val moveTargets: List<MoveTarget> get() = selection?.takeIf { it.fen == shownFen }?.targets.orEmpty()
+
+    /** The pawn move waiting for a piece to be chosen, or null. */
+    val promotion: PromotionAsked? get() = promotionAsked?.takeIf { it.fen == shownFen }
 
     private var liveJob: Job? = null
     private var foreground = true
@@ -117,6 +133,58 @@ class MainViewModel(
         restartLive()
     }
 
+    /**
+     * A tap on [square]: with a piece picked up, a square it may go to plays the move (a pawn reaching the last rank first asks for
+     * the piece), another piece of the side to move picks that one up, and anything else puts the piece down. With none picked up, a
+     * piece that can move is picked up.
+     */
+    fun tapSquare(square: String) {
+        val fen = shownFen ?: return
+        if (promotion != null) return
+        val picked = selection?.takeIf { it.fen == fen }
+        if (picked != null && picked.targets.any { it.square == square }) {
+            attempt(picked.square, square)
+            return
+        }
+        val targets = Moves.legalTargets(fen, square)
+        selection = if (targets.isEmpty() || picked?.square == square) null else BoardSelection(fen, square, targets)
+    }
+
+    /** A piece dragged from [from] and dropped on [to]: played when legal; otherwise nothing changes and the piece snaps back. */
+    fun dragMove(
+        from: String,
+        to: String,
+    ) {
+        val fen = shownFen ?: return
+        if (promotion != null || from == to) return
+        if (Moves.legalTargets(fen, from).none { it.square == to }) return
+        attempt(from, to)
+    }
+
+    private fun attempt(
+        from: String,
+        to: String,
+    ) {
+        val fen = shownFen ?: return
+        selection = null
+        if (Moves.needsPromotion(fen, from, to)) {
+            promotionAsked = PromotionAsked(fen, from, to)
+        } else {
+            playMove(from, to)
+        }
+    }
+
+    /** The piece (`q`, `r`, `b` or `n`) chosen for the waiting promotion. */
+    fun choosePromotion(piece: Char) {
+        val asked = promotion ?: return
+        promotionAsked = null
+        playMove(asked.from, asked.to, piece)
+    }
+
+    fun cancelPromotion() {
+        promotionAsked = null
+    }
+
     /** Selects the [move]-th move of [lineId], counting from 1. */
     fun selectLineMove(
         lineId: Int,
@@ -140,6 +208,7 @@ class MainViewModel(
         val current = state as? UiState.Result ?: return
         val ply = Moves.play(current.fen, from, to, promotion) ?: return
         val played = current.lines.play(current.game, current.cursor, ply)
+        selection = null
         state = current.copy(lines = played.lines, cursor = played.cursor)
         restartLive()
     }
@@ -231,6 +300,10 @@ class MainViewModel(
             restartLive()
             return true
         }
+        if (promotion != null) {
+            promotionAsked = null
+            return true
+        }
         (state as? UiState.Result)?.let { current ->
             if (current.cursor.lineId != null) {
                 state = current.copy(cursor = current.lines.leave(current.cursor))
@@ -251,3 +324,17 @@ class MainViewModel(
         return true
     }
 }
+
+/** A piece picked up on [square] of the position [fen], with the squares it may go to. */
+private data class BoardSelection(
+    val fen: String,
+    val square: String,
+    val targets: List<MoveTarget>,
+)
+
+/** A pawn move from [from] to [to] on the position [fen] that needs a piece chosen. */
+data class PromotionAsked(
+    val fen: String,
+    val from: String,
+    val to: String,
+)

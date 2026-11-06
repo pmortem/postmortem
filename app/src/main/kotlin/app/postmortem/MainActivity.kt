@@ -21,8 +21,11 @@ import app.postmortem.core.analysis.AnalysisConfig
 import app.postmortem.core.analysis.LiveConfig
 import app.postmortem.core.analysis.LiveSearch
 import app.postmortem.core.analysis.format
+import app.postmortem.core.board.Moves
 import app.postmortem.ui.AnalysingScreen
+import app.postmortem.ui.BoardInput
 import app.postmortem.ui.PasteScreen
+import app.postmortem.ui.PromotionPrompt
 import app.postmortem.ui.ResultScreen
 import app.postmortem.ui.SettingsScreen
 import app.postmortem.ui.SplashScreen
@@ -104,6 +107,22 @@ class MainActivity : ComponentActivity() {
                             onToggleEngine = { viewModel.showEngineArrows(!viewModel.engineOn) },
                             onSettings = viewModel::openSettings,
                             onSelectLineMove = viewModel::selectLineMove,
+                            boardInput =
+                                BoardInput(
+                                    selected = viewModel.selectedSquare,
+                                    targets = viewModel.moveTargets,
+                                    promotion =
+                                        viewModel.promotion?.let {
+                                            PromotionPrompt(
+                                                square = it.to,
+                                                color = Moves.sideToMove(state.fen),
+                                                onChoose = viewModel::choosePromotion,
+                                                onCancel = viewModel::cancelPromotion,
+                                            )
+                                        },
+                                    onTap = viewModel::tapSquare,
+                                    onDrag = viewModel::dragMove,
+                                ),
                         )
                     }
                 }

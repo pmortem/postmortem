@@ -4,6 +4,7 @@ import app.postmortem.core.pgn.Ply
 import com.github.bhlangonijr.chesslib.Board
 import com.github.bhlangonijr.chesslib.Piece
 import com.github.bhlangonijr.chesslib.PieceType
+import com.github.bhlangonijr.chesslib.Side
 import com.github.bhlangonijr.chesslib.Square
 import com.github.bhlangonijr.chesslib.move.Move
 
@@ -143,4 +144,7 @@ object Moves {
         val letter = if (kind == PieceType.KNIGHT) "N" else kind.name.first().toString()
         return "$letter$disambiguation${if (capture) "x" else ""}$target"
     }
+
+    /** Who moves in [fen]: the colour of the pieces a player picks up, and of the piece a promotion makes. */
+    fun sideToMove(fen: String): PieceColor = if (board(fen).sideToMove == Side.WHITE) PieceColor.WHITE else PieceColor.BLACK
 }
