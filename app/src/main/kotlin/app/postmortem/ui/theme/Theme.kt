@@ -153,6 +153,9 @@ object Spacing {
     val small = 4.dp
     val moveCell = 6.dp
     val moveNumberWidth = 40.dp
+
+    /** How far a line row is indented from the game's rows. */
+    val lineIndent = 40.dp
     val splashFade = 96.dp
     val splashSpinner = 16.dp
     val evalBarHeight = 20.dp

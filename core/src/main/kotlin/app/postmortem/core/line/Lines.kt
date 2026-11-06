@@ -15,6 +15,21 @@ data class Line(
 )
 
 /**
+ * The moves of the line as Lichess writes a line: the first with its number (`3... Nf6`), then a number before each White move
+ * (`4. Nf3`) and none before a Black one (`Qe7`). Numbers follow [Line.branchPly] the way the game's own move list counts.
+ */
+fun Line.moveLabels(): List<String> =
+    plies.mapIndexed { index, ply ->
+        val absolute = branchPly + 1 + index
+        val number = (absolute + 1) / 2
+        when {
+            absolute % 2 == 1 -> "$number. ${ply.san}"
+            index == 0 -> "$number... ${ply.san}"
+            else -> ply.san
+        }
+    }
+
+/**
  * Where the board is: on the game (`lineId` null) or on a line, after [ply] half-moves of it. On a line, [ply] is at least 1: its
  * 0 is the branch position, which is a game position, so it is written as the game's cursor there.
  */

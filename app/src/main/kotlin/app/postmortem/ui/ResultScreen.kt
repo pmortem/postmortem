@@ -8,6 +8,8 @@ import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.BoxWithConstraints
 import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.ExperimentalLayoutApi
+import androidx.compose.foundation.layout.FlowRow
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
@@ -34,6 +36,7 @@ import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.remember
 import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
@@ -53,6 +56,8 @@ import app.postmortem.UiState
 import app.postmortem.UiTags
 import app.postmortem.core.analysis.LiveUpdate
 import app.postmortem.core.analysis.format
+import app.postmortem.core.line.Line
+import app.postmortem.core.line.moveLabels
 import app.postmortem.core.pgn.Game
 import app.postmortem.core.pgn.plyLabel
 import app.postmortem.ui.theme.LocalBoardPalette
@@ -69,6 +74,7 @@ fun ResultScreen(
     engineOn: Boolean = true,
     onToggleEngine: () -> Unit = {},
     onSettings: () -> Unit = {},
+    onSelectLineMove: (Int, Int) -> Unit = { _, _ -> },
 ) {
     var showReadout by rememberSaveable { mutableStateOf(false) }
     Surface(
@@ -87,7 +93,7 @@ fun ResultScreen(
             StepButtons(state, onStep, onFlip, onSettings, engineOn, onToggleEngine, onToggleReadout = { showReadout = !showReadout })
             ResultTabs(state.tab, onTab)
             when (state.tab) {
-                ResultTab.Moves -> MoveList(state, onSelect, Modifier.weight(1f).fillMaxWidth())
+                ResultTab.Moves -> MoveList(state, onSelect, onSelectLineMove, Modifier.weight(1f).fillMaxWidth())
                 ResultTab.Chart -> EvalChart(state, onSelect, Modifier.weight(1f).fillMaxWidth())
                 ResultTab.Summary -> SummaryScreen(state, Modifier.weight(1f).fillMaxWidth())
             }
@@ -104,10 +110,10 @@ private fun BoardWithEvalBar(
     Column {
         val description = stringResource(R.string.result_board_description, positionName(state))
         BoardView(
-            fen = state.game.fenAt(state.selectedPly),
+            fen = state.fen,
             flipped = state.flipped,
             arrows = arrows,
-            lastMove = state.game.lastMoveAt(state.selectedPly),
+            lastMove = state.lastMove,
             modifier =
                 Modifier
                     .fillMaxWidth()
@@ -156,12 +162,14 @@ private fun ResultTabs(
 }
 
 @Composable
-private fun positionName(state: UiState.Result): String =
-    if (state.selectedPly == 0) {
-        stringResource(R.string.result_start_position)
-    } else {
-        state.game.plies[state.selectedPly - 1].let { plyLabel(state.selectedPly, it.san) }
+private fun positionName(state: UiState.Result): String {
+    val line = state.cursor.lineId?.let { state.lines.find(it) }
+    return when {
+        line != null -> plyLabel(line.branchPly + state.cursor.ply, line.plies[state.cursor.ply - 1].san)
+        state.cursor.ply == 0 -> stringResource(R.string.result_start_position)
+        else -> plyLabel(state.cursor.ply, state.game.plies[state.cursor.ply - 1].san)
     }
+}
 
 /** Depth and speed of the live search, small, under the board: a help for judging heat and battery. */
 @Composable
@@ -238,42 +246,121 @@ private fun StepButtons(
     }
 }
 
-/** One row per full move: the number, White's ply and Black's ply. */
+/** What the list shows, in order: a full-move row of the game, or a line that branches at it. */
+private sealed interface MoveListItem {
+    data class Row(
+        val row: Int,
+    ) : MoveListItem
+
+    data class LineRow(
+        val line: Line,
+    ) : MoveListItem
+}
+
+/**
+ * One row per full move of the game: the number, White's ply and Black's ply. A line the user played is its own indented row right
+ * under the full move where it branches, in the order the lines were made.
+ */
 @Composable
 private fun MoveList(
     state: UiState.Result,
     onSelect: (Int) -> Unit,
+    onSelectLineMove: (Int, Int) -> Unit,
     modifier: Modifier,
 ) {
     val game: Game = state.game
     val rows = (game.plies.size + 1) / 2
+    val items =
+        remember(rows, state.lines) {
+            (0 until rows).flatMap { row ->
+                listOf<MoveListItem>(MoveListItem.Row(row)) +
+                    state.lines.all
+                        .filter { it.parentId == null && it.branchPly / 2 == row }
+                        .map { MoveListItem.LineRow(it) }
+            }
+        }
     val listState = rememberLazyListState()
-    LaunchedEffect(state.selectedPly) {
-        if (state.selectedPly > 0) listState.animateScrollToItem(((state.selectedPly - 1) / 2).coerceAtMost(rows - 1))
-    }
-    LazyColumn(modifier.testTag(UiTags.MOVE_LIST), state = listState) {
-        items((0 until rows).toList()) { row ->
-            Row(Modifier.fillMaxWidth()) {
-                Text(
-                    "${row + 1}.",
-                    style = MaterialTheme.typography.bodyLarge,
-                    modifier = Modifier.width(Spacing.moveNumberWidth).padding(Spacing.moveCell),
-                )
-                for (ply in listOf(row * 2 + 1, row * 2 + 2)) {
-                    MoveCell(
-                        text = game.plies.getOrNull(ply - 1)?.san,
-                        eval =
-                            state.evals
-                                .getOrNull(ply)
-                                ?.format()
-                                .orEmpty(),
-                        ply = ply,
-                        selected = ply == state.selectedPly,
-                        onSelect = onSelect,
-                        modifier = Modifier.weight(1f),
-                    )
+    LaunchedEffect(state.cursor) {
+        val target =
+            items.indexOfFirst {
+                when (it) {
+                    is MoveListItem.Row -> state.cursor.lineId == null && state.cursor.ply > 0 && it.row == (state.cursor.ply - 1) / 2
+                    is MoveListItem.LineRow -> it.line.id == state.cursor.lineId
                 }
             }
+        if (target >= 0) listState.animateScrollToItem(target)
+    }
+    LazyColumn(modifier.testTag(UiTags.MOVE_LIST), state = listState) {
+        items(items) { item ->
+            when (item) {
+                is MoveListItem.Row -> GameRow(item.row, state, onSelect)
+                is MoveListItem.LineRow -> LineRow(item.line, state, onSelectLineMove)
+            }
+        }
+    }
+}
+
+@Composable
+private fun GameRow(
+    row: Int,
+    state: UiState.Result,
+    onSelect: (Int) -> Unit,
+) {
+    Row(Modifier.fillMaxWidth()) {
+        Text(
+            "${row + 1}.",
+            style = MaterialTheme.typography.bodyLarge,
+            modifier = Modifier.width(Spacing.moveNumberWidth).padding(Spacing.moveCell),
+        )
+        for (ply in listOf(row * 2 + 1, row * 2 + 2)) {
+            MoveCell(
+                text =
+                    state.game.plies
+                        .getOrNull(ply - 1)
+                        ?.san,
+                eval =
+                    state.evals
+                        .getOrNull(ply)
+                        ?.format()
+                        .orEmpty(),
+                ply = ply,
+                selected = state.cursor.lineId == null && ply == state.cursor.ply,
+                onSelect = onSelect,
+                modifier = Modifier.weight(1f),
+            )
+        }
+    }
+}
+
+/** A line as Lichess writes it (`3... Nf6 4. Nf3 Qe7`), indented; each move can be tapped. The eval column stays empty for now. */
+@OptIn(ExperimentalLayoutApi::class)
+@Composable
+private fun LineRow(
+    line: Line,
+    state: UiState.Result,
+    onSelectLineMove: (Int, Int) -> Unit,
+) {
+    val palette = LocalBoardPalette.current
+    val labels = line.moveLabels()
+    FlowRow(
+        Modifier
+            .fillMaxWidth()
+            .padding(start = Spacing.lineIndent)
+            .testTag(UiTags.LINE_ROW),
+    ) {
+        labels.forEachIndexed { index, label ->
+            val selected = state.cursor.lineId == line.id && state.cursor.ply == index + 1
+            Text(
+                label,
+                style = MaterialTheme.typography.bodyLarge,
+                color = if (selected) palette.onSelectedMove else MaterialTheme.colorScheme.onBackground,
+                modifier =
+                    Modifier
+                        .testTag(UiTags.lineMove(line.id, index + 1))
+                        .background(if (selected) palette.selectedMove else Color.Transparent)
+                        .clickable { onSelectLineMove(line.id, index + 1) }
+                        .padding(Spacing.moveCell),
+            )
         }
     }
 }

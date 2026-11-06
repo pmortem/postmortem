@@ -24,10 +24,17 @@ object UiTags {
     const val TAB_SUMMARY = "tab_summary"
     const val CHART_LABEL = "chart_label"
     const val EVAL_CHART = "eval_chart"
+    const val LINE_ROW = "line_row"
     const val MOVE_LIST = "move_list"
     const val EVAL_BAR = "eval_bar"
     const val ANALYSIS_PROGRESS = "analysis_progress"
 
     /** The cell for a half-move; [ply] counts from 1. */
     fun move(ply: Int) = "move_$ply"
+
+    /** The [move]-th move of line [line], counting from 1. */
+    fun lineMove(
+        line: Int,
+        move: Int,
+    ) = "line_move_${line}_$move"
 }

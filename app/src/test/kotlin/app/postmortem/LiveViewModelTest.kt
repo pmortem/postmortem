@@ -86,7 +86,7 @@ class LiveViewModelTest {
         analyse()
     }
 
-    private fun MainViewModel.fen() = assertIs<UiState.Result>(state).let { it.game.fenAt(it.selectedPly) }
+    private fun MainViewModel.fen() = assertIs<UiState.Result>(state).let { it.fen }
 
     @Test
     fun theLiveEngineSearchesTheShownPositionOnlyAfterItStayedShown() {

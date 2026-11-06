@@ -9,6 +9,8 @@ import app.postmortem.core.analysis.AnalysisProgress
 import app.postmortem.core.analysis.LiveConfig
 import app.postmortem.core.analysis.LiveLines
 import app.postmortem.core.analysis.LiveUpdate
+import app.postmortem.core.board.Moves
+import app.postmortem.core.line.Cursor
 import app.postmortem.core.pgn.Game
 import app.postmortem.core.pgn.PgnParser
 import app.postmortem.core.pgn.PgnResult
@@ -111,7 +113,34 @@ class MainViewModel(
 
     fun selectPly(ply: Int) {
         val current = state as? UiState.Result ?: return
-        state = current.copy(selectedPly = ply.coerceIn(0, current.game.plies.size))
+        state = current.copy(cursor = Cursor.game(ply.coerceIn(0, current.game.plies.size)))
+        restartLive()
+    }
+
+    /** Selects the [move]-th move of [lineId], counting from 1. */
+    fun selectLineMove(
+        lineId: Int,
+        move: Int,
+    ) {
+        val current = state as? UiState.Result ?: return
+        val line = current.lines.find(lineId) ?: return
+        state = current.copy(cursor = Cursor(lineId, move.coerceIn(1, line.plies.size)))
+        restartLive()
+    }
+
+    /**
+     * Plays the move from [from] to [to] on the shown position. It only goes through when it is legal ([promotion] is `q`, `r`, `b`
+     * or `n` for a pawn reaching the last rank). The game's own next move steps forward; any other move makes or extends a line.
+     */
+    fun playMove(
+        from: String,
+        to: String,
+        promotion: Char? = null,
+    ) {
+        val current = state as? UiState.Result ?: return
+        val ply = Moves.play(current.fen, from, to, promotion) ?: return
+        val played = current.lines.play(current.game, current.cursor, ply)
+        state = current.copy(lines = played.lines, cursor = played.cursor)
         restartLive()
     }
 
@@ -143,7 +172,7 @@ class MainViewModel(
             stopLive()
             return
         }
-        val fen = current.game.fenAt(current.selectedPly)
+        val fen = current.fen
         search.cached(fen)?.let {
             liveUpdate = LiveUpdate(it, it.maxOfOrNull { line -> line.depth } ?: 0, null, finished = true)
             return
@@ -191,7 +220,8 @@ class MainViewModel(
 
     fun step(delta: Int) {
         val current = state as? UiState.Result ?: return
-        selectPly(current.selectedPly + delta)
+        state = current.copy(cursor = current.lines.step(current.game, current.cursor, delta))
+        restartLive()
     }
 
     /** Back stops a running analysis, or leaves the result; either way the game stays in the paste box. */
@@ -200,6 +230,13 @@ class MainViewModel(
             settingsOpen = false
             restartLive()
             return true
+        }
+        (state as? UiState.Result)?.let { current ->
+            if (current.cursor.lineId != null) {
+                state = current.copy(cursor = current.lines.leave(current.cursor))
+                restartLive()
+                return true
+            }
         }
         val pgn =
             when (val current = state) {

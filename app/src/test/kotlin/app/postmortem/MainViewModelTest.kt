@@ -2,6 +2,7 @@ package app.postmortem
 
 import app.postmortem.core.analysis.AnalysisProgress
 import app.postmortem.core.analysis.Eval
+import app.postmortem.core.line.Cursor
 import app.postmortem.core.pgn.Game
 import app.postmortem.core.pgn.PgnError
 import app.postmortem.core.pgn.PgnParser
@@ -366,5 +367,133 @@ class MainViewModelTest {
         val vm = viewModel()
         vm.openSettings()
         assertFalse(vm.settingsOpen)
+    }
+
+    private fun scholars(): MainViewModel =
+        viewModel().also {
+            it.onPgnChange(fixture("scholars-mate"))
+            it.analyse()
+        }
+
+    @Test
+    fun aMoveThatIsNotTheGamesStartsALineAndSelectsIt() {
+        val vm = scholars()
+        val before = vm.result()
+        vm.selectPly(4)
+        vm.playMove("d2", "d4")
+        val result = vm.result()
+        val line = result.lines.all.single()
+        assertEquals(4, line.branchPly)
+        assertEquals(Cursor(line.id, 1), result.cursor)
+        assertEquals(line.plies.single().fen, result.fen)
+        assertEquals("d2d4", result.lastMove)
+        assertEquals(4, result.selectedPly, "the chart marks the branch")
+        assertEquals(before.evals, result.evals)
+        assertEquals(before.game, result.game)
+        assertEquals(before.report, result.report, "accuracy and judgements stay the game's")
+    }
+
+    @Test
+    fun theGamesOwnNextMoveStepsForwardAndMakesNoLine() {
+        val vm = scholars()
+        vm.selectPly(4)
+        vm.playMove("f1", "c4")
+        assertTrue(
+            vm
+                .result()
+                .lines.all
+                .isEmpty(),
+        )
+        assertEquals(Cursor.game(5), vm.result().cursor)
+    }
+
+    @Test
+    fun anIllegalMoveChangesNothing() {
+        val vm = scholars()
+        vm.selectPly(4)
+        val before = vm.result()
+        vm.playMove("d2", "d5")
+        vm.playMove("e7", "e5")
+        vm.playMove("a1", "a8")
+        assertEquals(before, vm.result())
+    }
+
+    @Test
+    fun movesAtTheEndOfALineExtendItAndAnotherMoveMakesASecondLine() {
+        val vm = scholars()
+        vm.selectPly(4)
+        vm.playMove("d2", "d4")
+        vm.playMove("d7", "d5")
+        vm.playMove("c2", "c4")
+        assertEquals(
+            3,
+            vm
+                .result()
+                .lines.all
+                .single()
+                .plies.size,
+        )
+        vm.selectPly(4)
+        vm.playMove("g1", "f3")
+        assertEquals(
+            listOf(1, 2),
+            vm
+                .result()
+                .lines
+                .branchingAt(4)
+                .map { it.id },
+        )
+        assertEquals(Cursor(2, 1), vm.result().cursor)
+    }
+
+    @Test
+    fun arrowsStepAlongTheLineBackToItsBranchAndThenDownTheGame() {
+        val vm = scholars()
+        vm.selectPly(4)
+        vm.playMove("d2", "d4")
+        vm.playMove("d7", "d5")
+        assertTrue(vm.result().canStepBack)
+        assertFalse(vm.result().canStepForward, "the end of a line")
+        vm.step(-1)
+        assertEquals(Cursor(1, 1), vm.result().cursor)
+        assertTrue(vm.result().canStepForward)
+        vm.step(-1)
+        assertEquals(Cursor.game(4), vm.result().cursor)
+        vm.step(-1)
+        assertEquals(Cursor.game(3), vm.result().cursor)
+        vm.selectLineMove(1, 2)
+        assertEquals(Cursor(1, 2), vm.result().cursor)
+    }
+
+    @Test
+    fun backFromALineGoesToItsBranchPositionAndTheNextBackLeavesTheResult() {
+        val vm = scholars()
+        vm.selectPly(4)
+        vm.playMove("d2", "d4")
+        assertTrue(vm.back())
+        assertEquals(Cursor.game(4), vm.result().cursor)
+        assertEquals(
+            1,
+            vm
+                .result()
+                .lines.all.size,
+            "the line stays",
+        )
+        assertTrue(vm.back())
+        assertIs<UiState.Paste>(vm.state)
+    }
+
+    @Test
+    fun theEndOfTheGameIsOnlyTheEndWhenTheBoardIsOnTheGame() {
+        val vm = scholars()
+        val last =
+            vm
+                .result()
+                .game.plies.size
+        vm.selectPly(last - 1)
+        vm.playMove("h5", "h4")
+        assertFalse(vm.result().atEndOfGame)
+        vm.selectPly(last)
+        assertTrue(vm.result().atEndOfGame)
     }
 }
