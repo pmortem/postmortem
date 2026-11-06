@@ -23,6 +23,8 @@ import app.postmortem.core.analysis.LiveSearch
 import app.postmortem.core.analysis.PositionEvaluator
 import app.postmortem.core.analysis.format
 import app.postmortem.core.board.Moves
+import app.postmortem.data.DATABASE_NAME
+import app.postmortem.data.LazyGameLibrary
 import app.postmortem.ui.AnalysingScreen
 import app.postmortem.ui.BoardInput
 import app.postmortem.ui.LineActions
@@ -53,6 +55,7 @@ class MainActivity : ComponentActivity() {
                     }
                 MainViewModel(
                     positions = positions,
+                    library = LazyGameLibrary(applicationContext),
                     live = LiveSearch(LiveConfig(), EngineLocator.factory(applicationContext)),
                     arrowsSetting = DataStoreEngineArrowsSetting(applicationContext),
                     analysisSettings = config.describe(BuildConfig.ENGINE_NAME),
@@ -78,6 +81,7 @@ class MainActivity : ComponentActivity() {
         installSplashScreen()
         super.onCreate(savedInstanceState)
         enableEdgeToEdge()
+        if (savedInstanceState == null && DebugInput.pgn(intent) != null) DebugInput.resetData(this, DATABASE_NAME)
         if (savedInstanceState == null) DebugInput.pgn(intent)?.let(viewModel::onPgnChange)
         val coldStart = savedInstanceState == null
         setContent {
@@ -113,6 +117,8 @@ class MainActivity : ComponentActivity() {
                             engineOn = viewModel.engineOn,
                             onToggleEngine = { viewModel.showEngineArrows(!viewModel.engineOn) },
                             onSettings = viewModel::openSettings,
+                            openedFromLibrary = viewModel.openedFromLibrary,
+                            onNoticeShown = viewModel::noticeShown,
                             lineActions =
                                 LineActions(
                                     editing = viewModel.editingLineId,

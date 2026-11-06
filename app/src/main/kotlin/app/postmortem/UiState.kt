@@ -61,6 +61,8 @@ sealed interface UiState {
         val flipped: Boolean = false,
         /** How the evals were made (engine, nodes, hash), so a saved analysis can say. */
         val analysisSettings: String = "",
+        /** The id of the game in the library, once it is saved. */
+        val gameId: Long? = null,
     ) : UiState {
         /** The game position shown, or the one the line the board is on branches from (the chart marks it). */
         val selectedPly: Int get() = lines.gamePly(cursor)

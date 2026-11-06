@@ -19,6 +19,10 @@ import app.postmortem.core.pgn.Game
 import app.postmortem.core.pgn.PgnParser
 import app.postmortem.core.pgn.PgnResult
 import app.postmortem.core.pgn.looksLikePgn
+import app.postmortem.core.pgn.overview
+import app.postmortem.core.store.GameLibrary
+import app.postmortem.core.store.NewGame
+import app.postmortem.core.store.SavedGame
 import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.CoroutineDispatcher
 import kotlinx.coroutines.Dispatchers
@@ -46,6 +50,8 @@ class MainViewModel(
     private val arrowsSetting: EngineArrowsSetting = InMemoryEngineArrowsSetting(),
     /** Evaluates the positions of the lines the user plays; none in tests that do not need it. */
     private val positions: PositionEvals? = null,
+    /** The saved games: every analysed game and what is done to it is kept; none in tests that do not need it. */
+    private val library: GameLibrary? = null,
     private val liveDebounceMs: Long = LiveConfig.DEFAULT_DEBOUNCE_MS,
 ) : ViewModel() {
     var state: UiState by mutableStateOf(UiState.Paste())
@@ -86,6 +92,22 @@ class MainViewModel(
     var deletedLine: DeletedLine? by mutableStateOf(null)
         private set
 
+    /** The Result was opened from the library instead of analysed (shown once, then cleared with [noticeShown]). */
+    var openedFromLibrary: Boolean by mutableStateOf(false)
+        private set
+
+    // Saves wait here, in the order the changes were made, and run one at a time off the main thread.
+    private var saveQueue = Channel<() -> Unit>(Channel.UNLIMITED)
+    private var saveJob: Job? = null
+
+    /** The id the game on screen has in the library, once it is saved; each game on screen has its own. */
+    private class GameHandle {
+        @Volatile
+        var id: Long? = null
+    }
+
+    private var handle = GameHandle()
+
     private var liveJob: Job? = null
     private var foreground = true
 
@@ -125,13 +147,77 @@ class MainViewModel(
         }
     }
 
+    /** A game that is already saved opens from the library, with its lines and no analysis; any other is analysed. */
     private fun startAnalysis(
+        pgn: String,
+        game: Game,
+    ) {
+        val saved = library
+        if (saved == null) {
+            analyseGame(pgn, game)
+            return
+        }
+        if (job?.isActive == true) return
+        job =
+            viewModelScope.launch {
+                val found = withContext(dispatcher) { runCatching { saved.findSaved(game) }.getOrNull() }
+                if (state !is UiState.Paste) return@launch
+                if (found != null) openSaved(found, pgn, fromLibrary = true) else analyseGame(pgn, game)
+            }
+    }
+
+    /** Opens a saved game on the Result screen, with its lines and the evals found for them; nothing is analysed. */
+    fun openGame(id: Long) {
+        val saved = library ?: return
+        if (job?.isActive == true) return
+        job =
+            viewModelScope.launch {
+                val found = withContext(dispatcher) { runCatching { saved.load(id) }.getOrNull() } ?: return@launch
+                openSaved(found, found.pgn, fromLibrary = true)
+            }
+    }
+
+    private fun openSaved(
+        saved: SavedGame,
+        pgn: String,
+        fromLibrary: Boolean,
+    ) {
+        stopLive()
+        editingLineId = null
+        deletedLine = null
+        handle = GameHandle().also { it.id = saved.id }
+        positions?.seed(saved.game, saved.evals)
+        val opened =
+            UiState.Result(
+                pgn,
+                saved.game,
+                saved.evals,
+                analysisSettings = saved.analysisSettings,
+                lines = saved.lines,
+                lineEvals = saved.lineEvals,
+                gameId = saved.id,
+            )
+        state = opened
+        openedFromLibrary = fromLibrary
+        // a line position whose eval was never found (the app was closed meanwhile) is evaluated now
+        saved.lines.all
+            .flatMap { it.plies }
+            .forEach { evaluateSoon(it.fen) }
+        restartLive()
+    }
+
+    fun noticeShown() {
+        openedFromLibrary = false
+    }
+
+    private fun analyseGame(
         pgn: String,
         game: Game,
     ) {
         stopLive()
         editingLineId = null
         deletedLine = null
+        handle = GameHandle()
         state = UiState.Analysing(pgn, game, done = 0, total = game.positionCount)
         var furthest = 0
         job =
@@ -143,7 +229,7 @@ class MainViewModel(
                         state =
                             if (progress.finished) {
                                 positions?.seed(game, progress.evals)
-                                UiState.Result(pgn, game, progress.evals, analysisSettings = analysisSettings)
+                                UiState.Result(pgn, game, progress.evals, analysisSettings = analysisSettings).also { saveGame(it) }
                             } else {
                                 furthest = maxOf(furthest, progress.done)
                                 UiState.Analysing(pgn, game, furthest, progress.total)
@@ -151,6 +237,52 @@ class MainViewModel(
                         if (progress.finished) restartLive()
                     }
             }
+    }
+
+    /** Runs [task] after the saves queued before it, off the main thread; a failing save never takes the app down. */
+    private fun saveSoon(task: () -> Unit) {
+        if (library == null) return
+        saveQueue.trySend(task)
+        if (saveJob == null) {
+            saveJob =
+                viewModelScope.launch(dispatcher) {
+                    for (queued in saveQueue) runCatching(queued)
+                }
+        }
+    }
+
+    /** Saves a game whose analysis has just finished, with its accuracies, and tells the screen its id. */
+    private fun saveGame(result: UiState.Result) {
+        val saved = library ?: return
+        val mine = handle
+        val report = result.report
+        val new =
+            NewGame(
+                pgn = result.pgn,
+                game = result.game,
+                evals = result.evals,
+                analysisSettings = result.analysisSettings,
+                whiteAccuracy = report.white.accuracy,
+                blackAccuracy = report.black.accuracy,
+                opening = result.game.overview.opening,
+            )
+        saveSoon {
+            mine.id = saved.save(new)
+            viewModelScope.launch {
+                val now = state as? UiState.Result
+                if (handle === mine && now != null) state = now.copy(gameId = mine.id)
+            }
+        }
+    }
+
+    /** Saves the lines of the game on screen and the evals found for them, as they are now. */
+    private fun saveLinesSoon() {
+        val saved = library ?: return
+        val current = state as? UiState.Result ?: return
+        val mine = handle
+        val lines = current.lines
+        val lineEvals = current.lineEvals
+        saveSoon { mine.id?.let { saved.saveLines(it, lines, lineEvals) } }
     }
 
     fun selectPly(ply: Int) {
@@ -239,6 +371,7 @@ class MainViewModel(
         if (editingLineId == lineId) editingLineId = null
         val cursor = if (current.cursor.lineId == lineId) Cursor.game(line.branchPly) else current.cursor
         state = current.copy(lines = current.lines.delete(lineId), cursor = cursor)
+        saveLinesSoon()
         restartLive()
     }
 
@@ -249,6 +382,7 @@ class MainViewModel(
         deletedLine = null
         val back = if (deleted.cursorBefore.lineId == deleted.line.id) deleted.cursorBefore else current.cursor
         state = current.copy(lines = current.lines.restore(deleted.line), cursor = back)
+        saveLinesSoon()
         restartLive()
     }
 
@@ -284,6 +418,7 @@ class MainViewModel(
         val played = edited ?: current.lines.play(current.game, current.cursor, ply)
         selection = null
         state = current.copy(lines = played.lines, cursor = played.cursor)
+        saveLinesSoon()
         evaluateSoon(ply.fen)
         restartLive()
     }
@@ -300,6 +435,7 @@ class MainViewModel(
         val known = evaluator.cached(fen)
         if (known != null) {
             state = current.copy(lineEvals = current.lineEvals + (key to known))
+            saveLinesSoon()
             return
         }
         state = current.copy(pendingEvals = current.pendingEvals + key)
@@ -324,6 +460,7 @@ class MainViewModel(
                                 lineEvals = if (found != null) now.lineEvals + (queuedKey to found) else now.lineEvals,
                                 pendingEvals = now.pendingEvals - queuedKey,
                             )
+                        if (found != null) saveLinesSoon()
                     }
                 }
         }
@@ -455,6 +592,8 @@ class MainViewModel(
         stopEvaluating()
         editingLineId = null
         deletedLine = null
+        openedFromLibrary = false
+        handle = GameHandle()
         state = UiState.Paste(pgn = pgn)
         return true
     }

@@ -107,6 +107,8 @@ fun ResultScreen(
     onSettings: () -> Unit = {},
     lineActions: LineActions = LineActions(),
     boardInput: BoardInput? = null,
+    openedFromLibrary: Boolean = false,
+    onNoticeShown: () -> Unit = {},
 ) {
     var showReadout by rememberSaveable { mutableStateOf(false) }
     Surface(
@@ -119,6 +121,12 @@ fun ResultScreen(
         val snackbars = remember { SnackbarHostState() }
         val deletedMessage = stringResource(R.string.line_deleted)
         val undoLabel = stringResource(R.string.line_undo)
+        val openedMessage = stringResource(R.string.opened_from_library)
+        LaunchedEffect(openedFromLibrary) {
+            if (!openedFromLibrary) return@LaunchedEffect
+            onNoticeShown()
+            snackbars.showSnackbar(openedMessage, duration = SnackbarDuration.Short)
+        }
         LaunchedEffect(lineActions.deleted) {
             if (lineActions.deleted == null) return@LaunchedEffect
             when (snackbars.showSnackbar(deletedMessage, undoLabel, duration = SnackbarDuration.Short)) {

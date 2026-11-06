@@ -37,6 +37,7 @@
     <string name="tab_moves">Moves</string>
     <string name="tab_chart">Chart</string>
     <string name="tab_summary">Summary</string>
+    <string name="opened_from_library">Opened from your library</string>
     <string name="line_deleted">Line deleted</string>
     <string name="line_undo">Undo</string>
     <string name="line_editing">Editing</string>
