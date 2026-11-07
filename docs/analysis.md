@@ -29,7 +29,7 @@ Every position of the game is checked (one more than the number of half-moves, b
 How the engine is set up is on the [engine page](engine.md).
 
 ## Saved games
-Every game you analyse is saved on the phone, in the app's own storage, and so is everything you do to it: the lines you play, their evaluations, what you edit and delete, as it happens. There is nothing to tap, and closing or killing the app loses nothing. The file is a standard SQLite database, `postmortem.sqlite`; it never leaves the phone unless you share it (see [the database](database.md)).
+Every game you analyse is saved on the phone, in the app's own storage, and so is everything you do to it: the lines you play, their evaluations, what you delete, as it happens. There is nothing to tap, and closing or killing the app loses nothing. The file is a standard SQLite database, `postmortem.sqlite`; it never leaves the phone unless you share it (see [the database](database.md)).
 
 Pasting a game that is already saved (same moves, same start position and same tags) opens the saved one straight away, with its lines and no analysis. A short message says **Opened from your library**. A game with a changed tag or move counts as another game and is analysed again.
 

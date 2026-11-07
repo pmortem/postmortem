@@ -117,10 +117,6 @@ class MainViewModel(
     /** The pawn move waiting for a piece to be chosen, or null. */
     val promotion: PromotionAsked? get() = promotionAsked?.takeIf { it.fen == shownFen }
 
-    /** The line being edited (swiped left): a move played on it cuts it there. */
-    var editingLineId: Int? by mutableStateOf(null)
-        private set
-
     /** The line deleted last, which Undo brings back, with where the board was. */
     var deletedLine: DeletedLine? by mutableStateOf(null)
         private set
@@ -216,7 +212,6 @@ class MainViewModel(
         fromLibrary: Boolean,
     ) {
         stopLive()
-        editingLineId = null
         deletedLine = null
         overlay = null
         overlayBelow = null
@@ -250,7 +245,6 @@ class MainViewModel(
         game: Game,
     ) {
         stopLive()
-        editingLineId = null
         deletedLine = null
         handle = GameHandle()
         state = UiState.Analysing(pgn, game, done = 0, total = game.positionCount)
@@ -328,7 +322,6 @@ class MainViewModel(
 
     fun selectPly(ply: Int) {
         val current = state as? UiState.Result ?: return
-        editingLineId = null
         state = current.copy(cursor = Cursor.game(ply.coerceIn(0, current.game.plies.size)))
         restartLive()
     }
@@ -392,7 +385,6 @@ class MainViewModel(
     ) {
         val current = state as? UiState.Result ?: return
         val line = current.lines.find(lineId) ?: return
-        if (editingLineId != lineId) editingLineId = null
         state = current.copy(cursor = Cursor(lineId, move.coerceIn(1, line.plies.size)))
         restartLive()
     }
@@ -409,7 +401,6 @@ class MainViewModel(
         val current = state as? UiState.Result ?: return
         val line = current.lines.find(lineId) ?: return
         deletedLine = DeletedLine(line, current.cursor)
-        if (editingLineId == lineId) editingLineId = null
         val cursor = if (current.cursor.lineId == lineId) Cursor.game(line.branchPly) else current.cursor
         state = current.copy(lines = current.lines.delete(lineId), cursor = cursor)
         saveLinesSoon()
@@ -432,16 +423,6 @@ class MainViewModel(
         deletedLine = null
     }
 
-    fun editLine(lineId: Int) {
-        val current = state as? UiState.Result ?: return
-        if (current.lines.find(lineId) == null) return
-        editingLineId = lineId
-    }
-
-    fun doneEditing() {
-        editingLineId = null
-    }
-
     /**
      * Plays the move from [from] to [to] on the shown position. It only goes through when it is legal ([promotion] is `q`, `r`, `b`
      * or `n` for a pawn reaching the last rank). The game's own next move steps forward; any other move makes or extends a line.
@@ -453,10 +434,7 @@ class MainViewModel(
     ) {
         val current = state as? UiState.Result ?: return
         val ply = Moves.play(current.fen, from, to, promotion) ?: return
-        val editing = editingLineId
-        val edited = editing?.let { current.lines.edit(current.game, current.cursor, it, ply) }
-        if (editing != null && edited == null) editingLineId = null
-        val played = edited ?: current.lines.play(current.game, current.cursor, ply)
+        val played = current.lines.play(current.game, current.cursor, ply)
         selection = null
         state = current.copy(lines = played.lines, cursor = played.cursor)
         saveLinesSoon()
@@ -742,10 +720,6 @@ class MainViewModel(
             promotionAsked = null
             return true
         }
-        if (editingLineId != null) {
-            editingLineId = null
-            return true
-        }
         (state as? UiState.Result)?.let { current ->
             if (current.cursor.lineId != null) {
                 state = current.copy(cursor = current.lines.leave(current.cursor))
@@ -763,7 +737,6 @@ class MainViewModel(
         job = null
         stopLive()
         stopEvaluating()
-        editingLineId = null
         deletedLine = null
         openedFromLibrary = false
         handle = GameHandle()

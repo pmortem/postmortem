@@ -176,27 +176,16 @@ class LibraryViewModelTest {
     }
 
     @Test
-    fun everyNewLineMoveEvalEditAndDeleteIsSavedAsItHappens() {
+    fun everyNewLineMoveEvalAndDeleteIsSavedAsItHappens() {
         val library = FakeLibrary()
         val vm = viewModel(library, FakePositions())
         vm.analyse("scholars-mate")
         vm.selectPly(4)
         vm.playMove("d2", "d4")
         vm.playMove("d7", "d5")
-        var saved = library.games.values.single()
+        val saved = library.games.values.single()
         assertEquals(vm.result().lines, saved.lines)
         assertEquals(2, saved.lineEvals.size, "the evals that arrived are saved too")
-        vm.editLine(1)
-        vm.selectLineMove(1, 1)
-        vm.playMove("g8", "f6")
-        saved = library.games.values.single()
-        assertEquals(
-            listOf("d2d4", "g8f6"),
-            saved.lines.all
-                .single()
-                .plies
-                .map { it.uci },
-        )
         vm.deleteLine(1)
         assertTrue(
             library.games.values
