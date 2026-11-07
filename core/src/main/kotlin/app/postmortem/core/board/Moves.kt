@@ -145,6 +145,12 @@ object Moves {
         return "$letter$disambiguation${if (capture) "x" else ""}$target"
     }
 
+    /** How many legal moves the side to move has in [fen]. */
+    fun legalMoveCount(fen: String): Int = board(fen).legalMoves().size
+
+    /** True when the side to move in [fen] is in check. */
+    fun inCheck(fen: String): Boolean = board(fen).isKingAttacked
+
     /** Who moves in [fen]: the colour of the pieces a player picks up, and of the piece a promotion makes. */
     fun sideToMove(fen: String): PieceColor = if (board(fen).sideToMove == Side.WHITE) PieceColor.WHITE else PieceColor.BLACK
 }
