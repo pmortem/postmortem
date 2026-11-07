@@ -155,29 +155,6 @@ data class Lines(
     /** Puts a deleted [line] back exactly as it was, at its place among the lines in the order they were made. */
     fun restore(line: Line): Lines = if (find(line.id) != null) this else copy(all = (all + line).sortedBy { it.id })
 
-    /**
-     * Plays [move] while the line [lineId] is being edited: where the cursor is on that line (or on the position it branches from),
-     * the line is cut after the cursor and continues with [move], so the rest of the old line is gone and no second line is made.
-     * The line's own next move there only steps forward. Null when the cursor is not on the line or its branch position.
-     */
-    fun edit(
-        game: Game,
-        cursor: Cursor,
-        lineId: Int,
-        move: Ply,
-    ): Played? {
-        val line = find(lineId) ?: return null
-        val keep =
-            when {
-                cursor.lineId == lineId -> cursor.ply
-                cursor.lineId == null && cursor.ply == line.branchPly -> 0
-                else -> return null
-            }
-        if (line.plies.getOrNull(keep)?.uci == move.uci) return Played(this, Cursor(lineId, keep + 1))
-        val cut = line.copy(plies = line.plies.take(keep) + move)
-        return Played(copy(all = all.map { if (it.id == lineId) cut else it }), Cursor(lineId, keep + 1))
-    }
-
     private fun branch(
         branchPly: Int,
         before: List<Ply>,

@@ -207,13 +207,10 @@ class MainActivity : ComponentActivity() {
                             onNoticeShown = viewModel::noticeShown,
                             lineActions =
                                 LineActions(
-                                    editing = viewModel.editingLineId,
                                     deleted = viewModel.deletedLine,
                                     onSelectMove = viewModel::selectLineMove,
                                     onSelectLine = viewModel::selectLine,
                                     onDelete = viewModel::deleteLine,
-                                    onEdit = viewModel::editLine,
-                                    onDoneEditing = viewModel::doneEditing,
                                     onUndo = viewModel::undoDelete,
                                     onUndoExpired = viewModel::dismissUndo,
                                 ),

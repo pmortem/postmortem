@@ -55,8 +55,6 @@ import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
-import androidx.compose.ui.draw.drawBehind
-import androidx.compose.ui.geometry.Size
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.platform.testTag
 import androidx.compose.ui.res.painterResource
@@ -83,15 +81,12 @@ import app.postmortem.core.pgn.plyLabel
 import app.postmortem.ui.theme.LocalBoardPalette
 import app.postmortem.ui.theme.Spacing
 
-/** What the Moves tab does with the lines the user played: select, delete (with Undo), edit, and leave edit mode. */
+/** What the Moves tab does with the lines the user played: select and delete (with Undo). */
 data class LineActions(
-    val editing: Int? = null,
     val deleted: DeletedLine? = null,
     val onSelectMove: (Int, Int) -> Unit = { _, _ -> },
     val onSelectLine: (Int) -> Unit = {},
     val onDelete: (Int) -> Unit = {},
-    val onEdit: (Int) -> Unit = {},
-    val onDoneEditing: () -> Unit = {},
     val onUndo: () -> Unit = {},
     val onUndoExpired: () -> Unit = {},
 )
@@ -425,7 +420,7 @@ private fun GameRow(
 /**
  * A line as Lichess writes it (`3... Nf6 4. Nf3 Qe7`), indented; each move can be tapped, and the row itself selects the whole line.
  * After a move come its mark (`?!`, `?`, `??`, as on the chart) and its eval, a spinner while the eval is being worked out.
- * Swiping the row right deletes the line (with Undo), swiping it left edits it.
+ * Swiping the row right deletes the line (with Undo).
  */
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
@@ -443,12 +438,7 @@ private fun LineRow(
                         true
                     }
 
-                    SwipeToDismissBoxValue.EndToStart -> {
-                        actions.onEdit(line.id)
-                        false
-                    }
-
-                    SwipeToDismissBoxValue.Settled -> {
+                    SwipeToDismissBoxValue.EndToStart, SwipeToDismissBoxValue.Settled -> {
                         false
                     }
                 }
@@ -457,29 +447,25 @@ private fun LineRow(
     SwipeToDismissBox(
         state = dismiss,
         backgroundContent = { SwipeBackground(dismiss.dismissDirection) },
+        enableDismissFromEndToStart = false,
         modifier = Modifier.testTag(UiTags.lineRow(line.id)),
     ) {
         LineRowContent(line, state, actions)
     }
 }
 
-/** What shows behind a row being swiped: a delete icon on red to the right, an edit icon to the left. */
+/** What shows behind a row being swiped right: a delete icon on red. */
 @Composable
 internal fun SwipeBackground(direction: SwipeToDismissBoxValue) {
-    val deleting = direction == SwipeToDismissBoxValue.StartToEnd
-    val editing = direction == SwipeToDismissBoxValue.EndToStart
-    if (!deleting && !editing) return
+    if (direction != SwipeToDismissBoxValue.StartToEnd) return
     Box(
         Modifier
             .fillMaxSize()
-            .background(if (deleting) MaterialTheme.colorScheme.errorContainer else MaterialTheme.colorScheme.tertiaryContainer)
+            .background(MaterialTheme.colorScheme.errorContainer)
             .padding(horizontal = Spacing.swipeIconPadding),
-        contentAlignment = if (deleting) Alignment.CenterStart else Alignment.CenterEnd,
+        contentAlignment = Alignment.CenterStart,
     ) {
-        Icon(
-            painterResource(if (deleting) R.drawable.ic_delete else R.drawable.ic_edit),
-            stringResource(if (deleting) R.string.line_delete_action else R.string.line_edit_action),
-        )
+        Icon(painterResource(R.drawable.ic_delete), stringResource(R.string.line_delete_action))
     }
 }
 
@@ -493,35 +479,15 @@ private fun LineRowContent(
     val palette = LocalBoardPalette.current
     val labels = line.moveLabels()
     val judgements = state.judgementsOf(line)
-    val editing = actions.editing == line.id
     val onRow = state.cursor.lineId == line.id
-    val edge = MaterialTheme.colorScheme.tertiary
     Column(
         Modifier
             .fillMaxWidth()
             .background(MaterialTheme.colorScheme.background)
             .background(if (onRow) palette.selectedMove.copy(alpha = Spacing.SELECTED_ROW_ALPHA) else Color.Transparent)
             .clickable { actions.onSelectLine(line.id) }
-            .drawBehind { if (editing) drawRect(edge, size = Size(Spacing.editEdge.toPx(), size.height)) }
             .padding(start = Spacing.lineIndent),
     ) {
-        if (editing) {
-            Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(Spacing.small)) {
-                Text(
-                    stringResource(R.string.line_editing),
-                    style = MaterialTheme.typography.labelLarge,
-                    color = MaterialTheme.colorScheme.onTertiary,
-                    modifier =
-                        Modifier
-                            .testTag(UiTags.LINE_EDITING)
-                            .background(edge, MaterialTheme.shapes.small)
-                            .padding(horizontal = Spacing.gap, vertical = Spacing.small),
-                )
-                TextButton(onClick = actions.onDoneEditing, modifier = Modifier.testTag(UiTags.LINE_EDIT_DONE)) {
-                    Text(stringResource(R.string.line_edit_done))
-                }
-            }
-        }
         FlowRow(Modifier.fillMaxWidth()) {
             labels.forEachIndexed { index, label ->
                 val selected = onRow && state.cursor.ply == index + 1

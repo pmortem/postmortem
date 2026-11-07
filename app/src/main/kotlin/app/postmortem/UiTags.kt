@@ -36,8 +36,6 @@ object UiTags {
     const val LIBRARY = "library"
     const val LIBRARY_BACK = "library_back"
     const val SETTINGS_LIBRARY = "settings_library"
-    const val LINE_EDITING = "line_editing"
-    const val LINE_EDIT_DONE = "line_edit_done"
     const val UNDO = "undo"
     const val MOVE_LIST = "move_list"
     const val EVAL_BAR = "eval_bar"

@@ -686,90 +686,14 @@ class MainViewModelTest {
     }
 
     @Test
-    fun editingALineCutsItAtTheSelectedMoveAndContinuesWithTheNewMove() {
+    fun aDifferentMoveInTheMiddleOfALineMakesAnotherLineAndLeavesTheFirstAlone() {
         val vm = threeMoveLine()
-        vm.editLine(1)
-        assertEquals(1, vm.editingLineId)
         vm.selectLineMove(1, 2)
-        assertEquals(1, vm.editingLineId, "tapping a move of the edited line stays in edit mode")
         vm.playMove("g1", "f3")
-        assertEquals(
-            listOf("d2d4", "d7d5", "g1f3"),
-            vm
-                .result()
-                .lines.all
-                .single()
-                .plies
-                .map { it.uci },
-        )
-        assertEquals(
-            1,
-            vm
-                .result()
-                .lines.all.size,
-        )
-        assertEquals(Cursor(1, 3), vm.result().cursor)
-        assertEquals(1, vm.editingLineId)
-    }
-
-    @Test
-    fun editingFromTheBranchPositionReplacesTheWholeLine() {
-        val vm = threeMoveLine()
-        vm.editLine(1)
-        vm.step(-1)
-        vm.step(-1)
-        vm.step(-1)
-        assertEquals(Cursor.game(4), vm.result().cursor)
-        vm.playMove("g1", "f3")
-        assertEquals(
-            listOf("g1f3"),
-            vm
-                .result()
-                .lines.all
-                .single()
-                .plies
-                .map { it.uci },
-        )
-    }
-
-    @Test
-    fun editModeEndsWithDoneBackOrAMainLineMoveAndBackComesFirst() {
-        val vm = threeMoveLine()
-        vm.editLine(1)
-        vm.doneEditing()
-        assertNull(vm.editingLineId)
-        vm.editLine(1)
-        assertTrue(vm.back())
-        assertNull(vm.editingLineId)
-        assertEquals(Cursor(1, 3), vm.result().cursor, "Back only left edit mode")
-        vm.editLine(1)
-        vm.selectPly(2)
-        assertNull(vm.editingLineId)
-        vm.editLine(99)
-        assertNull(vm.editingLineId, "no such line")
-    }
-
-    @Test
-    fun aMoveOffTheEditedLineEndsEditModeAndMakesAnOrdinaryLine() {
-        val vm = threeMoveLine()
-        vm.selectPly(2)
-        vm.editLine(1)
-        vm.playMove("g1", "f3")
-        assertNull(vm.editingLineId)
-        assertEquals(
-            2,
-            vm
-                .result()
-                .lines.all.size,
-        )
-        assertEquals(
-            3,
-            vm
-                .result()
-                .lines
-                .find(1)!!
-                .plies.size,
-            "the edited line was not touched",
-        )
+        val lines = vm.result().lines.all
+        assertEquals(2, lines.size)
+        assertEquals(listOf("d2d4", "d7d5", "c2c4"), lines.first().plies.map { it.uci })
+        assertEquals(listOf("d2d4", "d7d5", "g1f3"), lines.last().plies.map { it.uci })
+        assertEquals(Cursor(2, 3), vm.result().cursor)
     }
 }
