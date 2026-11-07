@@ -10,6 +10,7 @@ import app.postmortem.core.store.DatabaseName
 import app.postmortem.core.store.GameLibrary
 import app.postmortem.core.store.GameStore
 import app.postmortem.core.store.GameSummary
+import app.postmortem.core.store.MainLine
 import app.postmortem.core.store.NewGame
 import app.postmortem.core.store.ReportRow
 import app.postmortem.core.store.SavedGame
@@ -80,6 +81,8 @@ class DatabaseManager(
     override fun list(): List<GameSummary> = store().list()
 
     override fun reportRows(): List<ReportRow> = store().reportRows()
+
+    override fun mainLines(ids: List<Long>): Map<Long, MainLine> = store().mainLines(ids)
 
     @Synchronized
     override fun delete(id: Long) = store().delete(id)
