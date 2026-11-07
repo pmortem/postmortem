@@ -38,6 +38,21 @@ data class SavedGame(
     val updated: Long,
     /** The engine's best move (UCI) per main-line position; null where the game was saved without it or the position has no move. */
     val bestMoves: List<String?> = emptyList(),
+    /** The progress of "Learn from your mistakes", by main-line position. */
+    val drill: Map<Int, DrillProgress> = emptyMap(),
+)
+
+/** Where "Learn from your mistakes" stands for one position: [solved] or not, how many times it was tried or skipped, and when last. */
+data class DrillProgress(
+    val solved: Boolean,
+    val attempts: Int,
+    val lastTried: Long,
+)
+
+/** A practised position: the game and the main-line position (ply count from the start) before the player's mistake. */
+data class DrillKey(
+    val gameId: Long,
+    val position: Int,
 )
 
 /** What the Library shows of a game. */
@@ -101,6 +116,29 @@ interface GameLibrary {
 
     /** What the Report reads of every saved game; the positions are not loaded. */
     fun reportRows(): List<ReportRow> = emptyList()
+
+    /** The progress of the practised positions of the games with these [ids]. */
+    fun drillProgress(ids: List<Long>): Map<DrillKey, DrillProgress> = emptyMap()
+
+    /** Notes a try (or a skip) of the position [position] of game [gameId]: one more attempt, [solved] or not, now. */
+    fun recordDrill(
+        gameId: Long,
+        position: Int,
+        solved: Boolean,
+    ) = Unit
+
+    /** The best move (UCI) stored for the main-line position after [ply] plies of game [gameId], or null when there is none. */
+    fun bestMove(
+        gameId: Long,
+        ply: Int,
+    ): String? = null
+
+    /** Stores [uci] as the best move of that position (a game saved before best moves were kept is filled in this way). */
+    fun setBestMove(
+        gameId: Long,
+        ply: Int,
+        uci: String,
+    ) = Unit
 
     /** The main lines (moves and evals, nothing else) of the games with these [ids]; a game with a position without an eval is left out. */
     fun mainLines(ids: List<Long>): Map<Long, MainLine> = emptyMap()
@@ -306,11 +344,52 @@ class GameStore(
             created = row.long("created"),
             updated = row.long("updated"),
             bestMoves = main.map { it["best_move"] as String? },
+            drill = drillProgress(listOf(id)).entries.associate { (key, progress) -> key.position to progress },
         )
     }
 
-    /** The best move (UCI) stored for the main-line position after [ply] plies of game [gameId], or null when there is none. */
-    fun bestMove(
+    override fun drillProgress(ids: List<Long>): Map<DrillKey, DrillProgress> {
+        val result = HashMap<DrillKey, DrillProgress>()
+        for (chunk in ids.chunked(SQL_VARIABLES)) {
+            db
+                .query(
+                    "SELECT n.game_id, n.ply, d.solved, d.attempts, d.last_tried FROM drill d JOIN node n ON n.id = d.node_id " +
+                        "WHERE n.game_id IN (${chunk.joinToString(",") { "?" }})",
+                    chunk,
+                ).forEach {
+                    result[DrillKey(it.long("game_id"), it.int("ply"))] =
+                        DrillProgress(it.long("solved") == 1L, it.int("attempts"), it.long("last_tried"))
+                }
+        }
+        return result
+    }
+
+    override fun recordDrill(
+        gameId: Long,
+        position: Int,
+        solved: Boolean,
+    ) = db.execute(
+        "INSERT INTO drill (node_id, solved, attempts, last_tried) " +
+            "SELECT id, ?, 1, ? FROM node WHERE game_id = ? AND is_main_line = 1 AND ply = ? " +
+            "ON CONFLICT(node_id) DO UPDATE SET solved = excluded.solved, attempts = attempts + 1, last_tried = excluded.last_tried",
+        listOf(if (solved) 1L else 0L, clock(), gameId, position),
+    )
+
+    /** Writes the progress rows of a game that was just inserted (or brought back): only for positions the game has and has no row for. */
+    private fun insertDrill(
+        gameId: Long,
+        drill: Map<Int, DrillProgress>,
+    ) {
+        for ((position, progress) in drill) {
+            db.execute(
+                "INSERT OR IGNORE INTO drill (node_id, solved, attempts, last_tried) " +
+                    "SELECT id, ?, ?, ? FROM node WHERE game_id = ? AND is_main_line = 1 AND ply = ?",
+                listOf(if (progress.solved) 1L else 0L, progress.attempts, progress.lastTried, gameId, position),
+            )
+        }
+    }
+
+    override fun bestMove(
         gameId: Long,
         ply: Int,
     ): String? =
@@ -321,8 +400,7 @@ class GameStore(
             ).firstOrNull()
             ?.get("best_move") as String?
 
-    /** Stores [uci] as the best move of that main-line position (a game saved before best moves were kept is filled in this way). */
-    fun setBestMove(
+    override fun setBestMove(
         gameId: Long,
         ply: Int,
         uci: String,
@@ -396,7 +474,8 @@ class GameStore(
 
     /**
      * Adds every game of [other] this store does not have yet (the same key counts as the same game), with its lines and evals and the
-     * times it had, in one transaction: either all of them are added or none. The games of [other] are only read.
+     * times it had, in one transaction: either all of them are added or none. The games of [other] are only read. For a game both
+     * have, only the practised positions this store has no row for are taken over: an existing row is kept.
      */
     fun mergeFrom(other: GameStore): MergeResult =
         db.transaction {
@@ -404,7 +483,9 @@ class GameStore(
             var skipped = 0
             for (id in other.ids()) {
                 val saved = other.load(id) ?: continue
-                if (findId(saved.game) != null) {
+                val mine = findId(saved.game)
+                if (mine != null) {
+                    insertDrill(mine, saved.drill)
                     skipped++
                 } else {
                     add(saved)
@@ -432,6 +513,7 @@ class GameStore(
         )
         val id = db.lastInsertId()
         insertMainLine(id, saved.game, saved.evals, saved.bestMoves)
+        insertDrill(id, saved.drill)
         saveLines(id, saved.lines, saved.lineEvals)
         db.execute("UPDATE game SET updated = ? WHERE id = ?", listOf(saved.updated, id))
     }
@@ -452,6 +534,7 @@ class GameStore(
                 saved.opening,
             )
             insertMainLine(saved.id, saved.game, saved.evals, saved.bestMoves)
+            insertDrill(saved.id, saved.drill)
             saveLines(saved.id, saved.lines, saved.lineEvals)
             db.execute("UPDATE game SET updated = ? WHERE id = ?", listOf(saved.updated, saved.id))
         }

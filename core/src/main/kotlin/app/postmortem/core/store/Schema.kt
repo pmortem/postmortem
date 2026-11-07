@@ -10,10 +10,14 @@ package app.postmortem.core.store
  *   (`is_main_line` 1); a line the user played branches from a main-line node (`is_main_line` 0, `line_order` its number).
  *   `ply` counts half-moves from the start, so a line's first node has the branch ply + 1.
  * - `eval`: the evaluation of a node's position, in White's point of view: `cp`, or `mate` (moves, negative for Black), or
- *   `checkmate_winner` (`w` or `b`) for a mate on the board. `best_move` and `nodes` are kept for later.
+ *   `checkmate_winner` (`w` or `b`) for a mate on the board. `best_move` is the engine's best move (UCI) for the position, filled
+ *   for games analysed since it was kept and on demand for older ones; `nodes` is kept for later.
+ * - `drill` (version 2): the progress of "Learn from your mistakes", one row per practised position: `node_id` is the main-line
+ *   node of the position before the player's mistake, `solved` 0 or 1, `attempts` how many times it was tried or skipped and
+ *   `last_tried` when. Deleting a game deletes its rows.
  */
 object Schema {
-    const val CURRENT_VERSION = 1
+    const val CURRENT_VERSION = 2
 
     /** The steps in order; the tests add a later one to move a real file forward. */
     internal val steps: List<List<String>> =
@@ -56,6 +60,16 @@ object Schema {
                     checkmate_winner TEXT,
                     best_move TEXT,
                     nodes INTEGER
+                )
+                """.trimIndent(),
+            ),
+            listOf(
+                """
+                CREATE TABLE drill (
+                    node_id INTEGER PRIMARY KEY REFERENCES node(id) ON DELETE CASCADE,
+                    solved INTEGER NOT NULL,
+                    attempts INTEGER NOT NULL,
+                    last_tried INTEGER NOT NULL
                 )
                 """.trimIndent(),
             ),

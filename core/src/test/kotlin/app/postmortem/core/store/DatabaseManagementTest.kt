@@ -139,6 +139,25 @@ class DatabaseManagementTest {
     }
 
     @Test
+    fun mergingCarriesTheProgressAndKeepsTheExistingRowWhenBothFilesHaveOne() {
+        val mine = GameStore(memory()) { 100L }
+        val theirs = GameStore(memory()) { 200L }
+        val sharedMine = mine.save(newGame("scholars-mate"))
+        val sharedTheirs = theirs.save(newGame("scholars-mate"))
+        val onlyTheirs = theirs.save(newGame("lichess-short-resign"))
+        mine.recordDrill(sharedMine, 2, solved = false)
+        theirs.recordDrill(sharedTheirs, 2, solved = true)
+        theirs.recordDrill(sharedTheirs, 4, solved = true)
+        theirs.recordDrill(onlyTheirs, 6, solved = true)
+        mine.mergeFrom(theirs)
+        val kept = mine.drillProgress(listOf(sharedMine))
+        assertEquals(DrillProgress(false, 1, 100), kept[DrillKey(sharedMine, 2)], "my row stays")
+        assertEquals(DrillProgress(true, 1, 200), kept[DrillKey(sharedMine, 4)], "a position I had no row for comes in")
+        val added = mine.list().first { it.id != sharedMine }.id
+        assertEquals(DrillProgress(true, 1, 200), mine.drillProgress(listOf(added))[DrillKey(added, 6)])
+    }
+
+    @Test
     fun mergingCarriesTheBestMoves() {
         val mine = GameStore(memory())
         val theirs = GameStore(memory())

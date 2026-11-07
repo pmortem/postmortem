@@ -7,6 +7,8 @@ import app.postmortem.core.line.Lines
 import app.postmortem.core.pgn.Game
 import app.postmortem.core.store.DatabaseCheck
 import app.postmortem.core.store.DatabaseName
+import app.postmortem.core.store.DrillKey
+import app.postmortem.core.store.DrillProgress
 import app.postmortem.core.store.GameLibrary
 import app.postmortem.core.store.GameStore
 import app.postmortem.core.store.GameSummary
@@ -83,6 +85,25 @@ class DatabaseManager(
     override fun reportRows(): List<ReportRow> = store().reportRows()
 
     override fun mainLines(ids: List<Long>): Map<Long, MainLine> = store().mainLines(ids)
+
+    override fun drillProgress(ids: List<Long>): Map<DrillKey, DrillProgress> = store().drillProgress(ids)
+
+    override fun recordDrill(
+        gameId: Long,
+        position: Int,
+        solved: Boolean,
+    ) = store().recordDrill(gameId, position, solved)
+
+    override fun bestMove(
+        gameId: Long,
+        ply: Int,
+    ): String? = store().bestMove(gameId, ply)
+
+    override fun setBestMove(
+        gameId: Long,
+        ply: Int,
+        uci: String,
+    ) = store().setBestMove(gameId, ply, uci)
 
     @Synchronized
     override fun delete(id: Long) = store().delete(id)

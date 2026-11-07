@@ -277,6 +277,35 @@ class GameStoreTest {
     }
 
     @Test
+    fun aTryOfAPositionIsRecordedAndEachOneCountsAsAnAttempt() {
+        val id = store.save(newGame("scholars-mate"))
+        assertEquals(emptyMap(), store.drillProgress(listOf(id)))
+        store.recordDrill(id, 2, solved = false)
+        now = 5_000
+        store.recordDrill(id, 2, solved = true)
+        store.recordDrill(id, 4, solved = false)
+        val progress = store.drillProgress(listOf(id))
+        assertEquals(DrillProgress(solved = true, attempts = 2, lastTried = 5_000), progress[DrillKey(id, 2)])
+        assertEquals(1, progress[DrillKey(id, 4)]?.attempts)
+        assertEquals(false, progress[DrillKey(id, 4)]?.solved)
+        store.recordDrill(id, 99, solved = true)
+        assertEquals(2, store.drillProgress(listOf(id)).size, "a position the game does not have is ignored")
+        assertEquals(mapOf(2 to progress.getValue(DrillKey(id, 2)), 4 to progress.getValue(DrillKey(id, 4))), store.load(id)?.drill)
+    }
+
+    @Test
+    fun deletingAGameDeletesItsProgressAndRestoringBringsItBack() {
+        val id = store.save(newGame("scholars-mate"))
+        store.recordDrill(id, 2, solved = true)
+        val saved = assertNotNull(store.load(id))
+        store.delete(id)
+        assertEquals(0, db.query("SELECT * FROM drill").size, "the cascade removed it")
+        store.restore(saved)
+        assertEquals(saved.drill, store.load(id)?.drill)
+        assertEquals(1, db.query("SELECT * FROM drill").size)
+    }
+
+    @Test
     fun theOpeningCanBeSetLater() {
         val id = store.save(newGame("scholars-mate").copy(opening = null))
         assertNull(store.load(id)!!.opening)

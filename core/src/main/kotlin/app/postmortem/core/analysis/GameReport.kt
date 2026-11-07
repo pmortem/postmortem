@@ -64,7 +64,7 @@ data class GameReport(
         // Drops in winning chances (on the -1..1 scale) that Lichess calls a blunder, a mistake and an inaccuracy.
         private const val BLUNDER_DROP = 0.3
         private const val MISTAKE_DROP = 0.2
-        private const val INACCURACY_DROP = 0.1
+        const val INACCURACY_DROP = 0.1
 
         // Lichess's mate advice: how winning (in centipawns, from the mover's side) the position still is.
         private const val STILL_WINNING_CP = 999
