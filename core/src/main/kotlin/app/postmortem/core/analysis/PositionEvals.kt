@@ -25,6 +25,12 @@ interface PositionEvals {
     /** The eval of [fen]: the known one at once, else a search; searches run one at a time, in the order they are asked. */
     suspend fun evaluate(fen: String): Eval
 
+    /**
+     * The engine's best move (UCI) in [fen], found with the analysis settings, or null when the position has none (it is over). Used
+     * to fill in the best move of a game saved before they were kept; the default knows none.
+     */
+    suspend fun bestMove(fen: String): String? = null
+
     /** Remembers the evals of the positions of [game] (they were found with the same settings), so a transposition needs no search. */
     fun seed(
         game: Game,
@@ -48,6 +54,7 @@ class PositionEvaluator(
 ) : PositionEvals,
     AutoCloseable {
     private val cache = HashMap<String, Eval>()
+    private val moves = HashMap<String, String?>()
     private val lock = Mutex()
     private var engine: UciEngine? = null
 
@@ -80,6 +87,29 @@ class PositionEvaluator(
                 }
             synchronized(cache) { cache[positionKey(fen)] = eval }
             eval
+        }
+    }
+
+    override suspend fun bestMove(fen: String): String? {
+        val key = positionKey(fen)
+        synchronized(cache) { if (key in moves) return moves[key] }
+        return lock.withLock {
+            synchronized(cache) { if (key in moves) return@withLock moves[key] }
+            val found =
+                if (terminalEval(fen) != null) {
+                    null
+                } else {
+                    val started = engine ?: UciEngine.start(config, processFactory).also { engine = it }
+                    try {
+                        searchPosition(started, fen, onSearch).also { synchronized(cache) { cache.putIfAbsent(key, it.eval) } }.bestMove
+                    } catch (e: Exception) {
+                        engine = null
+                        started.close()
+                        throw e
+                    }
+                }
+            synchronized(cache) { moves[key] = found }
+            found
         }
     }
 

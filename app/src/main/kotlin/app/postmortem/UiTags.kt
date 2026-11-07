@@ -44,6 +44,16 @@ object UiTags {
     const val REPORT_BACK = "report_back"
 
     const val REPORT_MISSED = "report_missed"
+    const val DRILL_BUTTON = "drill_button"
+    const val DRILL_BOARD = "drill_board"
+    const val DRILL_RESULT = "drill_result"
+    const val DRILL_NEXT = "drill_next"
+    const val DRILL_SHOW = "drill_show"
+    const val DRILL_SKIP = "drill_skip"
+    const val DRILL_RETRY = "drill_retry"
+    const val DRILL_OPEN = "drill_open"
+    const val DRILL_START_OVER = "drill_start_over"
+    const val DRILL_BACK = "drill_back"
 
     fun reportMissedWin(index: Int) = "report_missed_$index"
 

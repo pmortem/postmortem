@@ -68,6 +68,9 @@ class MainViewModel(
     /** The Report tab of the start page: the player, their openings, and what is expanded or listed. */
     val report = ReportController(viewModelScope, dispatcher, library, reportPlayer)
 
+    /** "Learn from your mistakes", opened from the Report tab. */
+    val drill = DrillController(viewModelScope, dispatcher, library, positions, report)
+
     var state: UiState by mutableStateOf(UiState.Paste())
         private set
 
@@ -393,6 +396,13 @@ class MainViewModel(
 
     fun cancelPromotion() {
         promotionAsked = null
+    }
+
+    /** Opens the game of the position being practised, at the move that was played there; the practice ends. */
+    fun openDrillGame() {
+        val item = drill.ui.item ?: return
+        drill.close()
+        openGame(item.game.gameId, item.ply)
     }
 
     /** Selects the [move]-th move of [lineId], counting from 1. */
@@ -762,6 +772,10 @@ class MainViewModel(
                 }
 
                 is UiState.Paste -> {
+                    if (startTab == StartTab.Report && drill.ui.active) {
+                        drill.close()
+                        return true
+                    }
                     if (startTab == StartTab.Report && report.closeList()) return true
                     if (startTab == StartTab.Analyse) return false
                     selectStartTab(StartTab.Analyse)

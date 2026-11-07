@@ -33,6 +33,7 @@ import app.postmortem.data.ActiveDatabaseName
 import app.postmortem.data.DatabaseManager
 import app.postmortem.ui.AnalysingScreen
 import app.postmortem.ui.BoardInput
+import app.postmortem.ui.DrillScreen
 import app.postmortem.ui.LibraryScreen
 import app.postmortem.ui.LineActions
 import app.postmortem.ui.PasteScreen
@@ -176,7 +177,15 @@ class MainActivity : ComponentActivity() {
                                 }
 
                                 StartTab.Report -> {
-                                    ReportScreen(viewModel.report, onOpenGame = { id, ply -> viewModel.openGame(id, ply) })
+                                    if (viewModel.drill.ui.active) {
+                                        DrillScreen(viewModel.drill, onOpenGame = viewModel::openDrillGame)
+                                    } else {
+                                        ReportScreen(
+                                            viewModel.report,
+                                            onOpenGame = { id, ply -> viewModel.openGame(id, ply) },
+                                            onPractise = { viewModel.drill.start() },
+                                        )
+                                    }
                                 }
 
                                 StartTab.Settings -> {

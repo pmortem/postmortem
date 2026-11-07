@@ -1,6 +1,6 @@
 # Report
 
-The **Report** tab looks across every game saved in the active [database](database.md) for one player. Only games you have analysed count, and only the ones in the database that is open. It shows the player's openings and the wins they missed; more reports are planned.
+The **Report** tab looks across every game saved in the active [database](database.md) for one player. Only games you have analysed count, and only the ones in the database that is open. It shows the player's openings and the wins they missed, and has a practice mode made from the player's own mistakes.
 
 ![The Report tab, with sample games](img/report.png)
 
@@ -34,3 +34,21 @@ Below the openings, a card about converting winning positions, the first of the 
 The card says `Missed wins: 4 of 19 decided games (21 %)` and `Missed mates: 3`, then lists the games newest first: the opponent, the date, your colour, the peak evaluation from your side (`+4.2`), the turning move with its number and mark (`31.Qxb7??`), the evaluation after it, and how the game ended. A missed mate says `had mate in 3, played 12.Qh5`. Tap a row to open the game at that move, as from the [Library](analysis.md#the-library); Back returns to the Report.
 
 The numbers come from the evaluations stored with each game, so a game must have been analysed (every game in the Library has been). The thresholds (50 %, two moves, five moves) are named constants in the code and can be tuned.
+
+## Learn from your mistakes
+The **Learn from your mistakes** button, at the top of the Report, is a quiz made of your own games, like Lichess's "Learn from your mistakes" but across every game in the database. Under the button it says how many positions are still to go and how many you have solved, for example `12 to go · 5 solved`.
+
+![A position to solve](img/drill.png)
+
+**Which positions.** The position before each move of yours that was marked `?` (a mistake) or `??` (a blunder), where the marks are the ones of the [Moves tab](result-screen.md). Inaccuracies are left out. They come in this order: the turning moves of your missed wins and your missed mates first, then blunders, then mistakes, the newest game first within each. Solved positions leave the queue. Positions you failed or skipped come back after the others, the one tried longest ago first.
+
+**The question.** The board shows the position from your side, with the opponent's last move marked, and says `Game vs Anna, move 31. You played Qxb7 (+4.2 → -1.3). Find a better move.` Play a move on the board as you would on the result screen (tap, or drag). While it is being checked a small spinner shows and nothing else can be touched. The answer is:
+- **Right!** when it is the engine's best move for that position.
+- **Good move, but there's a better one** when it is not, but your winning chances after it fall by less than an inaccuracy would (Lichess's rule, the same limit as the marks), so it is nearly as good. An arrow shows the best move, and the position counts as solved.
+- **Not this one** otherwise. The move is taken back. **Try again** asks the same position again; **Show** shows the best move with an arrow and its evaluation and counts the position as failed for now.
+
+**Always there:** **Skip** (counts as a try that is not solved), **Next** after an answer, **Open game** (opens the game on the result screen at that move, and ends the practice) and the back arrow. At the end of the queue it says `All done: 3 solved, 2 to try again`, with **Start over with the failed ones**.
+
+**The engine.** One engine process at most. A move other than the stored best move is checked with the same settings as the game's analysis (fixed nodes, one thread), so a position has one value whenever it is checked. Games analysed before best moves were kept get theirs when a position of theirs is first asked, and keep it. The live arrows are off here.
+
+**Progress** is stored in the database file (the `drill` table, see [the database](database.md)): it survives restarts, goes with the file when you export it, and is merged with it when you import one. Deleting a game deletes its progress.

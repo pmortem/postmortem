@@ -61,6 +61,7 @@ private const val MAX_SUGGESTIONS = 5
 fun ReportScreen(
     report: ReportController,
     onOpenGame: (Long, Int) -> Unit,
+    onPractise: () -> Unit,
 ) {
     val listed = report.listed
     val view = report.ui.view
@@ -84,7 +85,7 @@ fun ReportScreen(
             if (listed != null && view != null) {
                 GameList(view, listed) { onOpenGame(it, 0) }
             } else {
-                ReportBody(report, onOpenGame)
+                ReportBody(report, onOpenGame, onPractise)
             }
         }
     }
@@ -97,6 +98,7 @@ private fun openingName(name: String?): String = name ?: stringResource(R.string
 private fun ReportBody(
     report: ReportController,
     onOpenGame: (Long, Int) -> Unit,
+    onPractise: () -> Unit,
 ) {
     val ui = report.ui
     LazyColumn(
@@ -106,6 +108,7 @@ private fun ReportBody(
                 .PaddingValues(Spacing.screen),
     ) {
         item { PlayerPicker(report) }
+        item { PractiseButton(report.ui.drill, onPractise) }
         item {
             val view = ui.view
             when {
@@ -364,3 +367,29 @@ private fun outcomeColor(outcome: Outcome) =
         Outcome.LOSS -> ReportColors.loss
         else -> MaterialTheme.colorScheme.onSurfaceVariant
     }
+
+/** The way into "Learn from your mistakes": with the number of positions still to go and the solved ones, or "Nothing to practise". */
+@Composable
+private fun PractiseButton(
+    queue: app.postmortem.core.report.DrillQueue?,
+    onPractise: () -> Unit,
+) {
+    val toGo = queue?.items?.size ?: 0
+    androidx.compose.material3.Button(
+        onClick = onPractise,
+        enabled = toGo > 0,
+        modifier = Modifier.fillMaxWidth().padding(top = Spacing.gap).testTag(UiTags.DRILL_BUTTON),
+    ) {
+        Column(horizontalAlignment = Alignment.CenterHorizontally) {
+            Text(stringResource(R.string.drill_title))
+            Text(
+                if (queue == null || (toGo == 0 && queue.solved == 0)) {
+                    stringResource(R.string.drill_nothing)
+                } else {
+                    stringResource(R.string.drill_count, toGo, queue.solved)
+                },
+                style = MaterialTheme.typography.labelSmall,
+            )
+        }
+    }
+}
