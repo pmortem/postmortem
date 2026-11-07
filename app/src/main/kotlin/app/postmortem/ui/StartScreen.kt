@@ -8,8 +8,10 @@ import androidx.compose.foundation.layout.imePadding
 import androidx.compose.foundation.layout.isImeVisible
 import androidx.compose.foundation.layout.padding
 import androidx.compose.material3.Icon
+import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.NavigationBar
 import androidx.compose.material3.NavigationBarItem
+import androidx.compose.material3.NavigationBarItemDefaults
 import androidx.compose.material3.Scaffold
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
@@ -17,9 +19,12 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.platform.testTag
 import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.res.stringResource
+import androidx.compose.ui.semantics.semantics
+import androidx.compose.ui.semantics.testTagsAsResourceId
 import app.postmortem.R
 import app.postmortem.StartTab
 import app.postmortem.UiTags
+import app.postmortem.ui.theme.Spacing
 
 /**
  * The start page: a bottom bar with the four tabs and the selected tab's screen above it. The bar hides while the keyboard is open, so
@@ -34,11 +39,11 @@ fun StartScreen(
 ) {
     val keyboardOpen = WindowInsets.isImeVisible
     Scaffold(
-        modifier = Modifier.fillMaxSize(),
+        modifier = Modifier.fillMaxSize().semantics { testTagsAsResourceId = true },
         contentWindowInsets = WindowInsets(0),
         bottomBar = {
             if (!keyboardOpen) {
-                NavigationBar {
+                NavigationBar(containerColor = MaterialTheme.colorScheme.background) {
                     StartTab.entries.forEach { tab ->
                         val label = stringResource(tab.labelRes())
                         NavigationBarItem(
@@ -46,6 +51,12 @@ fun StartScreen(
                             onClick = { onSelect(tab) },
                             icon = { Icon(painterResource(tab.iconRes()), label) },
                             label = { Text(label) },
+                            colors =
+                                NavigationBarItemDefaults.colors(
+                                    selectedIconColor = MaterialTheme.colorScheme.onBackground,
+                                    selectedTextColor = MaterialTheme.colorScheme.onBackground,
+                                    indicatorColor = MaterialTheme.colorScheme.primary.copy(alpha = Spacing.SELECTED_ROW_ALPHA),
+                                ),
                             modifier = Modifier.testTag(tab.tag()),
                         )
                     }
