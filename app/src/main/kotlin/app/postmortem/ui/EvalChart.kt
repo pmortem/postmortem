@@ -68,8 +68,17 @@ fun EvalChart(
             pluralStringResource(R.plurals.judged_mistakes, report.count(Judgement.MISTAKE), report.count(Judgement.MISTAKE)),
             pluralStringResource(R.plurals.judged_inaccuracies, report.count(Judgement.INACCURACY), report.count(Judgement.INACCURACY)),
         ).filterIndexed { index, _ -> report.count(Judgement.entries.reversed()[index]) > 0 }
+    val brilliants = report.white.brilliants + report.black.brilliants
+    val brilliantCount =
+        if (brilliants >
+            0
+        ) {
+            listOf(pluralStringResource(R.plurals.judged_brilliants, brilliants, brilliants))
+        } else {
+            emptyList()
+        }
     val description =
-        (listOf(pluralStringResource(R.plurals.chart_description, moves, moves)) + counts + selection).joinToString(", ")
+        (listOf(pluralStringResource(R.plurals.chart_description, moves, moves)) + brilliantCount + counts + selection).joinToString(", ")
     Box(
         modifier
             .testTag(UiTags.EVAL_CHART)
@@ -85,9 +94,15 @@ fun EvalChart(
                 }
             },
     ) {
-        Canvas(Modifier.fillMaxSize()) { drawChart(palette, chances, state.selectedPly, report.judgements) }
+        Canvas(Modifier.fillMaxSize()) { drawChart(palette, chances, state.selectedPly, report.judgements, report.brilliant) }
         MarkerLabel(
-            text = labelText(position.takeIf { state.selectedPly > 0 }, evalText, report.judgements.getOrNull(state.selectedPly - 1)),
+            text =
+                labelText(
+                    position.takeIf { state.selectedPly > 0 },
+                    evalText,
+                    report.judgements.getOrNull(state.selectedPly - 1),
+                    report.brilliant.getOrNull(state.selectedPly - 1) == true,
+                ),
             ply = state.selectedPly,
             positions = chances.size,
             modifier = Modifier.testTag(UiTags.CHART_LABEL),
@@ -95,14 +110,16 @@ fun EvalChart(
     }
 }
 
-/** `4.Qxf7#  1-0`, with the judgement's marks (`?!`, `?`, `??`) after the move in the judgement's colour. At the start position [position] is null and only the eval shows. */
+/** `4.Qxf7#  1-0`, with the judgement's marks (`?!`, `?`, `??`) or `!!` for a brilliant move after it, in their colour. At the start position [position] is null and only the eval shows. */
 @Composable
 private fun labelText(
     position: String?,
     evalText: String,
     judgement: Judgement?,
+    brilliant: Boolean,
 ): AnnotatedString {
     val marks = judgement?.let { stringResource(it.marksRes()) }.orEmpty()
+    val brilliantMarks = stringResource(R.string.marks_brilliant)
     return buildAnnotatedString {
         if (position == null) {
             append(evalText)
@@ -110,6 +127,7 @@ private fun labelText(
         }
         append(position)
         if (judgement != null) withStyle(SpanStyle(color = judgement.color())) { append(marks) }
+        if (brilliant) withStyle(SpanStyle(color = JudgementColors.brilliant)) { append(brilliantMarks) }
         append(stringResource(R.string.chart_label_eval, evalText))
     }
 }
@@ -171,6 +189,7 @@ private fun DrawScope.drawChart(
     chances: List<Float>,
     selectedPly: Int,
     judgements: List<Judgement?>,
+    brilliant: List<Boolean>,
 ) {
     val middle = size.height / 2
     drawRect(palette.background, size = size)
@@ -193,11 +212,12 @@ private fun DrawScope.drawChart(
         drawLine(palette.marker, Offset(markerX, 0f), Offset(markerX, size.height), Spacing.chartMarker.toPx())
         // A dot on the line at the position after each judged move; the selected move's dot is larger.
         judgements.forEachIndexed { index, judgement ->
-            if (judgement == null) return@forEachIndexed
+            val color = judgement?.color() ?: JudgementColors.brilliant.takeIf { brilliant.getOrNull(index) == true }
+            if (color == null) return@forEachIndexed
             val ply = index + 1
             val radius = (if (ply == selectedPly) Spacing.chartDotSelected else Spacing.chartDot).toPx()
             drawCircle(palette.dotOutline, radius + Spacing.chartDotOutline.toPx(), points[ply])
-            drawCircle(judgement.color(), radius, points[ply])
+            drawCircle(color, radius, points[ply])
         }
     }
 }

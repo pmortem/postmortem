@@ -78,6 +78,7 @@ import app.postmortem.core.line.Line
 import app.postmortem.core.line.moveLabels
 import app.postmortem.core.pgn.Game
 import app.postmortem.core.pgn.plyLabel
+import app.postmortem.ui.theme.JudgementColors
 import app.postmortem.ui.theme.LocalBoardPalette
 import app.postmortem.ui.theme.Spacing
 
@@ -403,6 +404,7 @@ private fun GameRow(
                     state.game.plies
                         .getOrNull(ply - 1)
                         ?.san,
+                brilliant = state.report.brilliant.getOrNull(ply - 1) == true,
                 eval =
                     state.evals
                         .getOrNull(ply)
@@ -479,6 +481,7 @@ private fun LineRowContent(
     val palette = LocalBoardPalette.current
     val labels = line.moveLabels()
     val judgements = state.judgementsOf(line)
+    val brilliants = state.brilliantOf(line)
     val onRow = state.cursor.lineId == line.id
     Column(
         Modifier
@@ -494,6 +497,7 @@ private fun LineRowContent(
                 val color = if (selected) palette.onSelectedMove else MaterialTheme.colorScheme.onBackground
                 val fen = line.plies[index].fen
                 val judgement = judgements.getOrNull(index)
+                val brilliant = brilliants.getOrNull(index) == true
                 Row(
                     verticalAlignment = Alignment.CenterVertically,
                     horizontalArrangement = Arrangement.spacedBy(Spacing.small),
@@ -507,10 +511,13 @@ private fun LineRowContent(
                     Text(
                         buildAnnotatedString {
                             append(label)
-                            if (judgement !=
-                                null
-                            ) {
+                            if (judgement != null) {
                                 withStyle(SpanStyle(color = judgement.color())) { append(stringResource(judgement.marksRes())) }
+                            }
+                            if (brilliant) {
+                                withStyle(
+                                    SpanStyle(color = JudgementColors.brilliant),
+                                ) { append(stringResource(R.string.marks_brilliant)) }
                             }
                         },
                         style = MaterialTheme.typography.bodyLarge,
@@ -544,6 +551,7 @@ private fun LineRowContent(
 @Composable
 private fun MoveCell(
     text: String?,
+    brilliant: Boolean,
     eval: String,
     ply: Int,
     selected: Boolean,
@@ -565,7 +573,14 @@ private fun MoveCell(
                 .padding(Spacing.moveCell),
         horizontalArrangement = Arrangement.SpaceBetween,
     ) {
-        Text(text, style = MaterialTheme.typography.bodyLarge, color = color)
+        Text(
+            buildAnnotatedString {
+                append(text)
+                if (brilliant) withStyle(SpanStyle(color = JudgementColors.brilliant)) { append(stringResource(R.string.marks_brilliant)) }
+            },
+            style = MaterialTheme.typography.bodyLarge,
+            color = color,
+        )
         Text(eval, style = MaterialTheme.typography.bodyMedium, color = color)
     }
 }

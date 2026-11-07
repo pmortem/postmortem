@@ -3,6 +3,7 @@ package app.postmortem
 import app.postmortem.core.analysis.Eval
 import app.postmortem.core.analysis.GameReport
 import app.postmortem.core.analysis.Judgement
+import app.postmortem.core.analysis.PlayedMove
 import app.postmortem.core.analysis.positionKey
 import app.postmortem.core.board.Moves
 import app.postmortem.core.board.PieceColor
@@ -90,21 +91,43 @@ sealed interface UiState {
          * The judgements of the moves of [line] (null for a move that is fine) as far as their evals are known, worked out the way
          * the game's are, from the position the line branches off. Accuracy and ACPL are for the game only.
          */
-        fun judgementsOf(line: Line): List<Judgement?> {
+        fun judgementsOf(line: Line): List<Judgement?> = reportOf(line)?.judgements.orEmpty()
+
+        /** Whether each move of [line] is brilliant (same rule as the game's), as far as their evals are known. */
+        fun brilliantOf(line: Line): List<Boolean> = reportOf(line)?.brilliant.orEmpty()
+
+        private fun reportOf(line: Line): GameReport? {
             val known =
                 line.plies
                     .map { evalOf(it.fen) }
                     .takeWhile { it != null }
                     .filterNotNull()
-            if (known.isEmpty()) return emptyList()
+            if (known.isEmpty()) return null
             val whiteToMove = Moves.sideToMove(game.fenAt(line.branchPly)) == PieceColor.WHITE
-            return GameReport.of(listOf(evals[line.branchPly]) + known, whiteToMove).judgements
+            val moves =
+                known.indices.map { index ->
+                    PlayedMove(
+                        if (index ==
+                            0
+                        ) {
+                            game.fenAt(line.branchPly)
+                        } else {
+                            line.plies[index - 1].fen
+                        },
+                        line.plies[index].uci,
+                        line.plies[index].fen,
+                    )
+                }
+            return GameReport.of(listOf(evals[line.branchPly]) + known, whiteToMove, moves = moves)
         }
 
         /** Accuracy, ACPL and the judged moves; worked out once, when the Summary or the chart first asks. */
         val report: GameReport by lazy(
             LazyThreadSafetyMode.NONE,
-        ) { GameReport.of(evals, game.whiteMovesFirst, startEval = lichessStartEval) }
+        ) {
+            val moves = game.plies.mapIndexed { index, ply -> PlayedMove(game.fenAt(index), ply.uci, ply.fen) }
+            GameReport.of(evals, game.whiteMovesFirst, startEval = lichessStartEval, moves = moves)
+        }
         val overview: GameOverview get() = game.overview
 
         /** Lichess scores the first move against 15 cp, whatever the start position evaluates to; so do we, for a normal game. */

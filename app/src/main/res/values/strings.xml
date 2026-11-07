@@ -88,6 +88,11 @@
     <string name="marks_inaccuracy">\?!</string>
     <string name="marks_mistake">\?</string>
     <string name="marks_blunder">\?\?</string>
+    <string name="marks_brilliant">!!</string>
+    <plurals name="judged_brilliants">
+        <item quantity="one">%1$d brilliant move</item>
+        <item quantity="other">%1$d brilliant moves</item>
+    </plurals>
     <plurals name="judged_blunders">
         <item quantity="one">%1$d blunder</item>
         <item quantity="other">%1$d blunders</item>
@@ -116,6 +121,7 @@
     <string name="summary_opening_with_eco">%1$s (%2$s)</string>
     <string name="summary_accuracy">Accuracy</string>
     <string name="summary_acpl">ACPL</string>
+    <string name="summary_brilliants">Brilliant</string>
     <string name="summary_inaccuracies">Inaccuracies</string>
     <string name="summary_mistakes">Mistakes</string>
     <string name="summary_blunders">Blunders</string>

@@ -23,7 +23,7 @@ What a move does:
 - A move at the end of a line extends it. A move in the middle of a line starts another line from the same game position, with the line's earlier moves copied in. Playing the same move again selects the line that already has it.
 - ← and → walk along the line; ← at its first move goes back to the game position it branched from. **Back** from a line also goes to that position.
 - Every move of a line is evaluated as soon as it is played, one after the other in the order played, with the same engine settings as the game's analysis, so a line's `+0.8` means what the game's `+0.8` means and the same position always gets the same number. The eval shows after the move; a small spinner is there until it arrives. A position that is also in the game, or was evaluated before, needs no search. The eval bar shows the line position's eval once it is known.
-- Moves in a line get the same marks as in the game (`?!`, `?`, `??`). Accuracy and ACPL stay about the game only.
+- Moves in a line get the same marks (`?!`, `?`, `??`) and the same `!!` for brilliant moves ([the rule](summary.md#brilliant-moves)). Accuracy and ACPL stay about the game only.
 - In the background the evaluation pauses and its engine ends; it carries on when you return.
 - The chart marks the position the line branches from, and the Summary is always about the game.
 
@@ -50,12 +50,12 @@ A horizontal bar right under the board. The side at the bottom of the board fill
 Switching tabs never changes the board or the selected move.
 
 ### Moves
-Every move with its evaluation, two moves per row. Tap a move to show it on the board. The selected one is highlighted. Lines you played appear as indented rows under the move where they branch (see above); tap any move in one to show it.
+Every move with its evaluation, two moves per row. Tap a move to show it on the board. The selected one is highlighted. Lines you played appear as indented rows under the move where they branch (see above); tap any move in one to show it. A brilliant move has a green `!!` after it.
 
 ### Chart
 ![The evaluation chart](img/chartmid.png)
 
-The evaluation over the whole game: White's advantage fills above the middle line, Black's below it. Tap or drag anywhere to select a move; the board follows, and a label next to the marker names the move (`4.Qxf7#`) and its evaluation. Dots mark inaccuracies, mistakes and blunders, and the label adds `?!`, `?` or `??` after a move that was one.
+The evaluation over the whole game: White's advantage fills above the middle line, Black's below it. Tap or drag anywhere to select a move; the board follows, and a label next to the marker names the move (`4.Qxf7#`) and its evaluation. Dots mark inaccuracies, mistakes and blunders, and brilliant moves in bluish green, and the label adds `?!`, `?`, `??` or `!!` after a move that was one.
 
 ### Summary
 See the [summary page](summary.md).
