@@ -364,12 +364,18 @@ class MainViewModelTest {
     }
 
     @Test
-    fun settingsOpensBeforeAResultToo() {
+    fun theSettingsCogOnlyOpensOverAResultAndTheStartPageHasTabsInstead() {
         val vm = viewModel()
         vm.openSettings()
-        assertTrue(vm.settingsOpen)
-        assertTrue(vm.back())
-        assertFalse(vm.settingsOpen)
+        assertFalse(vm.settingsOpen, "no Settings overlay over the start page: it is a tab")
+        for (tab in StartTab.entries) {
+            vm.selectStartTab(tab)
+            assertEquals(tab, vm.startTab)
+            assertNull(vm.overlay)
+        }
+        assertTrue(vm.back(), "Back from a tab goes to Analyse")
+        assertEquals(StartTab.Analyse, vm.startTab)
+        assertFalse(vm.back())
     }
 
     private fun scholars(): MainViewModel =

@@ -1,6 +1,6 @@
 # The database
 
-Your analysed games are kept in one standard SQLite file in the app's own storage, `postmortem.sqlite` unless you rename it. The **Database** section of the Settings page (the cog on the result screen and on the paste screen) lets you name it, export it, switch to another file, and merge one into it. None of this needs a permission, and nothing leaves the phone unless you share it.
+Your analysed games are kept in one standard SQLite file in the app's own storage, `postmortem.sqlite` unless you rename it. The **Database** section of the Settings page (the **Settings** tab of the start page, or the cog on the result screen) lets you name it, export it, switch to another file, and merge one into it. None of this needs a permission, and nothing leaves the phone unless you share it.
 
 ## Database name
 The text field shows the name of the active file. Type another and tap **Save name**: `club` and `club.sqlite` both give `club.sqlite`. Only letters, digits, `-`, `_` and spaces are allowed. The file is renamed (with its side files), and the Library is unchanged. If a database of that name already exists, nothing is renamed and the page says so. The name is remembered.

@@ -5,6 +5,7 @@ import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.WindowInsets
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.padding
@@ -56,7 +57,6 @@ fun LibraryScreen(
     onDelete: (Long) -> Unit,
     onUndo: () -> Unit,
     onUndoExpired: () -> Unit,
-    onBack: () -> Unit,
 ) {
     val snackbars = remember { SnackbarHostState() }
     val message = stringResource(R.string.library_game_deleted)
@@ -70,16 +70,8 @@ fun LibraryScreen(
     }
     Scaffold(
         modifier = Modifier.fillMaxSize().semantics { testTagsAsResourceId = true },
-        topBar = {
-            TopAppBar(
-                title = { Text(stringResource(R.string.library_title)) },
-                navigationIcon = {
-                    IconButton(onClick = onBack, modifier = Modifier.testTag(UiTags.LIBRARY_BACK)) {
-                        Icon(Icons.AutoMirrored.Filled.ArrowBack, stringResource(R.string.library_back))
-                    }
-                },
-            )
-        },
+        contentWindowInsets = WindowInsets(0),
+        topBar = { TopAppBar(title = { Text(stringResource(R.string.library_title)) }) },
         snackbarHost = {
             SnackbarHost(snackbars) { data ->
                 Snackbar(
