@@ -6,7 +6,7 @@ shot library
 tap tab_settings
 wait settings_db
 tap tab_report
-wait report_empty
+wait drill_button
 tap tab_analyse
 tap analyse_button
 shot analysing

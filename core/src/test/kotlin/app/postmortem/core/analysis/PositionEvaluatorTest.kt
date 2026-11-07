@@ -43,6 +43,24 @@ class PositionEvaluatorTest {
         }
 
     @Test
+    fun theBestMoveOfAPositionIsFoundOnceAndAnEndedPositionHasNone() =
+        runBlocking {
+            val game = Fixtures.game("scholars-mate")
+            var started = 0
+            val counting: ProcessFactory = {
+                started++
+                EngineBinary.require().invoke()
+            }
+            PositionEvaluator(quick, counting).use { evaluator ->
+                assertEquals("h5f7", evaluator.bestMove(game.fenAt(6)), "mate in one")
+                assertEquals("h5f7", evaluator.bestMove(game.fenAt(6)))
+                assertNull(evaluator.bestMove(game.fenAt(7)), "checkmate on the board has no move")
+                assertEquals(1, started)
+                assertEquals(Eval.Mate(1), evaluator.cached(game.fenAt(6)), "the eval of the same search is kept too")
+            }
+        }
+
+    @Test
     fun anEvalFoundOnceIsRememberedForTheNextAsk() =
         runBlocking {
             val game = Fixtures.game("scholars-mate")

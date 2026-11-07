@@ -4,6 +4,8 @@ import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.setValue
 import app.postmortem.core.board.PieceColor
+import app.postmortem.core.report.Drill
+import app.postmortem.core.report.DrillQueue
 import app.postmortem.core.report.MissedReport
 import app.postmortem.core.report.MissedWins
 import app.postmortem.core.report.OpeningReport
@@ -12,6 +14,8 @@ import app.postmortem.core.report.PlayerGame
 import app.postmortem.core.report.PlayerGames
 import app.postmortem.core.report.PlayerName
 import app.postmortem.core.report.Record
+import app.postmortem.core.store.DrillKey
+import app.postmortem.core.store.DrillProgress
 import app.postmortem.core.store.GameLibrary
 import app.postmortem.core.store.MainLine
 import app.postmortem.core.store.ReportRow
@@ -37,6 +41,8 @@ data class ReportUi(
     val view: PlayerView? = null,
     /** Missed wins and missed mates of [player]; null when [view] is. */
     val missed: MissedReport? = null,
+    /** The positions to practise, and how many were solved; null when [view] is. */
+    val drill: DrillQueue? = null,
 )
 
 /** An opening family of one colour in the list; [family] is null for the games with no opening. */
@@ -144,10 +150,11 @@ class ReportController(
                             OpeningStats.of(found),
                         )
                     }
-                Built(names, view, view?.let { MissedWins.of(games, mainLinesOf(games)) }, rows.size)
+                val queue = view?.let { Drill.queue(games, mainLinesOf(games), progressOf(games)) }
+                Built(names, view, view?.let { MissedWins.of(games, mainLinesOf(games)) }, queue, rows.size)
             }
         if (ui.player != player) return
-        ui = ui.copy(loaded = true, games = built.games, names = built.names, view = built.view, missed = built.missed)
+        ui = ui.copy(loaded = true, games = built.games, names = built.names, view = built.view, missed = built.missed, drill = built.drill)
         listed = listed?.takeIf { key -> built.view?.openings.let { report -> key in variationKeys(report) } }
     }
 
@@ -155,8 +162,13 @@ class ReportController(
         val names: List<PlayerName>,
         val view: PlayerView?,
         val missed: MissedReport?,
+        val drill: DrillQueue?,
         val games: Int,
     )
+
+    /** The practice progress of [games], read fresh each time: it changes while the player practises. */
+    private fun progressOf(games: List<PlayerGame>): Map<DrillKey, DrillProgress> =
+        runCatching { library?.drillProgress(games.map { it.gameId }.distinct()) }.getOrNull().orEmpty()
 
     /** The main lines of [games], reading only the ones not read yet. */
     private fun mainLinesOf(games: List<PlayerGame>): Map<Long, MainLine> {
