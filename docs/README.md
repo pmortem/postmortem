@@ -2,6 +2,18 @@
 
 Postmortem analyses a chess game on your phone: paste a PGN, Stockfish checks every position, and you step through the game with the board, an evaluation for each move and a summary of how each side played. Everything runs on the device and the app asks for no Android permission.
 
+## Finding your way
+The start page has four tabs along the bottom:
+
+| Tab | What it is |
+| --- | --- |
+| **Analyse** | Paste a game and analyse it ([Paste and analyse](analysis.md)) |
+| **Library** | Your saved games ([The Library](analysis.md#the-library)) |
+| **Report** | Coming soon: reports across your games |
+| **Settings** | The database ([The database](database.md)) |
+
+Back from another tab goes to Analyse; Back on Analyse leaves the app. The bar is only on the start page, not while a game is being analysed or shown, and it hides while the keyboard is open. On the result screen the cog next to the flip button opens Settings over the game.
+
 | Page | What is in it |
 | --- | --- |
 | [Paste and analyse](analysis.md) | Pasting a game, the progress ring, what is checked, errors |

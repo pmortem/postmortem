@@ -37,10 +37,12 @@ import app.postmortem.ui.LibraryScreen
 import app.postmortem.ui.LineActions
 import app.postmortem.ui.PasteScreen
 import app.postmortem.ui.PromotionPrompt
+import app.postmortem.ui.ReportScreen
 import app.postmortem.ui.ResultScreen
 import app.postmortem.ui.SettingsActions
 import app.postmortem.ui.SettingsScreen
 import app.postmortem.ui.SplashScreen
+import app.postmortem.ui.StartScreen
 import app.postmortem.ui.theme.PostmortemTheme
 import kotlinx.coroutines.flow.onCompletion
 import kotlinx.coroutines.flow.onEach
@@ -139,51 +141,51 @@ class MainActivity : ComponentActivity() {
                     SplashScreen(onFinished = { showSplash = false })
                     return@PostmortemTheme
                 }
+                val databaseActions =
+                    SettingsActions(
+                        onRename = viewModel::renameDatabase,
+                        onExport = viewModel::exportDatabase,
+                        onOpenFile = viewModel::openDatabaseFile,
+                        onBrowse = { browseDatabase.launch(ANY_FILE) },
+                        onImport = { importDatabase.launch(ANY_FILE) },
+                    )
                 BackHandler(enabled = viewModel.overlay != null) { viewModel.back() }
-                when (viewModel.overlay) {
-                    Overlay.Settings -> {
-                        SettingsScreen(
-                            database = viewModel.databaseUi,
-                            actions =
-                                SettingsActions(
-                                    onLibrary = viewModel::openLibrary,
-                                    onRename = viewModel::renameDatabase,
-                                    onExport = viewModel::exportDatabase,
-                                    onOpenFile = viewModel::openDatabaseFile,
-                                    onBrowse = { browseDatabase.launch(ANY_FILE) },
-                                    onImport = { importDatabase.launch(ANY_FILE) },
-                                ),
-                            onBack = { viewModel.back() },
-                        )
-                        return@PostmortemTheme
-                    }
-
-                    Overlay.Library -> {
-                        LibraryScreen(
-                            games = viewModel.libraryGames,
-                            deletedOffered = viewModel.deletedGame != null,
-                            onOpen = viewModel::openGame,
-                            onDelete = viewModel::deleteSavedGame,
-                            onUndo = viewModel::undoDeleteGame,
-                            onUndoExpired = viewModel::dismissDeletedGame,
-                            onBack = { viewModel.back() },
-                        )
-                        return@PostmortemTheme
-                    }
-
-                    null -> {
-                        Unit
-                    }
+                if (viewModel.overlay == Overlay.Settings) {
+                    SettingsScreen(database = viewModel.databaseUi, actions = databaseActions, onBack = { viewModel.back() })
+                    return@PostmortemTheme
                 }
                 when (val state = viewModel.state) {
                     is UiState.Paste -> {
-                        PasteScreen(
-                            state = state,
-                            onPgnChange = viewModel::onPgnChange,
-                            onAnalyse = viewModel::analyse,
-                            onLibrary = viewModel::openLibrary,
-                            onSettings = viewModel::openSettings,
-                        )
+                        BackHandler(enabled = viewModel.startTab != StartTab.Analyse) { viewModel.back() }
+                        StartScreen(selected = viewModel.startTab, onSelect = viewModel::selectStartTab) { tab ->
+                            when (tab) {
+                                StartTab.Analyse -> {
+                                    PasteScreen(state = state, onPgnChange = viewModel::onPgnChange, onAnalyse = viewModel::analyse)
+                                }
+
+                                StartTab.Library -> {
+                                    LibraryScreen(
+                                        games = viewModel.libraryGames,
+                                        deletedOffered = viewModel.deletedGame != null,
+                                        onOpen = viewModel::openGame,
+                                        onDelete = viewModel::deleteSavedGame,
+                                        onUndo = viewModel::undoDeleteGame,
+                                        onUndoExpired = viewModel::dismissDeletedGame,
+                                    )
+                                }
+
+                                StartTab.Report -> {
+                                    ReportScreen()
+                                }
+
+                                StartTab.Settings -> {
+                                    SettingsScreen(
+                                        database = viewModel.databaseUi,
+                                        actions = databaseActions.copy(onLibrary = { viewModel.selectStartTab(StartTab.Library) }),
+                                    )
+                                }
+                            }
+                        }
                     }
 
                     is UiState.Analysing -> {

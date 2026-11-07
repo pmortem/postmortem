@@ -6,7 +6,7 @@ import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.padding
-import androidx.compose.foundation.layout.safeDrawingPadding
+import androidx.compose.foundation.layout.statusBarsPadding
 import androidx.compose.material3.Button
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
@@ -36,8 +36,6 @@ fun PasteScreen(
     state: UiState.Paste,
     onPgnChange: (String) -> Unit,
     onAnalyse: () -> Unit,
-    onLibrary: () -> Unit = {},
-    onSettings: () -> Unit = {},
 ) {
     Surface(
         modifier =
@@ -49,7 +47,7 @@ fun PasteScreen(
         Column(
             modifier =
                 Modifier
-                    .safeDrawingPadding()
+                    .statusBarsPadding()
                     .padding(Spacing.screen),
             verticalArrangement = Arrangement.spacedBy(Spacing.gap),
         ) {
@@ -74,22 +72,12 @@ fun PasteScreen(
                         .fillMaxWidth()
                         .testTag(UiTags.ANALYSE_BUTTON),
             ) { Text(stringResource(R.string.analyse_button)) }
-            Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween, verticalAlignment = Alignment.CenterVertically) {
-                Text(
-                    stringResource(R.string.version_label, BuildConfig.VERSION_NAME),
-                    style = MaterialTheme.typography.labelSmall,
-                    color = MaterialTheme.colorScheme.onSurfaceVariant,
-                    modifier = Modifier.testTag(UiTags.VERSION_LABEL),
-                )
-                Row(verticalAlignment = Alignment.CenterVertically) {
-                    TextButton(onClick = onLibrary, modifier = Modifier.testTag(UiTags.LIBRARY_BUTTON)) {
-                        Text(stringResource(R.string.library_button))
-                    }
-                    IconButton(onClick = onSettings, modifier = Modifier.testTag(UiTags.SETTINGS_BUTTON)) {
-                        Icon(painterResource(R.drawable.ic_settings), stringResource(R.string.result_settings))
-                    }
-                }
-            }
+            Text(
+                stringResource(R.string.version_label, BuildConfig.VERSION_NAME),
+                style = MaterialTheme.typography.labelSmall,
+                color = MaterialTheme.colorScheme.onSurfaceVariant,
+                modifier = Modifier.testTag(UiTags.VERSION_LABEL),
+            )
         }
     }
 }

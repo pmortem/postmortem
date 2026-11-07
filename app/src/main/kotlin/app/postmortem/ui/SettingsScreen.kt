@@ -5,6 +5,7 @@ import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
+import androidx.compose.foundation.layout.WindowInsets
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.padding
@@ -24,6 +25,7 @@ import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.OutlinedButton
 import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.Scaffold
+import androidx.compose.material3.ScaffoldDefaults
 import androidx.compose.material3.Text
 import androidx.compose.material3.TopAppBar
 import androidx.compose.runtime.Composable
@@ -49,7 +51,8 @@ import app.postmortem.ui.theme.Spacing
 
 /** What the Settings page asks for: the Library, and the database files. */
 data class SettingsActions(
-    val onLibrary: () -> Unit = {},
+    /** Switches to the Library tab; null (no row) where Settings is not a tab of the start page. */
+    val onLibrary: (() -> Unit)? = null,
     val onRename: (String) -> Unit = {},
     val onExport: () -> Unit = {},
     val onOpenFile: (String) -> Unit = {},
@@ -57,22 +60,28 @@ data class SettingsActions(
     val onImport: () -> Unit = {},
 )
 
-/** The Settings page: a top bar with Back, the way to the Library, and the Database section (name, export, open, import). */
+/**
+ * The Settings page: a top bar (with Back when [onBack] is given, as over the Result), the way to the Library when it is a tab of
+ * the start page, and the Database section (name, export, open, import).
+ */
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun SettingsScreen(
     database: DatabaseUi,
     actions: SettingsActions,
-    onBack: () -> Unit,
+    onBack: (() -> Unit)? = null,
 ) {
     Scaffold(
         modifier = Modifier.fillMaxSize().semantics { testTagsAsResourceId = true },
+        contentWindowInsets = if (onBack == null) WindowInsets(0) else ScaffoldDefaults.contentWindowInsets,
         topBar = {
             TopAppBar(
                 title = { Text(stringResource(R.string.settings_title)) },
                 navigationIcon = {
-                    IconButton(onClick = onBack, modifier = Modifier.testTag(UiTags.SETTINGS_BACK)) {
-                        Icon(Icons.AutoMirrored.Filled.ArrowBack, stringResource(R.string.settings_back))
+                    if (onBack != null) {
+                        IconButton(onClick = onBack, modifier = Modifier.testTag(UiTags.SETTINGS_BACK)) {
+                            Icon(Icons.AutoMirrored.Filled.ArrowBack, stringResource(R.string.settings_back))
+                        }
                     }
                 },
             )
@@ -80,17 +89,19 @@ fun SettingsScreen(
     ) { padding ->
         LazyColumn(Modifier.fillMaxSize().padding(padding).testTag(UiTags.SETTINGS)) {
             item {
-                Text(
-                    stringResource(R.string.library_title),
-                    style = MaterialTheme.typography.bodyLarge,
-                    modifier =
-                        Modifier
-                            .fillMaxWidth()
-                            .testTag(UiTags.SETTINGS_LIBRARY)
-                            .clickable(onClick = actions.onLibrary)
-                            .padding(horizontal = Spacing.screen, vertical = Spacing.gap),
-                )
-                HorizontalDivider()
+                actions.onLibrary?.let { openLibrary ->
+                    Text(
+                        stringResource(R.string.library_title),
+                        style = MaterialTheme.typography.bodyLarge,
+                        modifier =
+                            Modifier
+                                .fillMaxWidth()
+                                .testTag(UiTags.SETTINGS_LIBRARY)
+                                .clickable(onClick = openLibrary)
+                                .padding(horizontal = Spacing.screen, vertical = Spacing.gap),
+                    )
+                    HorizontalDivider()
+                }
             }
             item { DatabaseSection(database, actions) }
         }

@@ -296,7 +296,7 @@ class LibraryViewModelTest {
     }
 
     @Test
-    fun theLibraryOpensOverPasteListsTheGamesNewestFirstAndBackReturnsToPaste() {
+    fun theLibraryTabListsTheGamesNewestFirstAndBackReturnsToTheAnalyseTabWithTheTextKept() {
         val library = FakeLibrary()
         val vm = viewModel(library)
         vm.analyse("scholars-mate")
@@ -304,29 +304,33 @@ class LibraryViewModelTest {
         vm.analyse("lichess-short-resign")
         vm.back()
         vm.onPgnChange("keep this text")
-        vm.openLibrary()
-        assertEquals(Overlay.Library, vm.overlay)
+        vm.selectStartTab(StartTab.Library)
+        assertEquals(StartTab.Library, vm.startTab)
         assertEquals(listOf(2L, 1L), vm.libraryGames?.map { it.id })
         assertTrue(vm.back())
-        assertNull(vm.overlay)
+        assertEquals(StartTab.Analyse, vm.startTab)
         assertEquals("keep this text", assertIs<UiState.Paste>(vm.state).pgn)
-        assertFalse(vm.back(), "on Paste with nothing open, Back is the system's")
+        assertFalse(vm.back(), "on the Analyse tab with nothing open, Back is the system's")
     }
 
     @Test
-    fun theLibraryFromSettingsGoesBackToSettingsThenToTheGame() {
+    fun aGameOpenedFromTheLibraryTabReturnsToTheLibraryTabWithTheListRefreshed() {
         val library = FakeLibrary()
-        val vm = viewModel(library)
+        val vm = viewModel(library, FakePositions())
         vm.analyse("scholars-mate")
-        vm.selectPly(3)
-        vm.openSettings()
-        vm.openLibrary()
-        assertEquals(Overlay.Library, vm.overlay)
+        vm.back()
+        vm.analyse("lichess-short-resign")
+        vm.back()
+        vm.selectStartTab(StartTab.Library)
+        vm.openGame(1L)
+        assertIs<UiState.Result>(vm.state)
+        vm.selectPly(4)
+        vm.playMove("d2", "d4")
         assertTrue(vm.back())
-        assertEquals(Overlay.Settings, vm.overlay)
         assertTrue(vm.back())
-        assertNull(vm.overlay)
-        assertEquals(Cursor.game(3), vm.result().cursor)
+        assertIs<UiState.Paste>(vm.state)
+        assertEquals(StartTab.Library, vm.startTab, "Back from the game returns to where it was opened")
+        assertEquals(1, vm.libraryGames?.first { it.id == 1L }?.lineCount, "the list was read again, with the new line")
     }
 
     @Test
@@ -339,7 +343,7 @@ class LibraryViewModelTest {
         vm.back()
         vm.back()
         analysed = 0
-        vm.openLibrary()
+        vm.selectStartTab(StartTab.Library)
         vm.openGame(vm.libraryGames!!.first().id)
         assertNull(vm.overlay)
         assertEquals(0, analysed)
@@ -353,13 +357,13 @@ class LibraryViewModelTest {
     }
 
     @Test
-    fun theLibraryCannotBeOpenedWhileAnalysing() {
+    fun theStartTabsCannotBeChangedWhileAnalysing() {
         val vm = MainViewModel({ flow { } }, dispatcher, library = FakeLibrary())
         vm.onPgnChange(fixture("scholars-mate"))
         vm.analyse()
         assertIs<UiState.Analysing>(vm.state)
-        vm.openLibrary()
-        assertNull(vm.overlay)
+        vm.selectStartTab(StartTab.Library)
+        assertEquals(StartTab.Analyse, vm.startTab)
     }
 
     @Test
@@ -371,7 +375,7 @@ class LibraryViewModelTest {
         vm.playMove("d2", "d4")
         vm.back()
         vm.back()
-        vm.openLibrary()
+        vm.selectStartTab(StartTab.Library)
         vm.deleteSavedGame(1L)
         assertTrue(library.games.isEmpty())
         assertEquals(emptyList(), vm.libraryGames)
@@ -390,42 +394,5 @@ class LibraryViewModelTest {
         vm.dismissDeletedGame()
         vm.undoDeleteGame()
         assertTrue(library.games.isEmpty(), "an expired undo does nothing")
-    }
-
-    @Test
-    fun aGameDeletedWhileItIsOnScreenIsNotSavedAgain() {
-        val library = FakeLibrary()
-        val vm = viewModel(library, FakePositions())
-        vm.analyse("scholars-mate")
-        vm.openSettings()
-        vm.openLibrary()
-        vm.deleteSavedGame(1L)
-        vm.back()
-        vm.back()
-        assertNull(vm.deletedGame, "leaving the Library ends the undo offer")
-        vm.selectPly(4)
-        vm.playMove("d2", "d4")
-        assertTrue(library.games.isEmpty(), "no save for a deleted game")
-    }
-
-    @Test
-    fun undoingTheDeletionOfTheGameOnScreenSavesItAgain() {
-        val library = FakeLibrary()
-        val vm = viewModel(library, FakePositions())
-        vm.analyse("scholars-mate")
-        vm.selectPly(4)
-        vm.openSettings()
-        vm.openLibrary()
-        vm.deleteSavedGame(1L)
-        vm.undoDeleteGame()
-        vm.back()
-        vm.back()
-        vm.playMove("d2", "d4")
-        assertEquals(
-            1,
-            library.games
-                .getValue(1L)
-                .lines.all.size,
-        )
     }
 }

@@ -26,6 +26,7 @@ import java.io.File
 import java.io.InputStream
 import kotlin.test.Test
 import kotlin.test.assertEquals
+import kotlin.test.assertFalse
 import kotlin.test.assertIs
 import kotlin.test.assertNull
 import kotlin.test.assertTrue
@@ -125,13 +126,17 @@ class DatabaseViewModelTest {
     }
 
     @Test
-    fun settingsOpensFromThePasteScreenToo() {
+    fun settingsIsATabOfTheStartPageAndBackLeavesItForTheAnalyseTab() {
         val vm = viewModel()
         vm.onPgnChange("keep this")
-        vm.openSettings()
-        assertEquals(Overlay.Settings, vm.overlay)
+        vm.selectStartTab(StartTab.Settings)
+        assertEquals(StartTab.Settings, vm.startTab)
+        assertNull(vm.overlay, "a tab is not an overlay")
+        assertEquals("postmortem.sqlite", vm.databaseUi.activeName)
         assertTrue(vm.back())
+        assertEquals(StartTab.Analyse, vm.startTab)
         assertEquals("keep this", assertIs<UiState.Paste>(vm.state).pgn)
+        assertFalse(vm.back(), "on the Analyse tab Back is the system's")
     }
 
     @Test
@@ -146,7 +151,7 @@ class DatabaseViewModelTest {
     @Test
     fun openingSettingsReadsTheActiveNameAndTheFiles() {
         val vm = viewModel()
-        vm.openSettings()
+        vm.selectStartTab(StartTab.Settings)
         assertEquals("postmortem.sqlite", vm.databaseUi.activeName)
         assertEquals(databases.files, vm.databaseUi.files)
     }
@@ -154,7 +159,7 @@ class DatabaseViewModelTest {
     @Test
     fun renamingReportsTheNewNameAndAFailureShowsItsReasonWithNothingElseChanged() {
         val vm = viewModel()
-        vm.openSettings()
+        vm.selectStartTab(StartTab.Settings)
         vm.renameDatabase("club")
         assertEquals(listOf("rename club"), databases.calls)
         assertEquals(DbMessage.Renamed("club.sqlite"), vm.databaseUi.message)
@@ -169,7 +174,7 @@ class DatabaseViewModelTest {
     @Test
     fun anImportSaysHowManyWereAddedAndSkipped() {
         val vm = viewModel()
-        vm.openSettings()
+        vm.selectStartTab(StartTab.Settings)
         databases.next = DbOutcome.Imported(MergeResult(added = 4, skipped = 2))
         vm.importPickedDatabase { null }
         assertEquals(DbMessage.Imported(4, 2), vm.databaseUi.message)
@@ -206,7 +211,7 @@ class DatabaseViewModelTest {
     @Test
     fun anExportWaitsForTheShareSheetAndGivesItTheCopyOnce() {
         val vm = viewModel()
-        vm.openSettings()
+        vm.selectStartTab(StartTab.Settings)
         val copy = File("export/postmortem.sqlite")
         databases.next = DbOutcome.Exported(copy)
         vm.exportDatabase()
@@ -219,7 +224,7 @@ class DatabaseViewModelTest {
     @Test
     fun pickedFilesAreOpenedByTheirDisplayName() {
         val vm = viewModel()
-        vm.openSettings()
+        vm.selectStartTab(StartTab.Settings)
         databases.next = DbOutcome.Opened("friends games.sqlite")
         vm.openPickedDatabase("friends games.sqlite") { null }
         assertEquals(listOf("openPicked friends games.sqlite"), databases.calls)

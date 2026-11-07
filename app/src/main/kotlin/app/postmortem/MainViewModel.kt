@@ -75,14 +75,15 @@ class MainViewModel(
     var liveUpdate: LiveUpdate? by mutableStateOf(null)
         private set
 
-    /** The page open over the current screen (Settings from the Result, Library from Paste or Settings); [state] stays as it is under it. */
+    /** The page open over the current screen (Settings from the Result's cog); [state] stays as it is under it. */
     var overlay: Overlay? by mutableStateOf(null)
         private set
 
     val settingsOpen: Boolean get() = overlay == Overlay.Settings
 
-    /** What Back from the Library returns to. */
-    private var overlayBelow: Overlay? = null
+    /** The tab of the start page (the Paste state): it stays while a game is open, so Back from a game returns to it. */
+    var startTab: StartTab by mutableStateOf(StartTab.Analyse)
+        private set
 
     /** The saved games for the Library page, newest worked on first; null while they are being read. */
     var libraryGames: List<GameSummary>? by mutableStateOf(null)
@@ -91,8 +92,6 @@ class MainViewModel(
     /** The game deleted from the Library last, which Undo brings back. */
     var deletedGame: SavedGame? by mutableStateOf(null)
         private set
-
-    private var deletedHandle: GameHandle? = null
 
     /** What the Database section of the Settings page shows. */
     var databaseUi: DatabaseUi by mutableStateOf(DatabaseUi())
@@ -214,7 +213,6 @@ class MainViewModel(
         stopLive()
         deletedLine = null
         overlay = null
-        overlayBelow = null
         handle = GameHandle().also { it.id = saved.id }
         positions?.seed(saved.game, saved.evals)
         val opened =
@@ -498,10 +496,9 @@ class MainViewModel(
         viewModelScope.launch { arrowsSetting.set(on) }
     }
 
-    /** Opens the Settings page over the Paste screen or the Result; not while a game is being analysed. */
+    /** Opens the Settings page over the Result (its cog); the start page has Settings as a tab. */
     fun openSettings() {
-        if (state is UiState.Analysing) return
-        overlayBelow = null
+        if (state !is UiState.Result) return
         overlay = Overlay.Settings
         refreshDatabases()
         restartLive()
@@ -585,15 +582,26 @@ class MainViewModel(
         databaseUi = databaseUi.copy(message = null)
     }
 
-    /** Opens the Library page over the Paste screen or the Settings page, and reads the saved games. */
-    fun openLibrary() {
-        if (library == null || overlay == Overlay.Library) return
-        if (state is UiState.Analysing) return
-        overlayBelow = overlay
-        overlay = Overlay.Library
-        deletedGame = null
-        refreshLibrary()
-        restartLive()
+    /** Shows [tab] on the start page; the Library's games and the database files are read again when their tab opens. */
+    fun selectStartTab(tab: StartTab) {
+        if (state !is UiState.Paste) return
+        if (startTab == StartTab.Library && tab != StartTab.Library) dismissDeletedGame()
+        startTab = tab
+        when (tab) {
+            StartTab.Library -> {
+                if (library == null) return
+                deletedGame = null
+                refreshLibrary()
+            }
+
+            StartTab.Settings -> {
+                refreshDatabases()
+            }
+
+            else -> {
+                Unit
+            }
+        }
     }
 
     private fun refreshLibrary() {
@@ -609,8 +617,6 @@ class MainViewModel(
         val saved = library ?: return
         viewModelScope.launch {
             val found = withContext(dispatcher) { runCatching { saved.load(id)?.also { saved.delete(id) } }.getOrNull() } ?: return@launch
-            // the game on screen, if it is this one, stops being saved until it is brought back
-            deletedHandle = handle.takeIf { it.id == id }?.also { it.id = null }
             deletedGame = found
             refreshLibrary()
         }
@@ -622,8 +628,6 @@ class MainViewModel(
         deletedGame = null
         viewModelScope.launch {
             withContext(dispatcher) { runCatching { saved.restore(found) } }
-            deletedHandle?.id = found.id
-            deletedHandle = null
             refreshLibrary()
         }
     }
@@ -631,7 +635,6 @@ class MainViewModel(
     /** The undo offer for the deleted game is over. */
     fun dismissDeletedGame() {
         deletedGame = null
-        deletedHandle = null
     }
 
     /** The app is on screen or not. In the background nothing is searched and the engine process ends. */
@@ -709,10 +712,8 @@ class MainViewModel(
 
     /** Back stops a running analysis, or leaves the result; either way the game stays in the paste box. */
     fun back(): Boolean {
-        overlay?.let { open ->
-            if (open == Overlay.Library) dismissDeletedGame()
-            overlay = if (open == Overlay.Library) overlayBelow else null
-            overlayBelow = null
+        if (overlay != null) {
+            overlay = null
             restartLive()
             return true
         }
@@ -729,9 +730,19 @@ class MainViewModel(
         }
         val pgn =
             when (val current = state) {
-                is UiState.Analysing -> current.pgn
-                is UiState.Result -> current.pgn
-                is UiState.Paste -> return false
+                is UiState.Analysing -> {
+                    current.pgn
+                }
+
+                is UiState.Result -> {
+                    current.pgn
+                }
+
+                is UiState.Paste -> {
+                    if (startTab == StartTab.Analyse) return false
+                    selectStartTab(StartTab.Analyse)
+                    return true
+                }
             }
         job?.cancel()
         job = null
@@ -741,6 +752,7 @@ class MainViewModel(
         openedFromLibrary = false
         handle = GameHandle()
         state = UiState.Paste(pgn = pgn)
+        if (startTab == StartTab.Library) refreshLibrary()
         return true
     }
 }
@@ -765,8 +777,11 @@ data class DeletedLine(
     val cursorBefore: Cursor,
 )
 
-/** A page that opens over the current screen. */
-enum class Overlay { Settings, Library }
+/** A page that opens over the current screen: Settings from the Result's cog. */
+enum class Overlay { Settings, }
+
+/** The tabs of the start page, left to right. */
+enum class StartTab { Analyse, Library, Report, Settings }
 
 /** The Database section of the Settings page: the active file, the files in the folder, and whether something is going on. */
 data class DatabaseUi(
