@@ -74,6 +74,40 @@ class GameStoreTest {
         assertTrue(new.evals.any { it is Eval.Mate } && new.evals.any { it is Eval.Checkmate })
     }
 
+    /** The game's own next move as each position's "best move" (the last position has none): a stand-in with real, legal UCI. */
+    private fun bestMovesOf(game: Game): List<String?> = game.plies.map { it.uci } + null
+
+    @Test
+    fun bestMovesComeBackWithTheGameAndAGameSavedWithoutThemHasNone() {
+        val new = newGame("lichess-short-resign")
+        val withMoves = store.save(new.copy(bestMoves = bestMovesOf(new.game)))
+        assertEquals(bestMovesOf(new.game), store.load(withMoves)?.bestMoves)
+        val without = store.save(newGame("scholars-mate"))
+        assertEquals(List(Fixtures.game("scholars-mate").positionCount) { null }, store.load(without)?.bestMoves)
+    }
+
+    @Test
+    fun aBestMoveCanBeReadAndFilledInLater() {
+        val new = newGame("scholars-mate")
+        val id = store.save(new)
+        assertEquals(null, store.bestMove(id, 2))
+        store.setBestMove(id, 2, "d2d4")
+        assertEquals("d2d4", store.bestMove(id, 2))
+        assertEquals(null, store.bestMove(id, 3), "the others stay as they were")
+        assertEquals("d2d4", store.load(id)?.bestMoves?.get(2))
+        assertEquals(null, store.bestMove(id + 99, 2))
+    }
+
+    @Test
+    fun bestMovesSurviveADeleteAndRestore() {
+        val new = newGame("lichess-short-resign")
+        val id = store.save(new.copy(bestMoves = bestMovesOf(new.game)))
+        val saved = assertNotNull(store.load(id))
+        store.delete(id)
+        store.restore(saved)
+        assertEquals(bestMovesOf(new.game), store.load(id)?.bestMoves)
+    }
+
     @Test
     fun everyFixtureGameRoundTrips() {
         for (name in Fixtures.names.filter { it != "chesscom-no-moves" }) {
@@ -231,6 +265,15 @@ class GameStoreTest {
         store.restore(before)
         assertEquals(before, store.load(id))
         assertEquals(listOf(id), store.list().map { it.id })
+    }
+
+    @Test
+    fun theBestMoveColumnIsPlainSqlForAnyTool() {
+        val new = newGame("scholars-mate")
+        store.save(new.copy(bestMoves = bestMovesOf(new.game)))
+        val row = db.query("SELECT count(*) AS n, count(best_move) AS moves FROM eval").single()
+        assertEquals(new.game.positionCount.toLong(), (row["n"] as Number).toLong())
+        assertEquals(new.game.positionCount - 1L, (row["moves"] as Number).toLong(), "every position but the last has a move")
     }
 
     @Test

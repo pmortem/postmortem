@@ -256,7 +256,13 @@ class MainViewModel(
                         state =
                             if (progress.finished) {
                                 positions?.seed(game, progress.evals)
-                                UiState.Result(pgn, game, progress.evals, analysisSettings = analysisSettings).also { saveGame(it) }
+                                UiState
+                                    .Result(
+                                        pgn,
+                                        game,
+                                        progress.evals,
+                                        analysisSettings = analysisSettings,
+                                    ).also { saveGame(it, progress.bestMoves) }
                             } else {
                                 furthest = maxOf(furthest, progress.done)
                                 UiState.Analysing(pgn, game, furthest, progress.total)
@@ -279,7 +285,10 @@ class MainViewModel(
     }
 
     /** Saves a game whose analysis has just finished, with its accuracies, and tells the screen its id. */
-    private fun saveGame(result: UiState.Result) {
+    private fun saveGame(
+        result: UiState.Result,
+        bestMoves: List<String?>,
+    ) {
         val saved = library ?: return
         val mine = handle
         val report = result.report
@@ -292,6 +301,7 @@ class MainViewModel(
                 whiteAccuracy = report.white.accuracy,
                 blackAccuracy = report.black.accuracy,
                 opening = result.game.overview.opening,
+                bestMoves = bestMoves,
             )
         saveSoon {
             mine.id = saved.save(new)

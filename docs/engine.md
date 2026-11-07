@@ -4,7 +4,7 @@
 Postmortem runs Stockfish 19 (tag `sf_19`) on the phone, built from source with the Android NDK. It starts as a separate process; no network is used.
 
 ## The analysis is repeatable
-Each position gets **1,000,000 nodes** from a single-threaded engine with a cleared 16 MB hash. A budget of nodes, not of time, means the same game gets the same evaluations every time, on the phone, on a slower phone, or while you use the phone for something else. Speed comes from running up to four such engines on different positions at once (one core is left for the system).
+Each position gets **1,000,000 nodes** from a single-threaded engine with a cleared 16 MB hash. A budget of nodes, not of time, means the same game gets the same evaluations every time, on the phone, on a slower phone, or while you use the phone for something else. The search keeps the engine's best move for each position as well as the score (no extra search), so the app can say what you should have played. Speed comes from running up to four such engines on different positions at once (one core is left for the system).
 
 The settings are shown at the bottom of the Summary and are defined in `AnalysisConfig`.
 

@@ -2,6 +2,7 @@ package app.postmortem.core.analysis
 
 import app.postmortem.core.board.PieceColor
 import app.postmortem.core.pgn.Game
+import app.postmortem.core.uci.BestMove
 import app.postmortem.core.uci.EngineException
 import app.postmortem.core.uci.ProcessFactory
 import app.postmortem.core.uci.SearchResult
@@ -15,11 +16,15 @@ import kotlinx.coroutines.launch
 import kotlinx.coroutines.sync.Mutex
 import kotlinx.coroutines.sync.withLock
 
-/** [evals] holds the evaluation of positions 0 until [done]; position n is the position after ply n. */
+/**
+ * [evals] holds the evaluation of positions 0 until [done]; position n is the position after ply n. [bestMoves] is the engine's best
+ * move (UCI) for each of those positions, null where there is none (checkmate, stalemate); empty when nobody asked for them.
+ */
 data class AnalysisProgress(
     val done: Int,
     val total: Int,
     val evals: List<Eval>,
+    val bestMoves: List<String?> = emptyList(),
 ) {
     val finished: Boolean get() = done == total
 }
@@ -44,6 +49,7 @@ class Analyser(
             val total = game.positionCount
             send(AnalysisProgress(0, total, emptyList()))
             val results = arrayOfNulls<Eval>(total)
+            val bestMoves = arrayOfNulls<String>(total)
             val queue = Channel<Int>(Channel.UNLIMITED)
             for (position in 0 until total) queue.trySend(position)
             queue.close()
@@ -56,15 +62,17 @@ class Analyser(
                         try {
                             for (position in queue) {
                                 val fen = game.fenAt(position)
-                                val eval =
-                                    terminalEval(fen) ?: run {
+                                val found =
+                                    terminalEval(fen)?.let { PositionResult(it, null) } ?: run {
                                         val started = engine ?: UciEngine.start(config, processFactory).also { engine = it }
-                                        searchEval(started, fen, onSearch)
+                                        searchPosition(started, fen, onSearch)
                                     }
                                 lock.withLock {
-                                    results[position] = eval
+                                    results[position] = found.eval
+                                    bestMoves[position] = found.bestMove
                                     done++
-                                    send(AnalysisProgress(done, total, results.takeWhile { it != null }.filterNotNull()))
+                                    val finished = results.takeWhile { it != null }.filterNotNull()
+                                    send(AnalysisProgress(done, total, finished, bestMoves.take(finished.size)))
                                 }
                             }
                         } finally {
@@ -87,16 +95,29 @@ internal fun terminalEval(fen: String): Eval? {
     }
 }
 
+/** What a search of one position found: the evaluation (White's point of view) and the engine's best move (UCI), null when it has none. */
+internal data class PositionResult(
+    val eval: Eval,
+    val bestMove: String?,
+)
+
+/** The engine's evaluation and best move of [fen] under the engine's settings. */
+internal suspend fun searchPosition(
+    engine: UciEngine,
+    fen: String,
+    onSearch: (SearchResult) -> Unit,
+): PositionResult {
+    val result = engine.search(fen)
+    onSearch(result)
+    val score = result.score ?: throw EngineException("the engine gave no score for $fen")
+    return PositionResult(Eval.fromScore(score, isWhiteToMove(fen)), (result.bestMove as? BestMove.Move)?.uci)
+}
+
 /** The engine's evaluation of [fen] under the engine's settings, in White's point of view. */
 internal suspend fun searchEval(
     engine: UciEngine,
     fen: String,
     onSearch: (SearchResult) -> Unit,
-): Eval {
-    val result = engine.search(fen)
-    onSearch(result)
-    val score = result.score ?: throw EngineException("the engine gave no score for $fen")
-    return Eval.fromScore(score, isWhiteToMove(fen))
-}
+): Eval = searchPosition(engine, fen, onSearch).eval
 
 private fun isWhiteToMove(fen: String) = fen.split(' ').getOrNull(1) != "b"
