@@ -137,6 +137,7 @@ private fun PlayerTable(
         TableRow(null, stringResource(R.string.summary_white), stringResource(R.string.summary_black), header = true)
         TableRow(R.string.summary_accuracy, percent(white.accuracy), percent(black.accuracy))
         TableRow(R.string.summary_acpl, number(white.acpl), number(black.acpl))
+        TableRow(R.string.summary_brilliants, number(white.brilliants), number(black.brilliants))
         TableRow(R.string.summary_inaccuracies, number(white.inaccuracies), number(black.inaccuracies))
         TableRow(R.string.summary_mistakes, number(white.mistakes), number(black.mistakes))
         TableRow(R.string.summary_blunders, number(white.blunders), number(black.blunders))

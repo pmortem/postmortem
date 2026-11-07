@@ -158,6 +158,22 @@ class LineEvalViewModelTest {
     }
 
     @Test
+    fun aSoundSacrificeInALineIsBrilliantAndALosingOneIsNot() {
+        // 3.Qxe5 takes a pawn the knight on c6 guards: the queen is lost for a pawn, and if the evals say that is fine it is brilliant
+        val sound = viewModel(FakePositions { Eval.Cp(40) })
+        sound.playMove("h5", "e5")
+        val result = sound.result()
+        assertEquals(listOf(true), result.brilliantOf(result.lines.all.single()))
+        assertEquals(listOf<Judgement?>(null), result.judgementsOf(result.lines.all.single()))
+
+        val losing = viewModel(FakePositions { Eval.Cp(-900) })
+        losing.playMove("h5", "e5")
+        val lost = losing.result()
+        assertEquals(listOf(false), lost.brilliantOf(lost.lines.all.single()))
+        assertEquals(listOf(Judgement.BLUNDER), lost.judgementsOf(lost.lines.all.single()))
+    }
+
+    @Test
     fun noJudgementsWhileTheEvalsAreStillWaiting() {
         val positions = FakePositions()
         positions.hold = CompletableDeferred()

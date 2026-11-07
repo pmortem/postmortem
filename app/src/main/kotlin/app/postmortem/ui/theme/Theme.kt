@@ -121,6 +121,9 @@ object JudgementColors {
     val inaccuracy = Color(0xFF56B4E9)
     val mistake = Color(0xFFE69F00)
     val blunder = Color(0xFFDB3031)
+
+    /** A brilliant move: a bluish green, apart from the blue, orange and red of the judgements and readable on both backgrounds. */
+    val brilliant = Color(0xFF009E73)
 }
 
 /**
