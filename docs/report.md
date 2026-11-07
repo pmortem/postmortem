@@ -2,6 +2,8 @@
 
 The **Report** tab looks across every game saved in the active [database](database.md) for one player. Only games you have analysed count, and only the ones in the database that is open. Today it shows the player's openings; more reports are planned.
 
+![The Report tab, with sample games](img/report.png)
+
 ## Picking a player
 Type a name in the **Player** field, or tap one of the suggestions under it. The suggestions are the names in the White and Black tags of your saved games, the one with most games first, with the number of games in brackets, for example `Thomas (23)`.
 
