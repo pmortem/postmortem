@@ -139,6 +139,17 @@ class DatabaseManagementTest {
     }
 
     @Test
+    fun mergingCarriesTheBestMoves() {
+        val mine = GameStore(memory())
+        val theirs = GameStore(memory())
+        val game = Fixtures.game("lichess-short-resign")
+        val moves = game.plies.map { it.uci } + null
+        theirs.save(newGame("lichess-short-resign").copy(bestMoves = moves))
+        mine.mergeFrom(theirs)
+        assertEquals(moves, mine.load(mine.list().single().id)?.bestMoves)
+    }
+
+    @Test
     fun mergingAddsTheNewGamesSkipsTheOnesAlreadyThereAndCarriesLinesAndEvals() {
         val mine = GameStore(memory())
         val theirsDb = memory()

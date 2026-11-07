@@ -9,7 +9,7 @@ import app.postmortem.core.pgn.Game
 import app.postmortem.core.pgn.GameOverview
 import app.postmortem.core.pgn.Ply
 
-/** A game to save: what the analysis made of it. [evals] has one entry per position. */
+/** A game to save: what the analysis made of it. [evals] has one entry per position; [bestMoves] (UCI) as many, or none at all. */
 data class NewGame(
     val pgn: String,
     val game: Game,
@@ -18,6 +18,7 @@ data class NewGame(
     val whiteAccuracy: Double? = null,
     val blackAccuracy: Double? = null,
     val opening: String? = null,
+    val bestMoves: List<String?> = emptyList(),
 )
 
 /** A game as stored: the analysis and the lines the user played, with the evals found for them (by `positionKey`). */
@@ -35,6 +36,8 @@ data class SavedGame(
     val opening: String?,
     val created: Long,
     val updated: Long,
+    /** The engine's best move (UCI) per main-line position; null where the game was saved without it or the position has no move. */
+    val bestMoves: List<String?> = emptyList(),
 )
 
 /** What the Library shows of a game. */
@@ -115,7 +118,7 @@ class GameStore(
                 new.blackAccuracy,
                 new.opening,
             )
-            insertMainLine(db.lastInsertId(), new.game, new.evals)
+            insertMainLine(db.lastInsertId(), new.game, new.evals, new.bestMoves)
         }
 
     @Suppress("LongParameterList")
@@ -152,12 +155,13 @@ class GameStore(
         gameId: Long,
         game: Game,
         evals: List<Eval>,
+        bestMoves: List<String?>,
     ): Long {
         var parent: Long? = null
         for (position in 0 until game.positionCount) {
             val ply = game.plies.getOrNull(position - 1)
             parent = insertNode(gameId, parent, position, ply?.uci, ply?.san, game.fenAt(position), mainLine = true, lineOrder = 0)
-            evals.getOrNull(position)?.let { insertEval(parent, it) }
+            evals.getOrNull(position)?.let { insertEval(parent, it, bestMoves.getOrNull(position)) }
         }
         return gameId
     }
@@ -182,6 +186,7 @@ class GameStore(
     private fun insertEval(
         node: Long,
         eval: Eval,
+        bestMove: String? = null,
     ) {
         val (cp, mate, winner) =
             when (eval) {
@@ -189,7 +194,10 @@ class GameStore(
                 is Eval.Mate -> Triple(null, eval.moves, null)
                 is Eval.Checkmate -> Triple(null, null, if (eval.winner == PieceColor.WHITE) "w" else "b")
             }
-        db.execute("INSERT INTO eval (node_id, cp, mate, checkmate_winner) VALUES (?, ?, ?, ?)", listOf(node, cp, mate, winner))
+        db.execute(
+            "INSERT INTO eval (node_id, cp, mate, checkmate_winner, best_move) VALUES (?, ?, ?, ?, ?)",
+            listOf(node, cp, mate, winner, bestMove),
+        )
     }
 
     /**
@@ -229,7 +237,7 @@ class GameStore(
         val row = db.query("SELECT * FROM game WHERE id = ?", listOf(id)).firstOrNull() ?: return null
         val nodes =
             db.query(
-                "SELECT n.ply, n.uci, n.san, n.fen, n.is_main_line, n.line_order, e.cp, e.mate, e.checkmate_winner " +
+                "SELECT n.ply, n.uci, n.san, n.fen, n.is_main_line, n.line_order, e.cp, e.mate, e.checkmate_winner, e.best_move " +
                     "FROM node n LEFT JOIN eval e ON e.node_id = n.id WHERE n.game_id = ? ORDER BY n.is_main_line DESC, n.line_order, n.ply",
                 listOf(id),
             )
@@ -270,8 +278,31 @@ class GameStore(
             opening = row["opening"] as String?,
             created = row.long("created"),
             updated = row.long("updated"),
+            bestMoves = main.map { it["best_move"] as String? },
         )
     }
+
+    /** The best move (UCI) stored for the main-line position after [ply] plies of game [gameId], or null when there is none. */
+    fun bestMove(
+        gameId: Long,
+        ply: Int,
+    ): String? =
+        db
+            .query(
+                "SELECT e.best_move FROM eval e JOIN node n ON n.id = e.node_id WHERE n.game_id = ? AND n.is_main_line = 1 AND n.ply = ?",
+                listOf(gameId, ply),
+            ).firstOrNull()
+            ?.get("best_move") as String?
+
+    /** Stores [uci] as the best move of that main-line position (a game saved before best moves were kept is filled in this way). */
+    fun setBestMove(
+        gameId: Long,
+        ply: Int,
+        uci: String,
+    ) = db.execute(
+        "UPDATE eval SET best_move = ? WHERE node_id = (SELECT id FROM node WHERE game_id = ? AND is_main_line = 1 AND ply = ?)",
+        listOf(uci, gameId, ply),
+    )
 
     /** The saved games, the one worked on last first. */
     override fun list(): List<GameSummary> =
@@ -332,7 +363,7 @@ class GameStore(
             saved.opening,
         )
         val id = db.lastInsertId()
-        insertMainLine(id, saved.game, saved.evals)
+        insertMainLine(id, saved.game, saved.evals, saved.bestMoves)
         saveLines(id, saved.lines, saved.lineEvals)
         db.execute("UPDATE game SET updated = ? WHERE id = ?", listOf(saved.updated, id))
     }
@@ -352,7 +383,7 @@ class GameStore(
                 saved.blackAccuracy,
                 saved.opening,
             )
-            insertMainLine(saved.id, saved.game, saved.evals)
+            insertMainLine(saved.id, saved.game, saved.evals, saved.bestMoves)
             saveLines(saved.id, saved.lines, saved.lineEvals)
             db.execute("UPDATE game SET updated = ? WHERE id = ?", listOf(saved.updated, saved.id))
         }

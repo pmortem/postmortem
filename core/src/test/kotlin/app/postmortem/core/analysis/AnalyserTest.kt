@@ -1,5 +1,6 @@
 package app.postmortem.core.analysis
 
+import app.postmortem.core.board.Moves
 import app.postmortem.core.board.PieceColor
 import app.postmortem.core.pgn.Fixtures
 import app.postmortem.core.uci.EngineBinary
@@ -34,6 +35,37 @@ class AnalyserTest {
         assertEquals(Eval.Mate(1), evals[6])
         assertEquals(Eval.Checkmate(PieceColor.WHITE), evals[7])
         assertIs<Eval.Cp>(evals[0])
+    }
+
+    @Test
+    fun everyPositionKeepsTheEnginesBestMoveAndAPositionThatIsOverHasNone() {
+        val game = Fixtures.game("lichess-short-resign")
+        val bestMoves = analyse("lichess-short-resign").last().bestMoves
+        assertEquals(game.positionCount, bestMoves.size)
+        bestMoves.forEachIndexed { position, uci ->
+            val fen = game.fenAt(position)
+            if (position == game.positionCount - 1 &&
+                game.plies
+                    .last()
+                    .san
+                    .endsWith("#")
+            ) {
+                assertEquals(null, uci, "mate on the board has no move")
+            } else {
+                val move = checkNotNull(uci) { "position $position has no best move" }
+                assertTrue(
+                    Moves.play(fen, move.substring(0, 2), move.substring(2, 4), move.getOrNull(4)) != null,
+                    "$move is not legal in $fen",
+                )
+            }
+        }
+    }
+
+    @Test
+    fun scholarsMateHasItsMateInOneAsTheBestMoveAndNoMoveAtTheEnd() {
+        val bestMoves = analyse("scholars-mate").last().bestMoves
+        assertEquals("h5f7", bestMoves[6])
+        assertEquals(null, bestMoves[7])
     }
 
     @Test
