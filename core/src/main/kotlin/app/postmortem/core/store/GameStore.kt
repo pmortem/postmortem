@@ -52,6 +52,15 @@ data class GameSummary(
     val updated: Long,
 )
 
+/** What the Report needs of a saved game: its tags, opening and accuracies, read without its positions. */
+data class ReportRow(
+    val id: Long,
+    val headers: Map<String, String>,
+    val opening: String?,
+    val whiteAccuracy: Double?,
+    val blackAccuracy: Double?,
+)
+
 /** How a merge went: [added] games came in, [skipped] were already there. */
 data class MergeResult(
     val added: Int,
@@ -79,6 +88,9 @@ interface GameLibrary {
     fun load(id: Long): SavedGame?
 
     fun list(): List<GameSummary>
+
+    /** What the Report reads of every saved game; the positions are not loaded. */
+    fun reportRows(): List<ReportRow> = emptyList()
 
     fun delete(id: Long)
 
@@ -323,6 +335,17 @@ class GameStore(
                     updated = row.long("updated"),
                 )
             }
+
+    override fun reportRows(): List<ReportRow> =
+        db.query("SELECT id, headers_json, opening, white_accuracy, black_accuracy FROM game ORDER BY id").map {
+            ReportRow(
+                it.long("id"),
+                HeadersJson.decode(it.string("headers_json")),
+                it["opening"] as String?,
+                it["white_accuracy"] as Double?,
+                it["black_accuracy"] as Double?,
+            )
+        }
 
     override fun delete(id: Long) = db.execute("DELETE FROM game WHERE id = ?", listOf(id))
 
