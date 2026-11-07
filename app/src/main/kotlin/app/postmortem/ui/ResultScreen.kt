@@ -121,9 +121,7 @@ fun ResultScreen(
         val undoLabel = stringResource(R.string.line_undo)
         val openedMessage = stringResource(R.string.opened_from_library)
         LaunchedEffect(openedFromLibrary) {
-            if (!openedFromLibrary) return@LaunchedEffect
-            onNoticeShown()
-            snackbars.showSnackbar(openedMessage, duration = SnackbarDuration.Short)
+            if (openedFromLibrary) showOpenedNotice(snackbars, openedMessage, onNoticeShown)
         }
         LaunchedEffect(lineActions.deleted) {
             if (lineActions.deleted == null) return@LaunchedEffect
@@ -158,6 +156,19 @@ fun ResultScreen(
             }
         }
     }
+}
+
+/**
+ * Shows [message] and only then calls [onShown] (which clears the flag the effect is keyed on): clearing it first restarts the
+ * effect and cancels the bar before anyone sees it.
+ */
+internal suspend fun showOpenedNotice(
+    snackbars: SnackbarHostState,
+    message: String,
+    onShown: () -> Unit,
+) {
+    snackbars.showSnackbar(message, duration = SnackbarDuration.Short)
+    onShown()
 }
 
 /** The board at the full width, with the eval bar right under it. */
