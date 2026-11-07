@@ -75,6 +75,7 @@ class MainActivity : ComponentActivity() {
                     libraryLog = { Log.i(LIBRARY_TAG, it) },
                     live = LiveSearch(LiveConfig(), EngineLocator.factory(applicationContext)),
                     arrowsSetting = DataStoreEngineArrowsSetting(applicationContext),
+                    reportPlayer = DataStoreReportPlayerSetting(applicationContext),
                     analysisSettings = config.describe(BuildConfig.ENGINE_NAME),
                     analysis = { game ->
                         var started = 0L
@@ -175,7 +176,7 @@ class MainActivity : ComponentActivity() {
                                 }
 
                                 StartTab.Report -> {
-                                    ReportScreen()
+                                    ReportScreen(viewModel.report, onOpenGame = viewModel::openGame)
                                 }
 
                                 StartTab.Settings -> {

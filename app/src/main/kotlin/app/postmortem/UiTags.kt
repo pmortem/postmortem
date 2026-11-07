@@ -36,7 +36,19 @@ object UiTags {
     const val TAB_LIBRARY = "tab_library"
     const val TAB_REPORT = "tab_report"
     const val TAB_SETTINGS = "tab_settings"
-    const val REPORT_PLACEHOLDER = "report_placeholder"
+    const val REPORT_EMPTY = "report_empty"
+    const val REPORT_PLAYER = "report_player"
+    const val REPORT_OVERVIEW = "report_overview"
+    const val REPORT_WHITE = "report_white"
+    const val REPORT_BLACK = "report_black"
+    const val REPORT_BACK = "report_back"
+
+    fun reportSuggestion(index: Int) = "report_suggestion_$index"
+
+    fun openingRow(index: Int) = "opening_row_$index"
+
+    fun reportGame(id: Long) = "report_game_$id"
+
     const val LIBRARY = "library"
     const val SETTINGS_LIBRARY = "settings_library"
     const val UNDO = "undo"
