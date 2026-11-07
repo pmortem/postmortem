@@ -61,6 +61,16 @@ data class ReportRow(
     val blackAccuracy: Double?,
 )
 
+/**
+ * The main line of a game for the Report: the SAN of each ply (index 0 is ply 1) and the eval of each position (index n is after ply
+ * n), with who moves first. Lines the user played are not in it.
+ */
+data class MainLine(
+    val sans: List<String>,
+    val evals: List<Eval>,
+    val whiteMovesFirst: Boolean,
+)
+
 /** How a merge went: [added] games came in, [skipped] were already there. */
 data class MergeResult(
     val added: Int,
@@ -92,10 +102,15 @@ interface GameLibrary {
     /** What the Report reads of every saved game; the positions are not loaded. */
     fun reportRows(): List<ReportRow> = emptyList()
 
+    /** The main lines (moves and evals, nothing else) of the games with these [ids]; a game with a position without an eval is left out. */
+    fun mainLines(ids: List<Long>): Map<Long, MainLine> = emptyMap()
+
     fun delete(id: Long)
 
     fun restore(saved: SavedGame)
 }
+
+private const val SQL_VARIABLES = 400
 
 /**
  * The saved games, in the SQLite file behind [db] (see [Schema]). Nothing here knows about Android: the same code runs on the phone
@@ -346,6 +361,36 @@ class GameStore(
                 it["black_accuracy"] as Double?,
             )
         }
+
+    override fun mainLines(ids: List<Long>): Map<Long, MainLine> {
+        val result = HashMap<Long, MainLine>()
+        for (chunk in ids.chunked(SQL_VARIABLES)) {
+            val marks = chunk.joinToString(",") { "?" }
+            val starts =
+                db.query("SELECT id, start_fen FROM game WHERE id IN ($marks)", chunk).associate {
+                    it.long("id") to
+                        it.string("start_fen")
+                }
+            val nodes =
+                db
+                    .query(
+                        "SELECT n.game_id, n.ply, n.san, e.cp, e.mate, e.checkmate_winner FROM node n " +
+                            "LEFT JOIN eval e ON e.node_id = n.id WHERE n.is_main_line = 1 AND n.game_id IN ($marks) ORDER BY n.game_id, n.ply",
+                        chunk,
+                    ).groupBy { it.long("game_id") }
+            for ((id, rows) in nodes) {
+                val evals = rows.mapNotNull { it.evalOrNull() }
+                if (evals.size != rows.size) continue
+                result[id] =
+                    MainLine(
+                        sans = rows.filter { it.int("ply") > 0 }.map { it.string("san") },
+                        evals = evals,
+                        whiteMovesFirst = starts[id]?.split(' ')?.getOrNull(1) != "b",
+                    )
+            }
+        }
+        return result
+    }
 
     override fun delete(id: Long) = db.execute("DELETE FROM game WHERE id = ?", listOf(id))
 
