@@ -198,14 +198,17 @@ class MainViewModel(
             }
     }
 
-    /** Opens a saved game on the Result screen, with its lines and the evals found for them; nothing is analysed. */
-    fun openGame(id: Long) {
+    /** Opens a saved game on the Result screen, at position [ply] (0 is the start), with its lines and their evals; nothing is analysed. */
+    fun openGame(
+        id: Long,
+        ply: Int = 0,
+    ) {
         val saved = library ?: return
         if (job?.isActive == true) return
         job =
             viewModelScope.launch {
                 val found = withContext(dispatcher) { runCatching { saved.load(id) }.getOrNull() } ?: return@launch
-                openSaved(found, found.pgn, fromLibrary = true)
+                openSaved(found, found.pgn, fromLibrary = true, ply = ply)
             }
     }
 
@@ -213,6 +216,7 @@ class MainViewModel(
         saved: SavedGame,
         pgn: String,
         fromLibrary: Boolean,
+        ply: Int = 0,
     ) {
         stopLive()
         deletedLine = null
@@ -228,6 +232,7 @@ class MainViewModel(
                 lines = saved.lines,
                 lineEvals = saved.lineEvals,
                 gameId = saved.id,
+                cursor = Cursor.game(ply.coerceIn(0, saved.game.plies.size)),
             )
         state = opened
         openedFromLibrary = fromLibrary

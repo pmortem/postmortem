@@ -89,6 +89,13 @@
     <string name="report_not_finished">Not finished</string>
     <string name="report_separator">" · "</string>
     <string name="report_accuracy">accuracy %1$d%%</string>
+    <string name="report_missed_title">Missed wins: %1$d of %2$d decided games (%3$d %%)</string>
+    <string name="report_missed_mates">Missed mates: %1$d</string>
+    <string name="report_missed_none">None</string>
+    <string name="report_missed_row">peak %1$s → %2$s</string>
+    <string name="report_missed_after">" (%1$s) · %2$s"</string>
+    <string name="report_mate_row">had mate in %1$d, played %2$s</string>
+    <string name="report_row_header">%1$s · %2$s · %3$s</string>
     <string name="report_vs">vs %1$s</string>
     <string name="report_vs_unknown">vs ?</string>
     <string name="report_win">Win</string>

@@ -4,12 +4,16 @@ import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.setValue
 import app.postmortem.core.board.PieceColor
+import app.postmortem.core.report.MissedReport
+import app.postmortem.core.report.MissedWins
 import app.postmortem.core.report.OpeningReport
 import app.postmortem.core.report.OpeningStats
+import app.postmortem.core.report.PlayerGame
 import app.postmortem.core.report.PlayerGames
 import app.postmortem.core.report.PlayerName
 import app.postmortem.core.report.Record
 import app.postmortem.core.store.GameLibrary
+import app.postmortem.core.store.MainLine
 import app.postmortem.core.store.ReportRow
 import kotlinx.coroutines.CoroutineDispatcher
 import kotlinx.coroutines.CoroutineScope
@@ -31,6 +35,8 @@ data class ReportUi(
     val names: List<PlayerName> = emptyList(),
     val player: String = "",
     val view: PlayerView? = null,
+    /** Missed wins and missed mates of [player]; null when [view] is. */
+    val missed: MissedReport? = null,
 )
 
 /** An opening family of one colour in the list; [family] is null for the games with no opening. */
@@ -67,6 +73,12 @@ class ReportController(
         private set
 
     private var rows: List<ReportRow> = emptyList()
+
+    /** The main lines read so far, by game id; cleared when the games are read again. */
+    private val lines = HashMap<Long, MainLine>()
+
+    /** The games whose main line has been asked for, found or not (a game without stored evals is not asked again either). */
+    private val asked = HashSet<Long>()
     private var work: Job? = null
     private var remembered = false
 
@@ -82,6 +94,8 @@ class ReportController(
                 }
                 val read = withContext(dispatcher) { runCatching { saved.reportRows() }.getOrDefault(emptyList()) }
                 rows = read
+                lines.clear()
+                asked.clear()
                 rebuild()
             }
     }
@@ -130,11 +144,29 @@ class ReportController(
                             OpeningStats.of(found),
                         )
                     }
-                Triple(names, view, rows.size)
+                Built(names, view, view?.let { MissedWins.of(games, mainLinesOf(games)) }, rows.size)
             }
         if (ui.player != player) return
-        ui = ui.copy(loaded = true, games = built.third, names = built.first, view = built.second)
-        listed = listed?.takeIf { key -> built.second?.openings.let { report -> key in variationKeys(report) } }
+        ui = ui.copy(loaded = true, games = built.games, names = built.names, view = built.view, missed = built.missed)
+        listed = listed?.takeIf { key -> built.view?.openings.let { report -> key in variationKeys(report) } }
+    }
+
+    private class Built(
+        val names: List<PlayerName>,
+        val view: PlayerView?,
+        val missed: MissedReport?,
+        val games: Int,
+    )
+
+    /** The main lines of [games], reading only the ones not read yet. */
+    private fun mainLinesOf(games: List<PlayerGame>): Map<Long, MainLine> {
+        val wanted = games.map { it.gameId }.distinct()
+        val missing = wanted.filter { it !in asked }
+        if (missing.isNotEmpty()) {
+            lines += runCatching { library?.mainLines(missing) }.getOrNull().orEmpty()
+            asked += missing
+        }
+        return wanted.mapNotNull { id -> lines[id]?.let { id to it } }.toMap()
     }
 
     private fun variationKeys(report: OpeningReport?): Set<VariationKey> =
