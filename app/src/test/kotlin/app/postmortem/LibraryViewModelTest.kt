@@ -357,6 +357,29 @@ class LibraryViewModelTest {
     }
 
     @Test
+    fun aSavedGameCanBeOpenedAtAGivenPositionAndAnOutOfRangeOneIsClamped() {
+        val library = FakeLibrary()
+        val vm = viewModel(library, FakePositions())
+        vm.analyse("scholars-mate")
+        vm.back()
+        vm.openGame(1L, ply = 3)
+        assertEquals(Cursor.game(3), vm.result().cursor)
+        vm.back()
+        vm.openGame(1L, ply = 99)
+        assertEquals(
+            Cursor.game(
+                vm
+                    .result()
+                    .game.plies.size,
+            ),
+            vm.result().cursor,
+        )
+        vm.back()
+        vm.openGame(1L)
+        assertEquals(Cursor.game(0), vm.result().cursor)
+    }
+
+    @Test
     fun theStartTabsCannotBeChangedWhileAnalysing() {
         val vm = MainViewModel({ flow { } }, dispatcher, library = FakeLibrary())
         vm.onPgnChange(fixture("scholars-mate"))

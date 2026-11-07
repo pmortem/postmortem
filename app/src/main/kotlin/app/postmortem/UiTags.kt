@@ -43,6 +43,12 @@ object UiTags {
     const val REPORT_BLACK = "report_black"
     const val REPORT_BACK = "report_back"
 
+    const val REPORT_MISSED = "report_missed"
+
+    fun reportMissedWin(index: Int) = "report_missed_$index"
+
+    fun reportMissedMate(index: Int) = "report_mate_$index"
+
     fun reportSuggestion(index: Int) = "report_suggestion_$index"
 
     fun openingRow(index: Int) = "opening_row_$index"

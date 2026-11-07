@@ -1,6 +1,6 @@
 # Report
 
-The **Report** tab looks across every game saved in the active [database](database.md) for one player. Only games you have analysed count, and only the ones in the database that is open. Today it shows the player's openings; more reports are planned.
+The **Report** tab looks across every game saved in the active [database](database.md) for one player. Only games you have analysed count, and only the ones in the database that is open. It shows the player's openings and the wins they missed; more reports are planned.
 
 ![The Report tab, with sample games](img/report.png)
 
@@ -23,3 +23,14 @@ Two sections, **As White** and **As Black**. Each row is an opening family: the 
 - **Tap a variation** to see its games: the opponent, the result, the date and the accuracy. Tap a game to open it as from the [Library](analysis.md#the-library). Back returns to the Report with the list where it was; Back once more leaves the Report tab for Analyse.
 
 The numbers are worked out again each time the tab opens, so a game analysed or deleted since then is counted.
+
+## Missed wins
+Below the openings, a card about converting winning positions, the first of the "mistakes you keep making" insights.
+
+- **A missed win** is a game of the player's where, after **two of their moves in a row**, they were clearly winning (winning chances of at least 50 % on the chart scale, about +3.0 pawns, or a forced mate for them), and which they then **drew or lost**. Games without a result are left out.
+- The **turning move** is the player's move after the best moment of that win that lost the most winning chances. It normally has a `?` or `??` mark in the Moves tab too.
+- **A missed mate** is a position where the player had a forced mate in at most **5 moves** and the move they played left no mate for them. It is listed even when the game was won, as on Lichess. A mate that was kept (even if it got longer) or delivered is not missed.
+
+The card says `Missed wins: 4 of 19 decided games (21 %)` and `Missed mates: 3`, then lists the games newest first: the opponent, the date, your colour, the peak evaluation from your side (`+4.2`), the turning move with its number and mark (`31.Qxb7??`), the evaluation after it, and how the game ended. A missed mate says `had mate in 3, played 12.Qh5`. Tap a row to open the game at that move, as from the [Library](analysis.md#the-library); Back returns to the Report.
+
+The numbers come from the evaluations stored with each game, so a game must have been analysed (every game in the Library has been). The thresholds (50 %, two moves, five moves) are named constants in the code and can be tuned.

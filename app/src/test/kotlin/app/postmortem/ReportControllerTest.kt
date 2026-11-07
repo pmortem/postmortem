@@ -1,10 +1,12 @@
 package app.postmortem
 
 import app.postmortem.core.analysis.AnalysisProgress
+import app.postmortem.core.analysis.Eval
 import app.postmortem.core.board.PieceColor
 import app.postmortem.core.pgn.Game
 import app.postmortem.core.store.GameLibrary
 import app.postmortem.core.store.GameSummary
+import app.postmortem.core.store.MainLine
 import app.postmortem.core.store.NewGame
 import app.postmortem.core.store.ReportRow
 import app.postmortem.core.store.SavedGame
@@ -54,7 +56,10 @@ class ReportControllerTest {
     /** A library that only knows its report rows, which can change. */
     private class RowsLibrary(
         var rows: List<ReportRow>,
+        var lines: Map<Long, MainLine> = emptyMap(),
     ) : GameLibrary {
+        var linesAsked = 0
+
         override fun findSaved(game: Game): SavedGame? = null
 
         override fun save(new: NewGame): Long = 0
@@ -75,6 +80,11 @@ class ReportControllerTest {
         override fun list(): List<GameSummary> = emptyList()
 
         override fun reportRows(): List<ReportRow> = rows
+
+        override fun mainLines(ids: List<Long>): Map<Long, MainLine> {
+            linesAsked += ids.size
+            return lines.filterKeys { it in ids }
+        }
 
         override fun delete(id: Long) = Unit
 
@@ -201,6 +211,47 @@ class ReportControllerTest {
         report.list(VariationKey(PieceColor.WHITE, "Sicilian Defense: Najdorf Variation"))
         report.setPlayer("Ben")
         assertNull(report.listed, "Ben has no such opening")
+    }
+
+    /** Thomas (Black in game 3, which he lost) was winning from position 6 to 11 and gave it up at ply 12. */
+    private fun thrownAway(): Map<Long, MainLine> {
+        val evals =
+            List<Eval>(31) {
+                if (it in 6..11) {
+                    Eval.Cp(-400)
+                } else if (it > 11) {
+                    Eval.Cp(300)
+                } else {
+                    Eval.Cp(0)
+                }
+            }
+        return mapOf(3L to MainLine(List(30) { "e4" }, evals, whiteMovesFirst = true))
+    }
+
+    @Test
+    fun missedWinsAreWorkedOutWithTheReportAndTheMainLinesAreReadOnlyOnce() {
+        val library = RowsLibrary(games, thrownAway())
+        val report = controller(library)
+        report.refresh()
+        report.setPlayer("Thomas")
+        val missed = assertNotNull(report.ui.missed)
+        assertEquals(3, missed.decided)
+        assertEquals(listOf(3L), missed.wins.map { it.game.gameId })
+        assertEquals(12, missed.wins.single().turningPly)
+        val asked = library.linesAsked
+        report.setPlayer("thomas ")
+        assertEquals(asked, library.linesAsked, "the lines of the same games are not read again")
+        report.refresh()
+        assertTrue(library.linesAsked > asked, "a refresh reads them again")
+    }
+
+    @Test
+    fun noMissedReportWithoutAPlayerAndAnEmptyOneWhenThereAreNoStoredEvals() {
+        val report = controller()
+        report.refresh()
+        assertNull(report.ui.missed)
+        report.setPlayer("Thomas")
+        assertTrue(assertNotNull(report.ui.missed).wins.isEmpty())
     }
 
     private fun canned(game: Game): Flow<AnalysisProgress> = flow { }

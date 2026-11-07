@@ -176,7 +176,7 @@ class MainActivity : ComponentActivity() {
                                 }
 
                                 StartTab.Report -> {
-                                    ReportScreen(viewModel.report, onOpenGame = viewModel::openGame)
+                                    ReportScreen(viewModel.report, onOpenGame = { id, ply -> viewModel.openGame(id, ply) })
                                 }
 
                                 StartTab.Settings -> {

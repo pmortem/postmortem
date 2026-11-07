@@ -60,7 +60,7 @@ private const val MAX_SUGGESTIONS = 5
 @Composable
 fun ReportScreen(
     report: ReportController,
-    onOpenGame: (Long) -> Unit,
+    onOpenGame: (Long, Int) -> Unit,
 ) {
     val listed = report.listed
     val view = report.ui.view
@@ -82,9 +82,9 @@ fun ReportScreen(
     ) { padding ->
         Box(Modifier.fillMaxSize().padding(padding)) {
             if (listed != null && view != null) {
-                GameList(view, listed, onOpenGame)
+                GameList(view, listed) { onOpenGame(it, 0) }
             } else {
-                ReportBody(report)
+                ReportBody(report, onOpenGame)
             }
         }
     }
@@ -94,7 +94,10 @@ fun ReportScreen(
 private fun openingName(name: String?): String = name ?: stringResource(R.string.report_unknown_opening)
 
 @Composable
-private fun ReportBody(report: ReportController) {
+private fun ReportBody(
+    report: ReportController,
+    onOpenGame: (Long, Int) -> Unit,
+) {
     val ui = report.ui
     LazyColumn(
         Modifier.fillMaxSize(),
@@ -127,6 +130,7 @@ private fun ReportBody(report: ReportController) {
                 )
             }
         }
+        ui.missed?.let { missed -> item { MissedCard(missed, onOpenGame) } }
     }
 }
 
