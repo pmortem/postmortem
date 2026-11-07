@@ -63,7 +63,11 @@ class MainViewModel(
     /** The database files (rename, open, export, import); none in tests that do not need them. */
     private val databases: DatabaseControl? = null,
     private val liveDebounceMs: Long = LiveConfig.DEFAULT_DEBOUNCE_MS,
+    reportPlayer: ReportPlayerSetting = InMemoryReportPlayerSetting(),
 ) : ViewModel() {
+    /** The Report tab of the start page: the player, their openings, and what is expanded or listed. */
+    val report = ReportController(viewModelScope, dispatcher, library, reportPlayer)
+
     var state: UiState by mutableStateOf(UiState.Paste())
         private set
 
@@ -608,7 +612,11 @@ class MainViewModel(
                 refreshDatabases()
             }
 
-            else -> {
+            StartTab.Report -> {
+                report.refresh()
+            }
+
+            StartTab.Analyse -> {
                 Unit
             }
         }
@@ -749,6 +757,7 @@ class MainViewModel(
                 }
 
                 is UiState.Paste -> {
+                    if (startTab == StartTab.Report && report.closeList()) return true
                     if (startTab == StartTab.Analyse) return false
                     selectStartTab(StartTab.Analyse)
                     return true
@@ -763,6 +772,7 @@ class MainViewModel(
         handle = GameHandle()
         state = UiState.Paste(pgn = pgn)
         if (startTab == StartTab.Library) refreshLibrary()
+        if (startTab == StartTab.Report) report.refresh()
         return true
     }
 }

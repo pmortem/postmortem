@@ -126,6 +126,13 @@ object JudgementColors {
     val brilliant = Color(0xFF009E73)
 }
 
+/** The bar of wins, draws and losses in the Report. */
+object ReportColors {
+    val win = Color(0xFF3F9E6B)
+    val draw = Color(0xFF9AA0A6)
+    val loss = Color(0xFFD9534F)
+}
+
 /**
  * The live engine's arrows by rank (1 is the best move): the best is the thickest, most opaque and has the biggest label, the
  * others get less of each. A rank beyond the list gets what the last one gets.
@@ -189,6 +196,9 @@ object Spacing {
 
     /** How faint an arrow button is when there is nothing to step to. */
     const val DISABLED_ALPHA = 0.38f
+
+    /** The height of the win/draw/loss bar of a row in the Report. */
+    val reportBar = 8.dp
 
     /** The room the swipe icons get. */
     val swipeIconPadding = 20.dp
