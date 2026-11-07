@@ -123,4 +123,13 @@ class MovesTest {
         assertEquals(PieceColor.WHITE, Moves.sideToMove(STANDARD_START_FEN))
         assertEquals(PieceColor.BLACK, Moves.sideToMove("rnbqkbnr/pppppppp/8/8/4P3/8/PPPP1PPP/RNBQKBNR b KQkq e3 0 1"))
     }
+
+    @Test
+    fun legalMoveCountAndCheckAreReadFromThePosition() {
+        assertEquals(20, Moves.legalMoveCount(STANDARD_START_FEN))
+        assertEquals(false, Moves.inCheck(STANDARD_START_FEN))
+        // the only way out of this check is Rf6
+        assertEquals(1, Moves.legalMoveCount("5r1k/7p/8/4Q3/8/8/8/4K1R1 b - - 0 1"))
+        assertEquals(true, Moves.inCheck("5r1k/7p/8/4Q3/8/8/8/4K1R1 b - - 0 1"))
+    }
 }
