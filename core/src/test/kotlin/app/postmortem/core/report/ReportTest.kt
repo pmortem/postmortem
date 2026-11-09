@@ -194,4 +194,15 @@ class ReportTest {
     private fun app.postmortem.core.pgn.Game.overview() =
         app.postmortem.core.pgn.GameOverview
             .of(headers)
+
+    @Test
+    fun aRowReadsItsTagsAsAnOverviewOnce() {
+        val row = rows.first()
+        assertEquals(
+            app.postmortem.core.pgn.GameOverview
+                .of(row.headers),
+            row.overview,
+        )
+        assertTrue(row.overview === row.overview)
+    }
 }

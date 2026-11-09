@@ -63,7 +63,7 @@ object MissedWins {
         for (game in games) {
             val line = lines[game.gameId] ?: continue
             if (line.evals.size < 2) continue
-            val judgements = GameReport.of(line.evals, line.whiteMovesFirst).judgements
+            val judgements = line.judgements
             missedWin(game, line, judgements)?.let(wins::add)
             mates += missedMates(game, line, judgements)
         }

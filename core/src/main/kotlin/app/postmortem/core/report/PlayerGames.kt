@@ -1,7 +1,6 @@
 package app.postmortem.core.report
 
 import app.postmortem.core.board.PieceColor
-import app.postmortem.core.pgn.GameOverview
 import app.postmortem.core.store.ReportRow
 
 /** How a game went for one player. [UNFINISHED] is a missing or `*` result: it counts as a game but never in the percentages. */
@@ -33,13 +32,11 @@ data class PlayerGame(
 object PlayerGames {
     private fun key(name: String): String = name.trim().lowercase()
 
-    private fun names(row: ReportRow): GameOverview = GameOverview.of(row.headers)
-
     /** Every name in the White and Black tags, the one with most games first; a game with no name (`?`, empty) adds nothing. */
     fun names(rows: List<ReportRow>): List<PlayerName> {
         val spellings = HashMap<String, MutableMap<String, Int>>()
         for (row in rows) {
-            val overview = names(row)
+            val overview = row.overview
             for (name in listOfNotNull(overview.white, overview.black)) {
                 spellings.getOrPut(key(name)) { LinkedHashMap() }.merge(name.trim(), 1, Int::plus)
             }
@@ -57,7 +54,7 @@ object PlayerGames {
         val wanted = key(name)
         if (wanted.isEmpty()) return emptyList()
         return rows.flatMap { row ->
-            val overview = names(row)
+            val overview = row.overview
             listOf(
                 PieceColor.WHITE to overview.white,
                 PieceColor.BLACK to overview.black,
