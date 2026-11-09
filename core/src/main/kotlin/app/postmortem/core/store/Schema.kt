@@ -15,9 +15,12 @@ package app.postmortem.core.store
  * - `drill` (version 2): the progress of "Learn from your mistakes", one row per practised position: `node_id` is the main-line
  *   node of the position before the player's mistake, `solved` 0 or 1, `attempts` how many times it was tried or skipped and
  *   `last_tried` when. Deleting a game deletes its rows.
+ * - `queued` (version 3): the games waiting to be analysed in the background, in the order they were added: the PGN, when it was
+ *   added, and its `state` (`waiting` or `running`). A game leaves the table when it is saved, fails or is cancelled; after the app
+ *   was killed, the rows left are analysed again from their first position.
  */
 object Schema {
-    const val CURRENT_VERSION = 2
+    const val CURRENT_VERSION = 3
 
     /** The steps in order; the tests add a later one to move a real file forward. */
     internal val steps: List<List<String>> =
@@ -70,6 +73,16 @@ object Schema {
                     solved INTEGER NOT NULL,
                     attempts INTEGER NOT NULL,
                     last_tried INTEGER NOT NULL
+                )
+                """.trimIndent(),
+            ),
+            listOf(
+                """
+                CREATE TABLE queued (
+                    id INTEGER PRIMARY KEY,
+                    pgn TEXT NOT NULL,
+                    added INTEGER NOT NULL,
+                    state TEXT NOT NULL
                 )
                 """.trimIndent(),
             ),

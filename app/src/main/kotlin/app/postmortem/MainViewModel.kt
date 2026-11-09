@@ -310,18 +310,7 @@ class MainViewModel(
         val saved = library ?: return
         val mine = handle
         saveSoon {
-            val report = result.report
-            val new =
-                NewGame(
-                    pgn = result.pgn,
-                    game = result.game,
-                    evals = result.evals,
-                    analysisSettings = result.analysisSettings,
-                    whiteAccuracy = report.white.accuracy,
-                    blackAccuracy = report.black.accuracy,
-                    opening = result.game.overview.opening,
-                    bestMoves = bestMoves,
-                )
+            val new = NewGame.analysed(result.pgn, result.game, result.evals, bestMoves, result.analysisSettings)
             mine.id = saved.save(new)
             libraryLog("saved game ${mine.id}")
             viewModelScope.launch {

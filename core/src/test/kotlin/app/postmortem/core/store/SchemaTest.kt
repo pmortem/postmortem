@@ -17,7 +17,7 @@ class SchemaTest {
         JdbcSqlDb.open().use { db ->
             Schema.migrate(db)
             assertEquals(Schema.CURRENT_VERSION, db.userVersion)
-            assertEquals(listOf("drill", "eval", "game", "node"), tables(db))
+            assertEquals(listOf("drill", "eval", "game", "node", "queued"), tables(db))
         }
     }
 
@@ -61,7 +61,7 @@ class SchemaTest {
         val (path, id) = versionOneFileWithAGame()
         JdbcSqlDb.open(path).use { db ->
             val store = GameStore(db)
-            assertEquals(2, db.userVersion)
+            assertEquals(Schema.CURRENT_VERSION, db.userVersion)
             assertEquals(emptyList(), db.query("SELECT * FROM drill"))
             val saved = assertNotNull(store.load(id))
             assertEquals(Fixtures.game("scholars-mate"), saved.game)
@@ -78,8 +78,9 @@ class SchemaTest {
         JdbcSqlDb.open(path).use { GameStore(it).recordDrill(1, 2, solved = true) }
         JdbcSqlDb.open(path).use { db ->
             Schema.migrate(db)
-            assertEquals(2, db.userVersion)
+            assertEquals(Schema.CURRENT_VERSION, db.userVersion)
             assertEquals(1, db.query("SELECT * FROM drill").size, "the progress is still there")
+            assertEquals(emptyList(), db.query("SELECT * FROM queued"), "version 3 added an empty queue")
         }
     }
 
@@ -92,8 +93,8 @@ class SchemaTest {
             )
         JdbcSqlDb.open(path).use { GameStore(it).recordDrill(id, 2, solved = true) }
         JdbcSqlDb.open(path).use { db ->
-            Schema.migrate(db, upTo = 3, migrations = Schema.steps + future)
-            assertEquals(3, db.userVersion)
+            Schema.migrate(db, upTo = Schema.CURRENT_VERSION + 1, migrations = Schema.steps + future)
+            assertEquals(Schema.CURRENT_VERSION + 1, db.userVersion)
             val row = db.query("SELECT note, pgn FROM game WHERE id = ?", listOf(id)).single()
             assertEquals("migrated", row["note"])
             assertEquals(Fixtures.text("scholars-mate"), row["pgn"])
