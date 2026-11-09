@@ -1,7 +1,9 @@
 package app.postmortem
 
+import android.Manifest
 import android.app.Application
 import android.content.Intent
+import android.content.pm.PackageManager
 import android.os.Build
 import android.os.PowerManager
 import android.os.SystemClock
@@ -29,6 +31,8 @@ import kotlinx.coroutines.flow.stateIn
 import kotlinx.coroutines.launch
 
 private const val ANALYSIS_TAG = "Analysis"
+private const val PREFS = "app"
+private const val NOTIFICATIONS_ASKED = "notifications_asked"
 
 /**
  * What lives as long as the app's process, not as long as a screen: the database and the background analysis queue. Games keep being
@@ -94,6 +98,23 @@ class PostmortemApp : Application() {
             }
         }
         scope.launch { queue.finished.collect { Notifications.finished(this@PostmortemApp, it) } }
+    }
+
+    /**
+     * True the first time the notification question should be asked: Android 13 or later, not allowed yet, and not asked before. It
+     * counts as asked from then on: Postmortem asks once.
+     */
+    fun takeNotificationQuestion(): Boolean {
+        if (Build.VERSION.SDK_INT < Build.VERSION_CODES.TIRAMISU) return false
+        if (ContextCompat.checkSelfPermission(this, Manifest.permission.POST_NOTIFICATIONS) ==
+            PackageManager.PERMISSION_GRANTED
+        ) {
+            return false
+        }
+        val prefs = getSharedPreferences(PREFS, MODE_PRIVATE)
+        if (prefs.getBoolean(NOTIFICATIONS_ASKED, false)) return false
+        prefs.edit().putBoolean(NOTIFICATIONS_ASKED, true).apply()
+        return true
     }
 
     /** Starts [AnalysisService]; Android may refuse it while the app is in the background, and then it starts with the app. */
