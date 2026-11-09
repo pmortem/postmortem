@@ -2,6 +2,7 @@ package app.postmortem.core.report
 
 import app.postmortem.core.board.PieceColor
 import app.postmortem.core.store.ReportRow
+import java.time.LocalDate
 
 /** How a game went for one player. [UNFINISHED] is a missing or `*` result: it counts as a game but never in the percentages. */
 enum class Outcome { WIN, DRAW, LOSS, UNFINISHED }
@@ -21,6 +22,10 @@ data class PlayerGame(
     val opening: String?,
     val accuracy: Double?,
     val date: String?,
+    /** The speed its `TimeControl` tag names, or null when unknown. */
+    val speed: Speed? = null,
+    /** The day it was played (the date tag, else the day it was saved), for the period filter. */
+    val day: LocalDate = LocalDate.EPOCH,
 ) {
     companion object {
         /** The newest game first (by the date tag, then the most recently saved), the order every list of the Report uses. */
@@ -68,6 +73,8 @@ object PlayerGames {
                         opening = row.opening?.trim()?.takeIf { it.isNotEmpty() },
                         accuracy = if (color == PieceColor.WHITE) row.whiteAccuracy else row.blackAccuracy,
                         date = overview.date,
+                        speed = TimeControl.of(row.headers["TimeControl"]),
+                        day = playedOn(overview.date, row.created),
                     )
                 }
         }

@@ -132,6 +132,8 @@ data class ReportRow(
     val opening: String?,
     val whiteAccuracy: Double?,
     val blackAccuracy: Double?,
+    /** When the game was saved (milliseconds): the date of a game whose `Date` tag says nothing. */
+    val created: Long = 0,
 ) {
     /** The tags read as an overview, worked out once per row: the Report asks for it on every keystroke. */
     val overview: GameOverview by lazy(LazyThreadSafetyMode.PUBLICATION) { GameOverview.of(headers) }
@@ -500,13 +502,14 @@ class GameStore(
             }
 
     override fun reportRows(): List<ReportRow> =
-        db.query("SELECT id, headers_json, opening, white_accuracy, black_accuracy FROM game ORDER BY id").map {
+        db.query("SELECT id, headers_json, opening, white_accuracy, black_accuracy, created FROM game ORDER BY id").map {
             ReportRow(
                 it.long("id"),
                 HeadersJson.decode(it.string("headers_json")),
                 it["opening"] as String?,
                 it["white_accuracy"] as Double?,
                 it["black_accuracy"] as Double?,
+                it.long("created"),
             )
         }
 
