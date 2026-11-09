@@ -9,6 +9,6 @@ Closes #
 - [ ] UI changed: I read the light and dark screenshots
 - [ ] New screen or flow: `scripts/lab/smoke.steps` covers it
 - [ ] User-visible behaviour added or changed: the matching `docs/` page is updated in the same PR
-- [ ] No new Android permission, no hardcoded values
+- [ ] No new Android permission unless the issue names it and it is already in the host's allow list; no hardcoded values
 - [ ] The PR title is a conventional commit
-- [ ] After the merge: the phone test page, naming the app version on the phone
+- [ ] After the merge: the phone test page (visible changes only), naming the app version on the phone; for `refactor:`, `chore:`, `test:`, `docs:`, `ci:` and `build:` PRs (and a `perf:` with no visible change) a "no phone test: smoke passed on build N" comment instead
