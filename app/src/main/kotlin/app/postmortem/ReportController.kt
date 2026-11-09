@@ -14,6 +14,8 @@ import app.postmortem.core.report.PlayerGame
 import app.postmortem.core.report.PlayerGames
 import app.postmortem.core.report.PlayerName
 import app.postmortem.core.report.Record
+import app.postmortem.core.report.ReportFilter
+import app.postmortem.core.report.filtered
 import app.postmortem.core.store.DrillKey
 import app.postmortem.core.store.DrillProgress
 import app.postmortem.core.store.GameLibrary
@@ -24,6 +26,7 @@ import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Job
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
+import java.time.LocalDate
 
 /** One player's numbers: [record] over all their games, and their openings. */
 data class PlayerView(
@@ -43,7 +46,14 @@ data class ReportUi(
     val missed: MissedReport? = null,
     /** The positions to practise, and how many were solved; null when [view] is. */
     val drill: DrillQueue? = null,
+    /** The filters every tab follows (period and time control). */
+    val filter: ReportFilter = ReportFilter(),
+    /** How many games [player] has before the filters, so "nothing for this filter" can be told from "no such player". */
+    val unfiltered: Int = 0,
 )
+
+/** The parts of the Report under the player picker and the filters. */
+enum class ReportTab { Overview, Openings, Mistakes, Practice }
 
 /** An opening family of one colour in the list; [family] is null for the games with no opening. */
 data class FamilyKey(
@@ -67,11 +77,17 @@ class ReportController(
     private val dispatcher: CoroutineDispatcher,
     private val library: GameLibrary?,
     private val setting: ReportPlayerSetting,
+    /** Today, for "last 30 days"; the clock in the app, a fixed day in tests. */
+    private val today: () -> LocalDate = LocalDate::now,
 ) {
     var ui: ReportUi by mutableStateOf(ReportUi())
         private set
 
     var expanded: Set<FamilyKey> by mutableStateOf(emptySet())
+        private set
+
+    /** The part of the Report shown under the filters; it stays while a game is opened and Back is pressed. */
+    var tab: ReportTab by mutableStateOf(ReportTab.Overview)
         private set
 
     /** The opening whose games are listed instead of the report, or null. */
@@ -99,7 +115,7 @@ class ReportController(
             scope.launch {
                 if (!remembered) {
                     remembered = true
-                    ui = ui.copy(player = setting.get())
+                    ui = ui.copy(player = setting.get(), filter = setting.filter())
                 }
                 val read = withContext(dispatcher) { runCatching { saved.reportRows() }.getOrDefault(emptyList()) }
                 rows = read
@@ -122,6 +138,21 @@ class ReportController(
             }
     }
 
+    /** A filter chip was chosen: every tab follows, and the choice is remembered with the player. */
+    fun setFilter(filter: ReportFilter) {
+        ui = ui.copy(filter = filter)
+        work?.cancel()
+        work =
+            scope.launch {
+                rebuild()
+                setting.setFilter(filter)
+            }
+    }
+
+    fun selectTab(new: ReportTab) {
+        tab = new
+    }
+
     fun toggleFamily(key: FamilyKey) {
         expanded = if (key in expanded) expanded - key else expanded + key
     }
@@ -139,10 +170,12 @@ class ReportController(
 
     private suspend fun rebuild() {
         val player = ui.player
+        val filter = ui.filter
         val built =
             withContext(dispatcher) {
                 val names = names
-                val games = PlayerGames.of(rows, player)
+                val all = PlayerGames.of(rows, player)
+                val games = all.filtered(filter, today())
                 val view =
                     games.takeIf { it.isNotEmpty() }?.let { found ->
                         PlayerView(
@@ -157,10 +190,19 @@ class ReportController(
                 val lines = view?.let { mainLinesOf(games) }.orEmpty()
                 val missed = view?.let { MissedWins.of(games, lines) }
                 val queue = missed?.let { Drill.queue(games, lines, progressOf(games), it) }
-                Built(names, view, missed, queue, rows.size)
+                Built(names, view, missed, queue, rows.size, all.size)
             }
-        if (ui.player != player) return
-        ui = ui.copy(loaded = true, games = built.games, names = built.names, view = built.view, missed = built.missed, drill = built.drill)
+        if (ui.player != player || ui.filter != filter) return
+        ui =
+            ui.copy(
+                loaded = true,
+                games = built.games,
+                names = built.names,
+                view = built.view,
+                missed = built.missed,
+                drill = built.drill,
+                unfiltered = built.unfiltered,
+            )
         listed = listed?.takeIf { key -> built.view?.openings.let { report -> key in variationKeys(report) } }
     }
 
@@ -170,6 +212,7 @@ class ReportController(
         val missed: MissedReport?,
         val drill: DrillQueue?,
         val games: Int,
+        val unfiltered: Int,
     )
 
     /** The practice progress of [games], read fresh each time: it changes while the player practises. */

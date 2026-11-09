@@ -4,6 +4,9 @@ import app.postmortem.core.analysis.AnalysisProgress
 import app.postmortem.core.analysis.Eval
 import app.postmortem.core.board.PieceColor
 import app.postmortem.core.pgn.Game
+import app.postmortem.core.report.Period
+import app.postmortem.core.report.ReportFilter
+import app.postmortem.core.report.Speed
 import app.postmortem.core.store.GameLibrary
 import app.postmortem.core.store.GameSummary
 import app.postmortem.core.store.MainLine
@@ -45,9 +48,12 @@ class ReportControllerTest {
         opening: String?,
         whiteAccuracy: Double? = 80.0,
         blackAccuracy: Double? = 70.0,
+        timeControl: String? = null,
+        date: String = "2025.01.0$id",
     ) = ReportRow(
         id,
-        mapOf("White" to white, "Black" to black, "Result" to result, "Date" to "2025.01.0$id"),
+        mapOf("White" to white, "Black" to black, "Result" to result, "Date" to date) +
+            listOfNotNull(timeControl?.let { "TimeControl" to it }),
         opening,
         whiteAccuracy,
         blackAccuracy,
@@ -78,7 +84,9 @@ class ReportControllerTest {
     private fun controller(
         library: GameLibrary? = RowsLibrary(games),
         setting: ReportPlayerSetting = InMemoryReportPlayerSetting(),
-    ) = ReportController(kotlinx.coroutines.CoroutineScope(dispatcher), dispatcher, library, setting)
+    ) = ReportController(kotlinx.coroutines.CoroutineScope(dispatcher), dispatcher, library, setting) { today }
+
+    private val today = java.time.LocalDate.of(2025, 2, 1)
 
     @Test
     fun beforeTheTabIsOpenedNothingIsReadAndAfterwardsTheNamesAreListedWithTheirGames() {
@@ -246,5 +254,134 @@ class ReportControllerTest {
         assertTrue(vm.back())
         assertEquals(StartTab.Analyse, vm.startTab)
         assertIs<UiState.Paste>(vm.state)
+    }
+
+    private val tagged =
+        listOf(
+            row(1, "Thomas", "Anna", "1-0", "Sicilian Defense: Najdorf Variation", timeControl = "180+2", date = "2025.01.20"),
+            row(2, "Thomas", "Ben", "1/2-1/2", "Sicilian Defense: Dragon Variation", timeControl = "600+5", date = "2025.01.25"),
+            row(3, "Anna", "Thomas", "1-0", "Italian Game", timeControl = "180+0", date = "2024.11.01"),
+            row(4, "Thomas", "Ben", "0-1", "Italian Game", timeControl = "60+0", date = "2025.01.30"),
+            row(5, "Thomas", "Ben", "1-0", null, timeControl = null, date = "2025.01.31"),
+        )
+
+    @Test
+    fun theFiltersChangeEveryPartOfTheReportAndAreRememberedWithThePlayer() {
+        val setting = InMemoryReportPlayerSetting()
+        val report = controller(RowsLibrary(tagged), setting)
+        report.refresh()
+        report.setPlayer("Thomas")
+        assertEquals(
+            5,
+            report.ui.view
+                ?.record
+                ?.games,
+        )
+        assertEquals(5, report.ui.unfiltered)
+        report.setFilter(ReportFilter(speed = Speed.BLITZ))
+        // blitz: games 1 (180+2 = 260 s) and 3 (180 s)
+        assertEquals(
+            2,
+            report.ui.view
+                ?.record
+                ?.games,
+        )
+        assertEquals(
+            listOf("Sicilian Defense"),
+            report.ui.view
+                ?.openings
+                ?.white
+                ?.map { it.name },
+        )
+        assertEquals(
+            listOf("Italian Game"),
+            report.ui.view
+                ?.openings
+                ?.black
+                ?.map { it.name },
+        )
+        assertEquals(5, report.ui.unfiltered, "the player still has 5 games before the filters")
+        report.setFilter(ReportFilter(Period.LAST_30_DAYS, Speed.BLITZ))
+        assertEquals(
+            1,
+            report.ui.view
+                ?.record
+                ?.games,
+            "game 3 is older than 30 days",
+        )
+        report.setFilter(ReportFilter(Period.LAST_30_DAYS))
+        assertEquals(
+            4,
+            report.ui.view
+                ?.record
+                ?.games,
+        )
+        assertEquals(ReportFilter(Period.LAST_30_DAYS), kotlinx.coroutines.runBlocking { setting.filter() })
+        val restarted = controller(RowsLibrary(tagged), setting)
+        restarted.refresh()
+        assertEquals(ReportFilter(Period.LAST_30_DAYS), restarted.ui.filter, "remembered across a restart")
+    }
+
+    @Test
+    fun aFilterThatLeavesNoGamesShowsNoViewButTheCountBeforeTheFiltersKeepsTheMessageRight() {
+        val report = controller(RowsLibrary(tagged))
+        report.refresh()
+        report.setPlayer("Thomas")
+        report.setFilter(ReportFilter(speed = Speed.CLASSICAL))
+        assertNull(report.ui.view)
+        assertNull(report.ui.missed)
+        assertEquals(5, report.ui.unfiltered)
+        report.setPlayer("Nobody")
+        assertEquals(0, report.ui.unfiltered)
+    }
+
+    @Test
+    fun theTabIsKeptThroughAFilterAndTheMissedWinsFollowTheFilters() {
+        val lines =
+            mapOf(
+                4L to
+                    MainLine(
+                        List(30) { "e4" },
+                        List<Eval>(31) {
+                            if (it in
+                                6..12
+                            ) {
+                                Eval.Cp(400)
+                            } else if (it > 12) {
+                                Eval.Cp(-300)
+                            } else {
+                                Eval.Cp(0)
+                            }
+                        },
+                        true,
+                    ),
+            )
+        val report = controller(RowsLibrary(tagged, lines))
+        report.refresh()
+        report.setPlayer("Thomas")
+        assertEquals(ReportTab.Overview, report.tab)
+        report.selectTab(ReportTab.Mistakes)
+        assertEquals(
+            1,
+            report.ui.missed
+                ?.wins
+                ?.size,
+            "game 4 (bullet, lost) was winning for two moves",
+        )
+        report.setFilter(ReportFilter(speed = Speed.BLITZ))
+        assertEquals(ReportTab.Mistakes, report.tab, "a filter does not change the tab")
+        assertEquals(
+            0,
+            report.ui.missed
+                ?.wins
+                ?.size,
+            "game 4 is bullet: its missed win is out",
+        )
+        assertEquals(
+            0,
+            report.ui.drill
+                ?.items
+                ?.size,
+        )
     }
 }
