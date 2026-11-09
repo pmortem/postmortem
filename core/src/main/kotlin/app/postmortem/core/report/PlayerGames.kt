@@ -26,6 +26,11 @@ data class PlayerGame(
     val speed: Speed? = null,
     /** The day it was played (the date tag, else the day it was saved), for the period filter. */
     val day: LocalDate = LocalDate.EPOCH,
+    /** The player's Elo and the opponent's, from the tags; null when a tag says nothing. */
+    val elo: Int? = null,
+    val opponentElo: Int? = null,
+    /** The `Termination` tag as written, or null. */
+    val termination: String? = null,
 ) {
     companion object {
         /** The newest game first (by the date tag, then the most recently saved), the order every list of the Report uses. */
@@ -75,6 +80,9 @@ object PlayerGames {
                         date = overview.date,
                         speed = TimeControl.of(row.headers["TimeControl"]),
                         day = playedOn(overview.date, row.created),
+                        elo = (if (color == PieceColor.WHITE) overview.whiteElo else overview.blackElo)?.toIntOrNull(),
+                        opponentElo = (if (color == PieceColor.WHITE) overview.blackElo else overview.whiteElo)?.toIntOrNull(),
+                        termination = overview.termination,
                     )
                 }
         }

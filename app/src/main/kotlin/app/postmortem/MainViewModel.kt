@@ -100,7 +100,7 @@ class MainViewModel(
     private var waitingFor: Long? = null
 
     /** The Report tab of the start page: the player, their openings, and what is expanded or listed. */
-    val report = ReportController(viewModelScope, dispatcher, library, reportPlayer)
+    val report = ReportController(viewModelScope, dispatcher, library, reportPlayer, log = libraryLog)
 
     /** "Learn from your mistakes", opened from the Report tab. */
     val drill = DrillController(viewModelScope, dispatcher, library, positions, report)

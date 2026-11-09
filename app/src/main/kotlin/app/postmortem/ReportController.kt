@@ -13,6 +13,7 @@ import app.postmortem.core.report.OpeningStats
 import app.postmortem.core.report.PlayerGame
 import app.postmortem.core.report.PlayerGames
 import app.postmortem.core.report.PlayerName
+import app.postmortem.core.report.PlayerStats
 import app.postmortem.core.report.Record
 import app.postmortem.core.report.ReportFilter
 import app.postmortem.core.report.filtered
@@ -48,6 +49,8 @@ data class ReportUi(
     val drill: DrillQueue? = null,
     /** The filters every tab follows (period and time control). */
     val filter: ReportFilter = ReportFilter(),
+    /** Every number the charts show, for the games the filters let through; null when [view] is. */
+    val stats: PlayerStats? = null,
     /** How many games [player] has before the filters, so "nothing for this filter" can be told from "no such player". */
     val unfiltered: Int = 0,
 )
@@ -79,6 +82,8 @@ class ReportController(
     private val setting: ReportPlayerSetting,
     /** Today, for "last 30 days"; the clock in the app, a fixed day in tests. */
     private val today: () -> LocalDate = LocalDate::now,
+    /** Says how long the statistics took, for the log. */
+    private val log: (String) -> Unit = {},
 ) {
     var ui: ReportUi by mutableStateOf(ReportUi())
         private set
@@ -189,8 +194,9 @@ class ReportController(
                     }
                 val lines = view?.let { mainLinesOf(games) }.orEmpty()
                 val missed = view?.let { MissedWins.of(games, lines) }
+                val stats = view?.let { timed(games.size) { PlayerStats.of(games, lines) } }
                 val queue = missed?.let { Drill.queue(games, lines, progressOf(games), it) }
-                Built(names, view, missed, queue, rows.size, all.size)
+                Built(names, view, missed, queue, stats, rows.size, all.size)
             }
         if (ui.player != player || ui.filter != filter) return
         ui =
@@ -201,6 +207,7 @@ class ReportController(
                 view = built.view,
                 missed = built.missed,
                 drill = built.drill,
+                stats = built.stats,
                 unfiltered = built.unfiltered,
             )
         listed = listed?.takeIf { key -> built.view?.openings.let { report -> key in variationKeys(report) } }
@@ -211,9 +218,18 @@ class ReportController(
         val view: PlayerView?,
         val missed: MissedReport?,
         val drill: DrillQueue?,
+        val stats: PlayerStats?,
         val games: Int,
         val unfiltered: Int,
     )
+
+    private fun <T> timed(
+        games: Int,
+        work: () -> T,
+    ): T {
+        val started = System.nanoTime()
+        return work().also { log("PlayerStats: $games games in ${(System.nanoTime() - started) / NANOS_PER_MS} ms") }
+    }
 
     /** The practice progress of [games], read fresh each time: it changes while the player practises. */
     private fun progressOf(games: List<PlayerGame>): Map<DrillKey, DrillProgress> =
@@ -238,3 +254,5 @@ class ReportController(
             }.orEmpty()
             .toSet()
 }
+
+private const val NANOS_PER_MS = 1_000_000L

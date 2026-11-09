@@ -164,7 +164,16 @@ class MissedWinsTest {
         assertEquals(ids.size, read.size)
         for ((name, id) in ids) {
             val g = Fixtures.game(name)
-            assertEquals(MainLine(g.plies.map { it.san }, List(g.positionCount) { Eval.Cp(it * 3) }, g.whiteMovesFirst), read[id], name)
+            assertEquals(
+                MainLine(
+                    g.plies.map { it.san },
+                    List(g.positionCount) { Eval.Cp(it * 3) },
+                    g.whiteMovesFirst,
+                    List(g.positionCount) { g.fenAt(it) },
+                ),
+                read[id],
+                name,
+            )
         }
         assertEquals(setOf(ids.values.first()), store.mainLines(listOf(ids.values.first())).keys)
         assertEquals(emptyMap(), store.mainLines(emptyList()))
