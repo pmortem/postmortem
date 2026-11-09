@@ -32,6 +32,18 @@ import kotlinx.coroutines.withContext
 /** Where a game in the queue is: waiting its turn, being analysed, or held back because the phone is too hot. */
 enum class QueueState { WAITING, RUNNING, PAUSED_HOT }
 
+/**
+ * How many games are analysed together and how many engines there are in all. A game needs an engine of its own, so no more games run
+ * together than there are engines; the engines are shared between them, never multiplied (2 games with 4 engines get 2 each, not 4).
+ */
+data class QueuePlan(
+    val gamesAtOnce: Int = 1,
+    val engines: Int = 1,
+) {
+    /** The games that really run together. */
+    val concurrent: Int get() = minOf(gamesAtOnce, engines).coerceAtLeast(1)
+}
+
 /** A game in the queue, with its players for the notification and the Library, and how far its analysis is ([done] of [total] positions). */
 data class QueuedGame(
     val id: Long,
@@ -84,8 +96,8 @@ sealed interface QueueEvent {
 }
 
 /**
- * Games waiting to be analysed, one at a time in the order they were added, by [analyse] with as many engines as [workers] says when
- * each game starts (the evals are the same whatever the number). A finished game is saved to [library] and leaves the queue; so does a
+ * Games waiting to be analysed, in the order they were added, by [analyse]. [plan] says how many run together and how many engines
+ * there are in all, asked as each game starts (the evals are the same whatever the number; a change applies from the next game). A finished game is saved to [library] and leaves the queue; so does a
  * failed or cancelled one. The queue is kept in [store], so after the app was killed [start] picks it up again, a game that was half
  * done from its first position. While [hot] is true nothing is analysed: a running game stops and starts again from its first position
  * when the phone has cooled down.
@@ -97,7 +109,7 @@ class AnalysisQueue(
     private val library: GameLibrary,
     private val analyse: (Game, Int) -> Flow<AnalysisProgress>,
     private val analysisSettings: String,
-    private val workers: () -> Int,
+    private val plan: () -> QueuePlan,
     private val hot: StateFlow<Boolean> = MutableStateFlow(false),
     private val clock: () -> Long = System::currentTimeMillis,
 ) {
@@ -114,8 +126,14 @@ class AnalysisQueue(
     private val lock = Mutex()
     private val wake = Channel<Unit>(Channel.CONFLATED)
     private var loop: Job? = null
-    private var running: Job? = null
-    private var runningId: Long? = null
+
+    /** A game being analysed, with the job that does it and the engines it was given. */
+    private class Run(
+        val job: Job,
+        val engines: Int,
+    )
+
+    private val runs = HashMap<Long, Run>()
 
     /** Reads the queue back from [store] (a game that was running waits again) and starts working through it. Once is enough. */
     fun start() {
@@ -157,7 +175,7 @@ class AnalysisQueue(
         scope.launch {
             lock.withLock {
                 games.update { list -> list.filter { it.id != id } }
-                if (runningId == id) running?.cancel()
+                runs[id]?.job?.cancel()
             }
             withContext(dispatcher) { store.removeQueued(id) }
         }
@@ -165,21 +183,46 @@ class AnalysisQueue(
 
     private suspend fun work() {
         while (true) {
-            val next = lock.withLock { games.value.firstOrNull() }
-            if (next == null) {
-                wake.receive()
-                continue
-            }
             if (hot.value) {
-                setState(next.id, QueueState.PAUSED_HOT, 0)
-                hot.first { !it }
+                // with games waiting and none running, say so and wait for the phone to cool down; with none waiting, just wait for one
+                val waiting =
+                    lock.withLock {
+                        if (runs.isEmpty()) games.value.firstOrNull()?.also { setStateLocked(it.id, QueueState.PAUSED_HOT, 0) } else null
+                    }
+                if (waiting != null) {
+                    hot.first { !it }
+                    continue
+                }
             }
-            runOne(next)
+            val launched = lock.withLock { launchNext() }
+            if (!launched) wake.receive()
         }
     }
 
+    /** Starts the next game that is not running, when a slot is free and the phone is not hot; false when nothing was started. */
+    private fun launchNext(): Boolean {
+        if (hot.value) return false
+        val current = plan()
+        if (runs.size >= current.concurrent) return false
+        val next = games.value.firstOrNull { it.id !in runs } ?: return false
+        // what is left of the engines is shared by the free slots, so the last slot takes the remainder
+        val engines = ((current.engines - runs.values.sumOf { it.engines }) / (current.concurrent - runs.size)).coerceAtLeast(1)
+        val job = scope.launch { runOne(next, engines) }
+        runs[next.id] = Run(job, engines)
+        job.invokeOnCompletion {
+            scope.launch {
+                lock.withLock { runs.remove(next.id) }
+                wake.trySend(Unit)
+            }
+        }
+        return true
+    }
+
     /** Analyses [queued] to the end and saves it, unless it is cancelled; the heat stops it and it starts again when cool. */
-    private suspend fun runOne(queued: QueuedGame) {
+    private suspend fun runOne(
+        queued: QueuedGame,
+        engines: Int,
+    ) {
         withContext(dispatcher) { store.setQueuedState(queued.id, STATE_RUNNING) }
         setState(queued.id, QueueState.RUNNING, 0)
         var last: AnalysisProgress? = null
@@ -189,7 +232,7 @@ class AnalysisQueue(
                 coroutineScope {
                     val job =
                         launch {
-                            analyse(queued.game, workers()).collect { progress ->
+                            analyse(queued.game, engines).collect { progress ->
                                 last = progress
                                 // a report can arrive with an older count than one before it: the count never goes back
                                 lock.withLock {
@@ -207,10 +250,6 @@ class AnalysisQueue(
                                 }
                             }
                         }
-                    lock.withLock {
-                        running = job
-                        runningId = queued.id
-                    }
                     val watch =
                         launch {
                             hot.first { it }
@@ -225,11 +264,6 @@ class AnalysisQueue(
                 throw e
             } catch (e: Exception) {
                 e
-            } finally {
-                lock.withLock {
-                    running = null
-                    runningId = null
-                }
             }
         val stillQueued = lock.withLock { games.value.any { it.id == queued.id } }
         when {
@@ -240,7 +274,6 @@ class AnalysisQueue(
             tooHot -> {
                 withContext(dispatcher) { store.setQueuedState(queued.id, STATE_WAITING) }
                 setState(queued.id, QueueState.PAUSED_HOT, 0)
-                hot.first { !it }
             }
 
             failure != null || last?.finished != true -> {
@@ -269,7 +302,13 @@ class AnalysisQueue(
         id: Long,
         state: QueueState,
         done: Int,
-    ) = lock.withLock { games.update { list -> list.map { if (it.id == id) it.copy(state = state, done = done) else it } } }
+    ) = lock.withLock { setStateLocked(id, state, done) }
+
+    private fun setStateLocked(
+        id: Long,
+        state: QueueState,
+        done: Int,
+    ) = games.update { list -> list.map { if (it.id == id) it.copy(state = state, done = done) else it } }
 
     private fun parse(pgn: String): Game? = (PgnParser.parse(pgn) as? PgnResult.Success)?.game
 

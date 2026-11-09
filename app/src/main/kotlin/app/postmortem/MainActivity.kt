@@ -80,6 +80,8 @@ class MainActivity : ComponentActivity() {
                     reportPlayer = DataStoreReportPlayerSetting(applicationContext),
                     analysisSettings = app.analysisSettings,
                     sharedQueue = app.queue,
+                    background = app.backgroundSettings,
+                    maxEngines = app.maxEngines,
                 )
             }
         }
@@ -167,7 +169,17 @@ class MainActivity : ComponentActivity() {
                     )
                 BackHandler(enabled = viewModel.overlay != null) { viewModel.back() }
                 if (viewModel.overlay == Overlay.Settings) {
-                    SettingsScreen(database = viewModel.databaseUi, actions = databaseActions, onBack = { viewModel.back() })
+                    SettingsScreen(
+                        database = viewModel.databaseUi,
+                        actions = databaseActions,
+                        background =
+                            viewModel.background.settings
+                                .collectAsState()
+                                .value,
+                        maxEngines = viewModel.maxEngines,
+                        onBackgroundChange = viewModel.background::set,
+                        onBack = { viewModel.back() },
+                    )
                     return@PostmortemTheme
                 }
                 when (val state = viewModel.state) {
@@ -208,6 +220,12 @@ class MainActivity : ComponentActivity() {
                                     SettingsScreen(
                                         database = viewModel.databaseUi,
                                         actions = databaseActions.copy(onLibrary = { viewModel.selectStartTab(StartTab.Library) }),
+                                        background =
+                                            viewModel.background.settings
+                                                .collectAsState()
+                                                .value,
+                                        maxEngines = viewModel.maxEngines,
+                                        onBackgroundChange = viewModel.background::set,
                                     )
                                 }
                             }

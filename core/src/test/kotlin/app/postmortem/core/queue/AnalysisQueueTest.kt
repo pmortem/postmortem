@@ -78,10 +78,13 @@ class AnalysisQueueTest {
         fake: FakeAnalysis,
         hot: MutableStateFlow<Boolean> = MutableStateFlow(false),
         workers: Int = 2,
+        gamesAtOnce: Int = 1,
         scope: CoroutineScope = backgroundScope,
     ): AnalysisQueue {
         val dispatcher = UnconfinedTestDispatcher(testScheduler)
-        return AnalysisQueue(scope, dispatcher, store, store, fake::analyse, "test", { workers }, hot) { testScheduler.currentTime }
+        return AnalysisQueue(scope, dispatcher, store, store, fake::analyse, "test", {
+            QueuePlan(gamesAtOnce, workers)
+        }, hot) { testScheduler.currentTime }
     }
 
     @Test
@@ -260,7 +263,7 @@ class AnalysisQueueTest {
             val fake = FakeAnalysis()
             var engines = 2
             val dispatcher = UnconfinedTestDispatcher(testScheduler)
-            val queue = AnalysisQueue(backgroundScope, dispatcher, store, store, fake::analyse, "t", { engines }) { 0 }
+            val queue = AnalysisQueue(backgroundScope, dispatcher, store, store, fake::analyse, "t", { QueuePlan(1, engines) }) { 0 }
             queue.start()
             queue.enqueue(scholars)
             engines = 4
@@ -281,7 +284,7 @@ class AnalysisQueueTest {
                 val queue =
                     AnalysisQueue(scope, kotlinx.coroutines.Dispatchers.IO, store, store, { game, workers ->
                         Analyser(config.copy(workers = workers), EngineBinary.require()).analyse(game)
-                    }, "t", { engines })
+                    }, "t", { QueuePlan(1, engines) })
                 queue.start()
                 val done = scope.launch { queue.finished.first() }
                 queue.enqueue(short)
@@ -314,7 +317,7 @@ class AnalysisQueueTest {
                         emit(AnalysisProgress(3, game.positionCount, emptyList()))
                         emit(AnalysisProgress(game.positionCount, game.positionCount, List(game.positionCount) { Eval.Cp(0) }))
                     }
-                }, "t", { 1 }) { 0 }
+                }, "t", { QueuePlan(1, 1) }) { 0 }
             val events = ArrayList<QueueEvent>()
             val seen = ArrayList<Int>()
             backgroundScope.launch { counts.finished.collect { events += it } }
@@ -326,4 +329,104 @@ class AnalysisQueueTest {
             assertEquals(Fixtures.game("scholars-mate").positionCount, finished.evals.size)
             assertEquals(seen.sorted(), seen, "the count only goes forward: $seen")
         }
+
+    @Test
+    fun severalGamesRunTogetherSharingTheEnginesAndNoMoreGamesThanEngines() =
+        runTest(UnconfinedTestDispatcher()) {
+            val fake = FakeAnalysis()
+            val queue = queue(fake, workers = 4, gamesAtOnce = 3)
+            queue.start()
+            queue.enqueue(scholars)
+            queue.enqueue(fools)
+            queue.enqueue(short)
+            assertEquals(3, fake.started.size, "three games at once")
+            assertEquals(listOf(1, 1, 2), fake.started.map { it.second }, "four engines shared: 1 + 1 + 2, never 3 x 4")
+            assertEquals(List(3) { QueueState.RUNNING }, queue.progress.value.map { it.state })
+            fake.open(fools)
+            assertEquals(2, queue.progress.value.size)
+            fake.open(scholars)
+            fake.open(short)
+            assertTrue(queue.progress.value.isEmpty())
+            assertEquals(3, store.list().size)
+        }
+
+    @Test
+    fun threeGamesWithTwoEnginesRunTwoAndTheThirdWaitsForAFreeEngine() =
+        runTest(UnconfinedTestDispatcher()) {
+            val fake = FakeAnalysis()
+            val queue = queue(fake, workers = 2, gamesAtOnce = 3)
+            queue.start()
+            queue.enqueue(scholars)
+            queue.enqueue(fools)
+            queue.enqueue(short)
+            assertEquals(2, fake.started.size)
+            assertEquals(listOf(1, 1), fake.started.map { it.second })
+            assertEquals(
+                QueueState.WAITING,
+                queue.progress.value
+                    .last()
+                    .state,
+            )
+            fake.open(scholars)
+            assertEquals(3, fake.started.size, "the third started when an engine was free")
+            assertEquals(1, fake.started.last().second)
+        }
+
+    @Test
+    fun oneOfTheGamesRunningTogetherCanBeCancelledAndTheHeatStopsThemAll() =
+        runTest(UnconfinedTestDispatcher()) {
+            val fake = FakeAnalysis()
+            val hot = MutableStateFlow(false)
+            val queue = queue(fake, hot, workers = 2, gamesAtOnce = 2)
+            queue.start()
+            val a = (queue.enqueue(scholars) as Enqueued.Queued).id
+            queue.enqueue(fools)
+            assertEquals(2, fake.started.size)
+            queue.cancel(a)
+            assertEquals(1, queue.progress.value.size)
+            hot.value = true
+            assertEquals(
+                QueueState.PAUSED_HOT,
+                queue.progress.value
+                    .single()
+                    .state,
+            )
+            queue.enqueue(short)
+            assertEquals(2, fake.started.size, "nothing starts while the phone is hot")
+            hot.value = false
+            assertEquals(4, fake.started.size, "both games run again, from the start")
+            fake.open(fools)
+            fake.open(short)
+            assertTrue(queue.progress.value.isEmpty())
+        }
+
+    @Test
+    fun thePlanComesFromTheSettingsTheOpenAppAndTheNumberOfCores() {
+        val gentle = BackgroundSettings()
+        assertTrue(gentle.isGentle)
+        assertEquals(QueuePlan(1, 2), gentle.plan(appOpen = false, openEngines = 4, maxEngines = 4))
+        assertEquals(QueuePlan(1, 4), gentle.plan(appOpen = true, openEngines = 4, maxEngines = 4), "full speed while open")
+        val slowOpen = gentle.copy(fullSpeedOpen = false)
+        assertEquals(QueuePlan(1, 2), slowOpen.plan(appOpen = true, openEngines = 4, maxEngines = 4))
+        val greedy = BackgroundSettings(gamesAtOnce = 3, engines = 4, fullSpeedOpen = false)
+        assertEquals(QueuePlan(3, 4), greedy.plan(appOpen = false, openEngines = 4, maxEngines = 4))
+        assertEquals(QueuePlan(3, 3), greedy.plan(appOpen = false, openEngines = 4, maxEngines = 3), "never more engines than cores - 1")
+        assertEquals(BackgroundSettings(3, 1, true), BackgroundSettings(9, 0, true).coerced(maxEngines = 4).copy(engines = 1))
+        assertEquals(2, QueuePlan(3, 2).concurrent)
+        assertEquals(1, QueuePlan(0, 0).concurrent)
+        assertTrue(!greedy.isGentle)
+    }
+
+    @Test
+    fun onlyTheStepFromGentleToNotGentleAsksAndResetIsGentleAgain() {
+        val gentle = BackgroundSettings()
+        assertTrue(gentle.needsWarning(gentle.copy(gamesAtOnce = 2)))
+        assertTrue(gentle.needsWarning(gentle.copy(engines = 4)))
+        assertTrue(gentle.needsWarning(gentle.copy(fullSpeedOpen = false)))
+        assertTrue(!gentle.needsWarning(gentle), "no change, no question")
+        val raised = gentle.copy(gamesAtOnce = 3)
+        assertTrue(!raised.needsWarning(raised.copy(engines = 4)), "already told")
+        assertTrue(!raised.needsWarning(gentle), "back to gentle needs none")
+        assertTrue(BackgroundSettings().isGentle)
+    }
 }

@@ -61,6 +61,14 @@ class PostmortemApp : Application() {
 
     val analysisSettings: String get() = config.describe(BuildConfig.ENGINE_NAME)
 
+    /** The most engines the analysis may use: one core is left for the phone. */
+    val maxEngines: Int get() = config.workers
+
+    /** The background analysis settings (Settings): games at once, engines, full speed while open. */
+    val backgroundSettings: BackgroundSettingsControl by lazy {
+        DataStoreBackgroundSettings(this) { write -> scope.launch { write() } }
+    }
+
     val queue: AnalysisQueue by lazy {
         AnalysisQueue(
             scope = scope,
@@ -69,7 +77,7 @@ class PostmortemApp : Application() {
             library = databases,
             analyse = ::analyse,
             analysisSettings = analysisSettings,
-            workers = { if (onScreen.value) config.workers else minOf(AnalysisConfig.BACKGROUND_WORKERS, config.workers) },
+            plan = { backgroundSettings.settings.value.plan(onScreen.value, config.workers, maxEngines) },
             hot = combine(hot, held) { tooHot, limited -> tooHot || limited }.stateIn(scope, SharingStarted.Eagerly, false),
         )
     }

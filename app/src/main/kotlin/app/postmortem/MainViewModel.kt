@@ -5,6 +5,7 @@ import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.setValue
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
+import app.postmortem.core.analysis.AnalysisConfig
 import app.postmortem.core.analysis.AnalysisProgress
 import app.postmortem.core.analysis.LiveConfig
 import app.postmortem.core.analysis.LiveLines
@@ -24,6 +25,7 @@ import app.postmortem.core.queue.AnalysisQueue
 import app.postmortem.core.queue.Enqueued
 import app.postmortem.core.queue.InMemoryQueueStore
 import app.postmortem.core.queue.QueueEvent
+import app.postmortem.core.queue.QueuePlan
 import app.postmortem.core.queue.QueuedGame
 import app.postmortem.core.store.GameLibrary
 import app.postmortem.core.store.GameSummary
@@ -74,6 +76,10 @@ class MainViewModel(
     private val liveDebounceMs: Long = LiveConfig.DEFAULT_DEBOUNCE_MS,
     reportPlayer: ReportPlayerSetting = InMemoryReportPlayerSetting(),
     sharedQueue: AnalysisQueue? = null,
+    /** The background analysis settings of the Settings page. */
+    val background: BackgroundSettingsControl = InMemoryBackgroundSettings(),
+    /** The most engines the background analysis may use (cores - 1, at most four). */
+    val maxEngines: Int = AnalysisConfig.MAX_WORKERS,
 ) : ViewModel() {
     /** Where games are analysed and saved: one at a time, in order (see [AnalysisQueue]). */
     private val queue: AnalysisQueue =
@@ -84,7 +90,7 @@ class MainViewModel(
             library ?: NoLibrary,
             { game, _ -> checkNotNull(analysis) { "no analysis" }(game).flowOn(dispatcher) },
             analysisSettings,
-            { 1 },
+            { QueuePlan(1, 1) },
         ).also { it.start() }
 
     /** The games waiting in the queue and the one being analysed, for the Library. */

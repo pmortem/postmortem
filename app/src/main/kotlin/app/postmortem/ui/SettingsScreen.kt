@@ -45,6 +45,7 @@ import app.postmortem.DatabaseUi
 import app.postmortem.DbMessage
 import app.postmortem.R
 import app.postmortem.UiTags
+import app.postmortem.core.queue.BackgroundSettings
 import app.postmortem.data.DbFileInfo
 import app.postmortem.data.DbProblem
 import app.postmortem.ui.theme.Spacing
@@ -69,6 +70,9 @@ data class SettingsActions(
 fun SettingsScreen(
     database: DatabaseUi,
     actions: SettingsActions,
+    background: BackgroundSettings,
+    maxEngines: Int,
+    onBackgroundChange: (BackgroundSettings) -> Unit,
     onBack: (() -> Unit)? = null,
 ) {
     PageScaffold(
@@ -91,6 +95,8 @@ fun SettingsScreen(
                     HorizontalDivider()
                 }
             }
+            item { BackgroundSection(background, maxEngines, onBackgroundChange) }
+            item { HorizontalDivider() }
             item { DatabaseSection(database, actions) }
         }
     }
