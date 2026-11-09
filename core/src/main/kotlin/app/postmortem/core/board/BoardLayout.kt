@@ -2,6 +2,15 @@ package app.postmortem.core.board
 
 enum class PieceColor { WHITE, BLACK }
 
+/** +1 for White and -1 for Black: turns a number from White's point of view (centipawns, mate moves, winning chances) into this colour's. */
+val PieceColor.sign: Int get() = if (this == PieceColor.WHITE) 1 else -1
+
+/** Who plays the move of [ply] (counting from 1) in a game where White moves first, or Black does when [whiteMovesFirst] is false. */
+fun moverAt(
+    ply: Int,
+    whiteMovesFirst: Boolean,
+): PieceColor = if ((ply % 2 == 1) == whiteMovesFirst) PieceColor.WHITE else PieceColor.BLACK
+
 enum class PieceKind { KING, QUEEN, ROOK, BISHOP, KNIGHT, PAWN }
 
 data class BoardPiece(

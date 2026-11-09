@@ -73,7 +73,7 @@ object OpeningStats {
                     inFamily
                         .groupBy { it.opening }
                         .map { (full, inVariation) ->
-                            OpeningVariation(full, Record.of(inVariation), inVariation.sortedWith(newestFirst))
+                            OpeningVariation(full, Record.of(inVariation), inVariation.sortedWith(PlayerGame.newestFirst))
                         }.sortedWith(
                             compareByDescending<OpeningVariation> {
                                 it.record.games
@@ -81,6 +81,4 @@ object OpeningStats {
                         ),
                 )
             }.sortedWith(compareByDescending<OpeningFamily> { it.record.games }.thenBy { it.name == null }.thenBy { it.name.orEmpty() })
-
-    private val newestFirst: Comparator<PlayerGame> = compareByDescending<PlayerGame> { it.date.orEmpty() }.thenByDescending { it.gameId }
 }

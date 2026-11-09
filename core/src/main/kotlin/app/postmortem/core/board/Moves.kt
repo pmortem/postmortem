@@ -1,6 +1,7 @@
 package app.postmortem.core.board
 
 import app.postmortem.core.pgn.Ply
+import app.postmortem.core.pgn.whiteToMove
 import com.github.bhlangonijr.chesslib.Board
 import com.github.bhlangonijr.chesslib.Piece
 import com.github.bhlangonijr.chesslib.PieceType
@@ -21,23 +22,14 @@ data class MoveTarget(
  */
 object Moves {
     private const val KINGSIDE_JUMP = 2
-    private val promotionLetters = mapOf('q' to PieceType.QUEEN, 'r' to PieceType.ROOK, 'b' to PieceType.BISHOP, 'n' to PieceType.KNIGHT)
-
-    private fun board(fen: String) = Board().apply { loadFromFen(fen) }
-
-    private fun square(name: String): Square? =
-        Square.values().firstOrNull {
-            it != Square.NONE &&
-                it.value().equals(name, ignoreCase = true)
-        }
 
     /** The squares the piece on [from] may legally move to; empty when there is no piece of the side to move there. */
     fun legalTargets(
         fen: String,
         from: String,
     ): List<MoveTarget> {
-        val board = board(fen)
-        val origin = square(from) ?: return emptyList()
+        val board = boardOf(fen)
+        val origin = squareOf(from) ?: return emptyList()
         return board
             .legalMoves()
             .filter { it.from == origin }
@@ -68,27 +60,17 @@ object Moves {
         to: String,
         promotion: Char? = null,
     ): Ply? {
-        val board = board(fen)
-        val origin = square(from) ?: return null
-        val target = square(to) ?: return null
-        val piece = promotion?.lowercaseChar()?.let { promotionLetters[it] }
-        val move =
-            board.legalMoves().firstOrNull { candidate ->
-                candidate.from == origin &&
-                    candidate.to == target &&
-                    if (candidate.promotion == Piece.NONE) piece == null else candidate.promotion.pieceType == piece
-            } ?: return null
+        val board = boardOf(fen)
+        val origin = squareOf(from) ?: return null
+        val target = squareOf(to) ?: return null
+        val move = board.legalMove(origin, target, promotion) ?: return null
         return ply(board, move)
     }
 
     private fun isCapture(
         board: Board,
         move: Move,
-    ): Boolean {
-        val mover = board.getPiece(move.from)
-        val enPassant = mover.pieceType == PieceType.PAWN && move.from.file != move.to.file && board.getPiece(move.to) == Piece.NONE
-        return board.getPiece(move.to) != Piece.NONE || enPassant
-    }
+    ): Boolean = board.capturedBy(move) != null
 
     private fun ply(
         board: Board,
@@ -146,11 +128,11 @@ object Moves {
     }
 
     /** How many legal moves the side to move has in [fen]. */
-    fun legalMoveCount(fen: String): Int = board(fen).legalMoves().size
+    fun legalMoveCount(fen: String): Int = boardOf(fen).legalMoves().size
 
     /** True when the side to move in [fen] is in check. */
-    fun inCheck(fen: String): Boolean = board(fen).isKingAttacked
+    fun inCheck(fen: String): Boolean = boardOf(fen).isKingAttacked
 
     /** Who moves in [fen]: the colour of the pieces a player picks up, and of the piece a promotion makes. */
-    fun sideToMove(fen: String): PieceColor = if (board(fen).sideToMove == Side.WHITE) PieceColor.WHITE else PieceColor.BLACK
+    fun sideToMove(fen: String): PieceColor = if (whiteToMove(fen)) PieceColor.WHITE else PieceColor.BLACK
 }

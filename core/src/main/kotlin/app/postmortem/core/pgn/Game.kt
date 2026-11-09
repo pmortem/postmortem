@@ -18,7 +18,7 @@ data class Game(
     val positionCount: Int get() = plies.size + 1
 
     /** False for a game set up with Black to move (a `FEN` tag); the plies then start with Black. */
-    val whiteMovesFirst: Boolean get() = startFen.split(' ').getOrNull(1) != "b"
+    val whiteMovesFirst: Boolean get() = whiteToMove(startFen)
 
     /** True unless the game was set up from a `FEN`: the table of openings and Lichess's start eval only apply then. */
     val startsFromStandardPosition: Boolean get() = startFen == STANDARD_START_FEN
@@ -62,6 +62,9 @@ sealed interface PgnResult {
 
 /** Full moves in the game: 3 plies are 2 moves, as a player counts them. */
 val Game.moveCount: Int get() = (plies.size + 1) / 2
+
+/** True when White is to move in [fen] (its second field is not `b`). Read from the text: no board is set up for it. */
+fun whiteToMove(fen: String): Boolean = fen.split(' ').getOrNull(1) != "b"
 
 /** `12.Nf3` for White's ply 23 and `12...Nf6` for Black's ply 24. [ply] counts from 1. */
 fun plyLabel(

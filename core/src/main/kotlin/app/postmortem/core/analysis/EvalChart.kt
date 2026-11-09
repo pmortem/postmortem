@@ -1,6 +1,7 @@
 package app.postmortem.core.analysis
 
 import app.postmortem.core.board.PieceColor
+import app.postmortem.core.board.sign
 import kotlin.math.exp
 import kotlin.math.roundToInt
 
@@ -14,6 +15,9 @@ fun Eval.winningChances(): Double =
         is Eval.Mate -> if (moves > 0) 1.0 else -1.0
         is Eval.Checkmate -> if (winner == PieceColor.WHITE) 1.0 else -1.0
     }
+
+/** [winningChances] from [color]'s point of view: +1 when [color] is winning. */
+fun Eval.winningChancesFor(color: PieceColor): Double = color.sign * winningChances()
 
 /**
  * The position (ply) nearest to the horizontal touch position [x] on a chart [width] wide that spreads [positions] points

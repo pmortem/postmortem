@@ -258,4 +258,17 @@ class BoardLayoutTest {
             }
         }
     }
+
+    @Test
+    fun theMoverOfAPlyAndTheSignOfAColourAgreeWithEveryFixtureGame() {
+        for (name in Fixtures.names.filter { it != "chesscom-no-moves" }) {
+            val game = Fixtures.game(name)
+            for (ply in 1..game.plies.size) {
+                assertEquals(Moves.sideToMove(game.fenAt(ply - 1)), moverAt(ply, game.whiteMovesFirst), "$name ply $ply")
+            }
+        }
+        assertEquals(PieceColor.BLACK, moverAt(1, whiteMovesFirst = false))
+        assertEquals(1, PieceColor.WHITE.sign)
+        assertEquals(-1, PieceColor.BLACK.sign)
+    }
 }

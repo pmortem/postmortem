@@ -8,6 +8,7 @@ import app.postmortem.core.line.Lines
 import app.postmortem.core.pgn.Game
 import app.postmortem.core.pgn.GameOverview
 import app.postmortem.core.pgn.Ply
+import app.postmortem.core.pgn.whiteToMove
 
 /** A game to save: what the analysis made of it. [evals] has one entry per position; [bestMoves] (UCI) as many, or none at all. */
 data class NewGame(
@@ -149,6 +150,9 @@ interface GameLibrary {
 }
 
 private const val SQL_VARIABLES = 400
+
+/** Where [GameStore]'s chunked queries put the list of ids. */
+private const val IDS = "(:ids)"
 
 /**
  * The saved games, in the SQLite file behind [db] (see [Schema]). Nothing here knows about Android: the same code runs on the phone
@@ -348,21 +352,23 @@ class GameStore(
         )
     }
 
-    override fun drillProgress(ids: List<Long>): Map<DrillKey, DrillProgress> {
-        val result = HashMap<DrillKey, DrillProgress>()
-        for (chunk in ids.chunked(SQL_VARIABLES)) {
-            db
-                .query(
-                    "SELECT n.game_id, n.ply, d.solved, d.attempts, d.last_tried FROM drill d JOIN node n ON n.id = d.node_id " +
-                        "WHERE n.game_id IN (${chunk.joinToString(",") { "?" }})",
-                    chunk,
-                ).forEach {
-                    result[DrillKey(it.long("game_id"), it.int("ply"))] =
-                        DrillProgress(it.long("solved") == 1L, it.int("attempts"), it.long("last_tried"))
-                }
+    override fun drillProgress(ids: List<Long>): Map<DrillKey, DrillProgress> =
+        queryIn(
+            "SELECT n.game_id, n.ply, d.solved, d.attempts, d.last_tried FROM drill d JOIN node n ON n.id = d.node_id WHERE n.game_id IN $IDS",
+            ids,
+        ).associate {
+            DrillKey(it.long("game_id"), it.int("ply")) to
+                DrillProgress(it.long("solved") == 1L, it.int("attempts"), it.long("last_tried"))
         }
-        return result
-    }
+
+    /** Runs [sql] once per chunk of [ids], with the chunk's placeholders where [IDS] is: SQLite takes only so many arguments at once. */
+    private fun queryIn(
+        sql: String,
+        ids: List<Long>,
+    ): List<Map<String, Any?>> =
+        ids.chunked(SQL_VARIABLES).flatMap { chunk ->
+            db.query(sql.replace(IDS, chunk.joinToString(",", "(", ")") { "?" }), chunk)
+        }
 
     override fun recordDrill(
         gameId: Long,
@@ -440,35 +446,22 @@ class GameStore(
             )
         }
 
-    override fun mainLines(ids: List<Long>): Map<Long, MainLine> {
-        val result = HashMap<Long, MainLine>()
-        for (chunk in ids.chunked(SQL_VARIABLES)) {
-            val marks = chunk.joinToString(",") { "?" }
-            val starts =
-                db.query("SELECT id, start_fen FROM game WHERE id IN ($marks)", chunk).associate {
-                    it.long("id") to
-                        it.string("start_fen")
-                }
-            val nodes =
-                db
-                    .query(
-                        "SELECT n.game_id, n.ply, n.san, e.cp, e.mate, e.checkmate_winner FROM node n " +
-                            "LEFT JOIN eval e ON e.node_id = n.id WHERE n.is_main_line = 1 AND n.game_id IN ($marks) ORDER BY n.game_id, n.ply",
-                        chunk,
-                    ).groupBy { it.long("game_id") }
-            for ((id, rows) in nodes) {
+    override fun mainLines(ids: List<Long>): Map<Long, MainLine> =
+        queryIn(
+            "SELECT n.game_id, g.start_fen, n.ply, n.san, e.cp, e.mate, e.checkmate_winner FROM node n JOIN game g ON g.id = n.game_id " +
+                "LEFT JOIN eval e ON e.node_id = n.id WHERE n.is_main_line = 1 AND n.game_id IN $IDS ORDER BY n.game_id, n.ply",
+            ids,
+        ).groupBy { it.long("game_id") }
+            .mapNotNull { (id, rows) ->
                 val evals = rows.mapNotNull { it.evalOrNull() }
-                if (evals.size != rows.size) continue
-                result[id] =
+                if (evals.size != rows.size) return@mapNotNull null
+                id to
                     MainLine(
                         sans = rows.filter { it.int("ply") > 0 }.map { it.string("san") },
                         evals = evals,
-                        whiteMovesFirst = starts[id]?.split(' ')?.getOrNull(1) != "b",
+                        whiteMovesFirst = whiteToMove(rows.first().string("start_fen")),
                     )
-            }
-        }
-        return result
-    }
+            }.toMap()
 
     override fun delete(id: Long) = db.execute("DELETE FROM game WHERE id = ?", listOf(id))
 
@@ -498,9 +491,18 @@ class GameStore(
     private fun ids(): List<Long> = db.query("SELECT id FROM game ORDER BY id").map { it.long("id") }
 
     /** Saves [saved] as a new game here (a new id), with its lines, evals, accuracies and times. */
-    private fun add(saved: SavedGame) {
+    private fun add(saved: SavedGame) = insertSaved(null, saved)
+
+    /** Puts a game that was deleted back with the id, key, lines and times it had. */
+    override fun restore(saved: SavedGame) = db.transaction { insertSaved(saved.id, saved) }
+
+    /** Writes the whole of [saved] (the game, its positions and evals, practice progress and lines) under [id], or a new id when null. */
+    private fun insertSaved(
+        id: Long?,
+        saved: SavedGame,
+    ) {
         insertGame(
-            null,
+            id,
             saved.key,
             saved.pgn,
             saved.game,
@@ -511,33 +513,13 @@ class GameStore(
             saved.blackAccuracy,
             saved.opening,
         )
-        val id = db.lastInsertId()
-        insertMainLine(id, saved.game, saved.evals, saved.bestMoves)
-        insertDrill(id, saved.drill)
-        saveLines(id, saved.lines, saved.lineEvals)
-        db.execute("UPDATE game SET updated = ? WHERE id = ?", listOf(saved.updated, id))
+        val gameId = id ?: db.lastInsertId()
+        insertMainLine(gameId, saved.game, saved.evals, saved.bestMoves)
+        insertDrill(gameId, saved.drill)
+        saveLines(gameId, saved.lines, saved.lineEvals)
+        // saving the lines touched the game: it keeps the time it had
+        db.execute("UPDATE game SET updated = ? WHERE id = ?", listOf(saved.updated, gameId))
     }
-
-    /** Puts a game that was deleted back with the id, key, lines and times it had. */
-    override fun restore(saved: SavedGame) =
-        db.transaction {
-            insertGame(
-                saved.id,
-                saved.key,
-                saved.pgn,
-                saved.game,
-                saved.created,
-                saved.updated,
-                saved.analysisSettings,
-                saved.whiteAccuracy,
-                saved.blackAccuracy,
-                saved.opening,
-            )
-            insertMainLine(saved.id, saved.game, saved.evals, saved.bestMoves)
-            insertDrill(saved.id, saved.drill)
-            saveLines(saved.id, saved.lines, saved.lineEvals)
-            db.execute("UPDATE game SET updated = ? WHERE id = ?", listOf(saved.updated, saved.id))
-        }
 
     private fun Map<String, Any?>.string(name: String): String = this[name] as String
 

@@ -2,6 +2,7 @@ package app.postmortem.core.analysis
 
 import app.postmortem.core.board.PieceColor
 import app.postmortem.core.pgn.Game
+import app.postmortem.core.pgn.whiteToMove
 import app.postmortem.core.uci.BestMove
 import app.postmortem.core.uci.EngineException
 import app.postmortem.core.uci.ProcessFactory
@@ -87,7 +88,7 @@ class Analyser(
 /** The score of a position that is over (checkmate, stalemate), without the engine; null while the game goes on. */
 internal fun terminalEval(fen: String): Eval? {
     val board = Board().apply { loadFromFen(fen) }
-    val whiteToMove = isWhiteToMove(fen)
+    val whiteToMove = whiteToMove(fen)
     return when {
         board.isMated -> Eval.Checkmate(if (whiteToMove) PieceColor.BLACK else PieceColor.WHITE)
         board.isStaleMate -> Eval.Cp(0)
@@ -110,7 +111,7 @@ internal suspend fun searchPosition(
     val result = engine.search(fen)
     onSearch(result)
     val score = result.score ?: throw EngineException("the engine gave no score for $fen")
-    return PositionResult(Eval.fromScore(score, isWhiteToMove(fen)), (result.bestMove as? BestMove.Move)?.uci)
+    return PositionResult(Eval.fromScore(score, whiteToMove(fen)), (result.bestMove as? BestMove.Move)?.uci)
 }
 
 /** The engine's evaluation of [fen] under the engine's settings, in White's point of view. */
@@ -119,5 +120,3 @@ internal suspend fun searchEval(
     fen: String,
     onSearch: (SearchResult) -> Unit,
 ): Eval = searchPosition(engine, fen, onSearch).eval
-
-private fun isWhiteToMove(fen: String) = fen.split(' ').getOrNull(1) != "b"
