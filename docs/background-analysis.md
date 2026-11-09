@@ -38,6 +38,20 @@ When a game is done, a notification says `Analysed: Anna vs Ben`, with both accu
 - In the background it uses **2 engines**, so the game you are playing stays smooth.
 - The number is chosen when a game starts. The evaluations are the same either way: each position is searched with the same fixed settings whatever the number of engines.
 
+## Settings
+**Settings → Background analysis** has three choices. The defaults are the "gentle" ones described above.
+
+| Setting | Values | Default |
+| --- | --- | --- |
+| Games at once | 1, 2 or 3 | 1 |
+| Engines in the background | 1 to 4 (never more than the phone's cores minus one) | 2 |
+| Full speed while Postmortem is open | on or off | on |
+
+- **Engines are shared.** The number is the total: 2 games with 4 engines get 2 engines each, not 4 each. A game needs an engine of its own, so with 3 games at once and only 2 engines the third waits for a free engine.
+- **A warning the first time.** The first time any value leaves the default, a dialog says: *This uses more heat and battery, and the game you're playing may stutter. It doesn't finish your games sooner overall: the phone has the same cores either way.* **Cancel** keeps the old value; **Change** applies the new one.
+- **While off the defaults,** the section says **Not gentle: may heat the phone**, with **Reset to gentle**, which sets all three back.
+- **A change applies from the next game the queue starts**, not to the one that is running.
+
 ## Heat
 When the phone gets too hot (Android's thermal status is *severe* or worse), the queue pauses and the notification says **Paused: phone is hot**. A game that was halfway starts again from its first position when the phone has cooled down.
 

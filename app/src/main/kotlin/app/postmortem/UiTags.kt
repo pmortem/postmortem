@@ -24,6 +24,11 @@ object UiTags {
     const val REPORT_WHITE = "report_white"
     const val REPORT_BLACK = "report_black"
 
+    const val BG_GAMES_AT_ONCE = "bg_games_at_once"
+    const val BG_ENGINES = "bg_engines"
+    const val BG_FULL_SPEED = "bg_full_speed"
+    const val BG_RESET = "bg_reset"
+    const val BG_WARNING = "bg_warning"
     const val DRILL_BUTTON = "drill_button"
     const val DRILL_BOARD = "drill_board"
     const val DRILL_RESULT = "drill_result"
