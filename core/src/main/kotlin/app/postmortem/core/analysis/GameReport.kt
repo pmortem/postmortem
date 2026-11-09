@@ -39,6 +39,8 @@ data class GameReport(
     val black: PlayerReport,
     val judgements: List<Judgement?>,
     val brilliant: List<Boolean> = judgements.map { false },
+    /** The centipawn loss of each move for the side that made it (never below 0; the evals are clamped to +-1000 as Lichess does). */
+    val losses: List<Int> = judgements.map { 0 },
 ) {
     /** How many moves of both sides got [judgement]. */
     fun count(judgement: Judgement): Int = judgements.count { it == judgement }
@@ -133,14 +135,15 @@ data class GameReport(
                         isBrilliant(winPercentFor(winWhite[ply - 1], sign), winPercentFor(winWhite[ply], sign), played)
                 }
             val weights = windowWeights(winWhite, moveCount)
+            // Lichess's `AccuracyCP`: the loss itself is not capped, so a move can lose more than 1000
+            val allLosses = (1..moveCount).map { ply -> max(0, mover(ply).sign * (cps[ply - 1] - cps[ply])) }
 
             fun player(color: PieceColor): PlayerReport {
                 val plies = (1..moveCount).filter { mover(it) == color }
                 if (plies.isEmpty()) return emptyPlayer()
                 val sign = color.sign
                 val accuracies = plies.map { moveAccuracy(winPercentFor(winWhite[it - 1], sign), winPercentFor(winWhite[it], sign)) }
-                // Lichess's `AccuracyCP`: the evals are clamped to +-1000, the loss itself is not capped.
-                val losses = plies.map { max(0, sign * (cps[it - 1] - cps[it])) }
+                val losses = plies.map { allLosses[it - 1] }
                 val judged = plies.mapNotNull { judgements[it - 1] }
                 return PlayerReport(
                     accuracy = gameAccuracy(accuracies, plies.map { weights.getOrElse(it - 1) { MIN_WEIGHT } }),
@@ -151,7 +154,7 @@ data class GameReport(
                     brilliants = plies.count { brilliant[it - 1] },
                 )
             }
-            return GameReport(player(PieceColor.WHITE), player(PieceColor.BLACK), judgements, brilliant)
+            return GameReport(player(PieceColor.WHITE), player(PieceColor.BLACK), judgements, brilliant, allLosses)
         }
 
         private fun emptyPlayer() = PlayerReport(null, null, 0, 0, 0)

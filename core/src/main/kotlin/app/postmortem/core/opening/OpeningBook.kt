@@ -27,6 +27,16 @@ class OpeningBook private constructor(
     val size: Int get() = byPosition.size
 
     /**
+     * How many plies of a game from the standard start the book still knows: the deepest ply whose position is in the table, 0 when
+     * the game leaves it at once. [fens] is the FEN of every position, index 0 the start.
+     */
+    fun depthOf(fens: List<String>): Int {
+        if (fens.isEmpty() || positionKey(fens[0]) != START_KEY) return 0
+        for (ply in fens.size - 1 downTo 1) if (positionKey(fens[ply]) in byPosition) return ply
+        return 0
+    }
+
+    /**
      * The deepest table entry whose position occurs in [game], or null when the game leaves the book at once (or starts
      * from a set-up position, where the table does not apply).
      */
@@ -66,6 +76,9 @@ class OpeningBook private constructor(
             }
             return OpeningBook(byPosition)
         }
+
+        /** The bundled table, built once for everything that asks (building it plays every line of the table). */
+        val shared: OpeningBook by lazy { bundled() }
 
         /** The table shipped with the app. */
         fun bundled(): OpeningBook {

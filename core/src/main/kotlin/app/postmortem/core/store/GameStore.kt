@@ -10,6 +10,7 @@ import app.postmortem.core.line.Lines
 import app.postmortem.core.pgn.Game
 import app.postmortem.core.pgn.GameOverview
 import app.postmortem.core.pgn.Ply
+import app.postmortem.core.pgn.STANDARD_START_FEN
 import app.postmortem.core.pgn.overview
 import app.postmortem.core.pgn.whiteToMove
 
@@ -147,9 +148,20 @@ data class MainLine(
     val sans: List<String>,
     val evals: List<Eval>,
     val whiteMovesFirst: Boolean,
+    /** The FEN of each position (index n is after ply n), for what depends on the board; empty when not read. */
+    val fens: List<String> = emptyList(),
 ) {
-    /** [GameReport]'s judgement of each move (null for a move that is fine), worked out once per line for every report that needs it. */
-    val judgements: List<Judgement?> by lazy(LazyThreadSafetyMode.PUBLICATION) { GameReport.of(evals, whiteMovesFirst).judgements }
+    /**
+     * The game's [GameReport], as the Summary tab shows it (a game from the standard start scores its first move against 15 cp, as
+     * Lichess does), worked out once per line for every part of the Report that needs it.
+     */
+    val report: GameReport by lazy(LazyThreadSafetyMode.PUBLICATION) {
+        val start = if (fens.firstOrNull() == STANDARD_START_FEN) Eval.Cp(GameReport.LICHESS_START_CP) else null
+        GameReport.of(evals, whiteMovesFirst, startEval = start)
+    }
+
+    /** [GameReport]'s judgement of each move (null for a move that is fine). */
+    val judgements: List<Judgement?> get() = report.judgements
 }
 
 /** How a merge went: [added] games came in, [skipped] were already there. */
@@ -515,7 +527,8 @@ class GameStore(
 
     override fun mainLines(ids: List<Long>): Map<Long, MainLine> =
         queryIn(
-            "SELECT n.game_id, g.start_fen, n.ply, n.san, e.cp, e.mate, e.checkmate_winner FROM node n JOIN game g ON g.id = n.game_id " +
+            "SELECT n.game_id, g.start_fen, n.ply, n.san, n.fen, e.cp, e.mate, e.checkmate_winner " +
+                "FROM node n JOIN game g ON g.id = n.game_id " +
                 "LEFT JOIN eval e ON e.node_id = n.id WHERE n.is_main_line = 1 AND n.game_id IN $IDS ORDER BY n.game_id, n.ply",
             ids,
         ).groupBy { it.long("game_id") }
@@ -527,6 +540,7 @@ class GameStore(
                         sans = rows.filter { it.int("ply") > 0 }.map { it.string("san") },
                         evals = evals,
                         whiteMovesFirst = whiteToMove(rows.first().string("start_fen")),
+                        fens = rows.map { it.string("fen") },
                     )
             }.toMap()
 

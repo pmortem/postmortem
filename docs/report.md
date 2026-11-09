@@ -65,3 +65,14 @@ The **Learn from your mistakes** button, at the top of the Report, is a quiz mad
 **The engine.** One engine process at most. A move other than the stored best move is checked with the same settings as the game's analysis (fixed nodes, one thread), so a position has one value whenever it is checked. Games analysed before best moves were kept get theirs when a position of theirs is first asked, and keep it. The live arrows are off here.
 
 **Progress** is stored in the database file (the `drill` table, see [the database](database.md)): it survives restarts, goes with the file when you export it, and is merged with it when you import one. Deleting a game deletes its progress.
+
+## How the numbers are worked out
+The charts and tiles of the Overview use these rules. They are the same for every game, and the accuracy and the marks of each game are the ones its own Summary tab shows.
+
+- **Score %:** a win is 1 point and a draw half a point, divided by the games that were decided. A game with no result (`*`) is a game but is left out of every percentage.
+- **ACPL and the marks per game:** average centipawn loss and the inaccuracies, mistakes and blunders of the player's own moves, as in the Summary tab. They need the stored evaluations; a game without them still counts in the totals and the groups.
+- **By time control:** bullet, blitz, rapid, classical, and a group for games with no time control, each with its games, score and average accuracy.
+- **By opponent strength:** the opponent's Elo minus the player's. **Stronger** is 100 or more, **weaker** is 100 or less below, **equal** is in between, and **unknown** when either Elo is missing.
+- **By phase:** each of the player's moves belongs to the phase of the position it was played in. It is the **opening** while the opening book still knows the position or during the first 12 moves, even if queens come off. After that it is an **endgame** when there are no queens left or each side has at most 13 points of pieces (knight and bishop 3, rook 5, queen 9; pawns and kings do not count), and the **middlegame** otherwise. Each phase shows the number of moves, the average centipawn loss and the marks.
+- **How games ended:** for each of won, lost and drawn, how many ended by checkmate, resignation, time, agreement, stalemate, repetition or insufficient material, or some other way. The last position comes first (a checkmate, a stalemate, too little material, a position three times), then the `Termination` tag (Lichess writes `Normal` or `Time forfeit`; chess.com writes things like `won by resignation`), then the result: a decisive game that is not a mate and not on time counts as a resignation and a drawn one as an agreement. When nothing fits it is "other".
+- **Trend:** one point per game, oldest first, with the average accuracy of that game and the nine before it (fewer at the start).

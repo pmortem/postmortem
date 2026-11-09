@@ -84,7 +84,7 @@ class ReportControllerTest {
     private fun controller(
         library: GameLibrary? = RowsLibrary(games),
         setting: ReportPlayerSetting = InMemoryReportPlayerSetting(),
-    ) = ReportController(kotlinx.coroutines.CoroutineScope(dispatcher), dispatcher, library, setting) { today }
+    ) = ReportController(kotlinx.coroutines.CoroutineScope(dispatcher), dispatcher, library, setting, today = { today })
 
     private val today = java.time.LocalDate.of(2025, 2, 1)
 
