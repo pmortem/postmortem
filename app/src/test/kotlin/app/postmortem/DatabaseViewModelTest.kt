@@ -15,6 +15,7 @@ import app.postmortem.data.DbOutcome
 import app.postmortem.data.DbProblem
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.ExperimentalCoroutinesApi
+import kotlinx.coroutines.awaitCancellation
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.flow
 import kotlinx.coroutines.test.UnconfinedTestDispatcher
@@ -124,7 +125,7 @@ class DatabaseViewModelTest {
 
     @Test
     fun settingsCannotBeOpenedWhileAGameIsBeingAnalysed() {
-        val vm = MainViewModel({ flow { } }, dispatcher, databases = databases)
+        val vm = MainViewModel({ flow { awaitCancellation() } }, dispatcher, databases = databases)
         vm.analyseScholars()
         assertIs<UiState.Analysing>(vm.state)
         vm.openSettings()

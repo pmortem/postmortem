@@ -96,16 +96,28 @@ class MainViewModelTest {
     }
 
     @Test
-    fun backDuringTheAnalysisStopsItAndKeepsTheGame() {
+    fun backDuringTheAnalysisLeavesItRunningInTheQueueAndKeepsTheGameAndCancelStopsIt() {
         var cancelled = false
         val vm = viewModel { flow<AnalysisProgress> { awaitCancellation() }.onCompletion { cancelled = true } }
         vm.onPgnChange(TestPgn.text("lichess-draw"))
         vm.analyse()
         assertIs<UiState.Analysing>(vm.state)
         assertTrue(vm.back())
-        assertTrue(cancelled)
+        assertFalse(cancelled, "the game goes on in the queue")
         assertEquals(TestPgn.text("lichess-draw"), vm.paste().pgn)
         assertFalse(vm.paste().engineFailed)
+        val queued = vm.queued.value.single()
+        vm.cancelQueued(queued.id)
+        assertTrue(cancelled)
+        assertTrue(vm.queued.value.isEmpty())
+    }
+
+    @Test
+    fun anAnalysisThatStopsWithoutFinishingSaysTheEngineFailed() {
+        val vm = viewModel { flow<AnalysisProgress> { } }
+        vm.onPgnChange(TestPgn.text("lichess-draw"))
+        vm.analyse()
+        assertTrue(vm.paste().engineFailed)
     }
 
     @Test

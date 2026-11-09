@@ -20,6 +20,11 @@ import app.postmortem.core.pgn.PgnParser
 import app.postmortem.core.pgn.PgnResult
 import app.postmortem.core.pgn.looksLikePgn
 import app.postmortem.core.pgn.overview
+import app.postmortem.core.queue.AnalysisQueue
+import app.postmortem.core.queue.Enqueued
+import app.postmortem.core.queue.InMemoryQueueStore
+import app.postmortem.core.queue.QueueEvent
+import app.postmortem.core.queue.QueuedGame
 import app.postmortem.core.store.GameLibrary
 import app.postmortem.core.store.GameSummary
 import app.postmortem.core.store.NewGame
@@ -37,6 +42,7 @@ import kotlinx.coroutines.channels.Channel
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.MutableStateFlow
+import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.catch
 import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.flow.flowOn
@@ -45,9 +51,12 @@ import kotlinx.coroutines.flow.onEach
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
 
-/** [analysis] evaluates a game; it runs on [dispatcher] and is cancelled with the screen or on Back. */
+/**
+ * Games are analysed by [sharedQueue], the app's background queue, so an analysis goes on when the screen goes away. Without one
+ * (tests), the ViewModel keeps a queue of its own in memory over [analysis], which runs on [dispatcher]: the same code path.
+ */
 class MainViewModel(
-    private val analysis: (Game) -> Flow<AnalysisProgress>,
+    private val analysis: ((Game) -> Flow<AnalysisProgress>)? = null,
     private val dispatcher: CoroutineDispatcher = Dispatchers.IO,
     /** How the analysis is made, kept with each result. */
     private val analysisSettings: String = "",
@@ -64,7 +73,26 @@ class MainViewModel(
     private val databases: DatabaseControl? = null,
     private val liveDebounceMs: Long = LiveConfig.DEFAULT_DEBOUNCE_MS,
     reportPlayer: ReportPlayerSetting = InMemoryReportPlayerSetting(),
+    sharedQueue: AnalysisQueue? = null,
 ) : ViewModel() {
+    /** Where games are analysed and saved: one at a time, in order (see [AnalysisQueue]). */
+    private val queue: AnalysisQueue =
+        sharedQueue ?: AnalysisQueue(
+            viewModelScope,
+            dispatcher,
+            InMemoryQueueStore(),
+            library ?: NoLibrary,
+            { game, _ -> checkNotNull(analysis) { "no analysis" }(game).flowOn(dispatcher) },
+            analysisSettings,
+            { 1 },
+        ).also { it.start() }
+
+    /** The games waiting in the queue and the one being analysed, for the Library. */
+    val queued: StateFlow<List<QueuedGame>> get() = queue.progress
+
+    /** The queued game the analysing screen shows, or null. */
+    private var waitingFor: Long? = null
+
     /** The Report tab of the start page: the player, their openings, and what is expanded or listed. */
     val report = ReportController(viewModelScope, dispatcher, library, reportPlayer)
 
@@ -149,6 +177,8 @@ class MainViewModel(
     private val appVisible = MutableStateFlow(true)
 
     init {
+        queue.progress.onEach(::onQueueProgress).launchIn(viewModelScope)
+        viewModelScope.launch { queue.finished.collect(::onQueueEvent) }
         arrowsSetting.enabled
             .onEach {
                 engineOn = it
@@ -179,24 +209,35 @@ class MainViewModel(
         }
     }
 
-    /** A game that is already saved opens from the library, with its lines and no analysis; any other is analysed. */
+    /** A game that is already saved opens from the library, with its lines and no analysis; any other goes into the queue. */
     private fun startAnalysis(
         pgn: String,
         game: Game,
     ) {
-        val saved = library
-        if (saved == null) {
-            analyseGame(pgn, game)
-            return
-        }
         if (job?.isActive == true) return
         job =
             viewModelScope.launch {
-                val found = withContext(dispatcher) { runCatching { saved.findSaved(game) }.getOrNull() }
+                val queued = queue.enqueue(pgn)
                 if (state !is UiState.Paste) return@launch
-                if (found != null) openSaved(found, pgn, fromLibrary = true) else analyseGame(pgn, game)
+                when (queued) {
+                    is Enqueued.AlreadySaved -> {
+                        val found = withContext(dispatcher) { runCatching { library?.load(queued.gameId) }.getOrNull() } ?: return@launch
+                        openSaved(found, pgn, fromLibrary = true)
+                    }
+
+                    is Enqueued.Queued -> {
+                        follow(pgn, game, queued.id)
+                    }
+
+                    Enqueued.Invalid -> {
+                        state = UiState.Paste(pgn = pgn, engineFailed = true)
+                    }
+                }
             }
     }
+
+    /** Takes [id] out of the queue (the Library's cancel). */
+    fun cancelQueued(id: Long) = queue.cancel(id)
 
     /** Opens a saved game on the Result screen, at position [ply] (0 is the start), with its lines and their evals; nothing is analysed. */
     fun openGame(
@@ -248,41 +289,59 @@ class MainViewModel(
         openedFromLibrary = false
     }
 
-    private fun analyseGame(
+    /** Shows the analysis of the queued game [id] (the ring follows its progress) until it is saved or fails. */
+    private fun follow(
         pgn: String,
         game: Game,
+        id: Long,
     ) {
         stopLive()
         deletedLine = null
         handle = GameHandle()
-        state = UiState.Analysing(pgn, game, done = 0, total = game.positionCount)
-        var furthest = 0
-        job =
-            viewModelScope.launch {
-                analysis(game)
-                    .flowOn(dispatcher)
-                    .catch { state = UiState.Paste(pgn = pgn, engineFailed = true) }
-                    .collect { progress ->
-                        state =
-                            if (progress.finished) {
-                                positions?.seed(game, progress.evals)
-                                UiState
-                                    .Result(
-                                        pgn,
-                                        game,
-                                        progress.evals,
-                                        analysisSettings = analysisSettings,
-                                    ).also {
-                                        prepareReport(it)
-                                        saveGame(it, progress.bestMoves)
-                                    }
-                            } else {
-                                furthest = maxOf(furthest, progress.done)
-                                UiState.Analysing(pgn, game, furthest, progress.total)
-                            }
-                        if (progress.finished) restartLive()
-                    }
+        waitingFor = id
+        val done =
+            queue.progress.value
+                .firstOrNull { it.id == id }
+                ?.done ?: 0
+        state = UiState.Analysing(pgn, game, done = done, total = game.positionCount)
+    }
+
+    private fun onQueueProgress(games: List<QueuedGame>) {
+        val id = waitingFor ?: return
+        val current = state as? UiState.Analysing ?: return
+        val mine = games.firstOrNull { it.id == id } ?: return
+        if (mine.done > current.done) state = current.copy(done = mine.done)
+    }
+
+    private fun onQueueEvent(event: QueueEvent) {
+        if (event.game.id != waitingFor) {
+            // a game finished in the background: the Library tab lists it now
+            if (state is UiState.Paste && startTab == StartTab.Library) refreshLibrary()
+            return
+        }
+        waitingFor = null
+        val current = state as? UiState.Analysing ?: return
+        when (event) {
+            is QueueEvent.Finished -> {
+                positions?.seed(current.game, event.evals)
+                if (library != null) handle.id = event.gameId
+                val result =
+                    UiState.Result(
+                        current.pgn,
+                        current.game,
+                        event.evals,
+                        analysisSettings = analysisSettings,
+                        gameId = event.gameId.takeIf { library != null },
+                    )
+                state = result
+                prepareReport(result)
+                restartLive()
             }
+
+            is QueueEvent.Failed -> {
+                state = UiState.Paste(pgn = current.pgn, engineFailed = true)
+            }
+        }
     }
 
     /** Starts working out [result]'s report in the background, so the screen does not build it on the main thread when it first asks. */
@@ -299,24 +358,6 @@ class MainViewModel(
                 viewModelScope.launch(dispatcher) {
                     for (queued in saveQueue) runCatching(queued).onFailure { libraryLog("save failed: ${it.message}") }
                 }
-        }
-    }
-
-    /** Saves a game whose analysis has just finished, with its accuracies, and tells the screen its id. */
-    private fun saveGame(
-        result: UiState.Result,
-        bestMoves: List<String?>,
-    ) {
-        val saved = library ?: return
-        val mine = handle
-        saveSoon {
-            val new = NewGame.analysed(result.pgn, result.game, result.evals, bestMoves, result.analysisSettings)
-            mine.id = saved.save(new)
-            libraryLog("saved game ${mine.id}")
-            viewModelScope.launch {
-                val now = state as? UiState.Result
-                if (handle === mine && now != null) state = now.copy(gameId = mine.id)
-            }
         }
     }
 
@@ -698,7 +739,7 @@ class MainViewModel(
         restartLive()
     }
 
-    /** Back stops a running analysis, or leaves the result; either way the game stays in the paste box. */
+    /** Back leaves the analysing screen (the game goes on in the queue) or the result; either way the game stays in the paste box. */
     fun back(): Boolean {
         if (overlay != null) {
             overlay = null
@@ -734,6 +775,8 @@ class MainViewModel(
                     return true
                 }
             }
+        // an analysis goes on in the queue: the Library shows it and the notification says when it is done
+        waitingFor = null
         job?.cancel()
         job = null
         stopLive()
@@ -786,4 +829,30 @@ sealed interface DbMessage {
     data class Failed(
         val problem: DbProblem,
     ) : DbMessage
+}
+
+/** The library of a ViewModel without one (tests): it keeps nothing, so every game is analysed and none is found saved. */
+private object NoLibrary : app.postmortem.core.store.GameLibrary {
+    override fun findSaved(game: Game): SavedGame? = null
+
+    override fun save(new: NewGame): Long = 0
+
+    override fun saveLines(
+        id: Long,
+        lines: app.postmortem.core.line.Lines,
+        lineEvals: Map<String, app.postmortem.core.analysis.Eval>,
+    ) = Unit
+
+    override fun setOpening(
+        id: Long,
+        opening: String?,
+    ) = Unit
+
+    override fun load(id: Long): SavedGame? = null
+
+    override fun list(): List<app.postmortem.core.store.GameSummary> = emptyList()
+
+    override fun delete(id: Long) = Unit
+
+    override fun restore(saved: SavedGame) = Unit
 }

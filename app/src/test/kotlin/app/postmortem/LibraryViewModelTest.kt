@@ -15,6 +15,7 @@ import app.postmortem.core.store.SavedGame
 import app.postmortem.core.store.gameKey
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.ExperimentalCoroutinesApi
+import kotlinx.coroutines.awaitCancellation
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.flow
 import kotlinx.coroutines.test.UnconfinedTestDispatcher
@@ -370,7 +371,7 @@ class LibraryViewModelTest {
 
     @Test
     fun theStartTabsCannotBeChangedWhileAnalysing() {
-        val vm = MainViewModel({ flow { } }, dispatcher, library = FakeLibrary())
+        val vm = MainViewModel({ flow { awaitCancellation() } }, dispatcher, library = FakeLibrary())
         vm.onPgnChange(TestPgn.text("scholars-mate"))
         vm.analyse()
         assertIs<UiState.Analysing>(vm.state)

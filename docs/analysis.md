@@ -22,7 +22,7 @@ The app says why under the box, and nothing is analysed:
 ## While it analyses
 ![The progress ring](img/analysing.png)
 
-A ring fills with the percentage done, and under it a count such as `13/27` shows how many positions are finished. The percentage never goes backwards. **Back** stops the analysis and returns to the pasted game.
+A ring fills with the percentage done, and under it a count such as `13/27` shows how many positions are finished. The percentage never goes backwards. **Back** returns to the pasted game, and the analysis goes on in the [background queue](background-analysis.md): the Library shows it, and a notification says when it is done.
 
 Every position of the game is checked (one more than the number of half-moves, because the start counts). A 27-position game takes about 20 seconds on the test phone, an 80-move game about 100 seconds.
 

@@ -35,6 +35,9 @@ data class AnalysisConfig(
         /** Most engine processes at once, whatever the number of cores (memory, heat). */
         const val MAX_WORKERS = 4
 
+        /** Engines for a game analysed while Postmortem is not on screen: gentle, so the app the user is playing in stays smooth. */
+        const val BACKGROUND_WORKERS = 2
+
         /** One core is left for the app and the system. */
         fun forCores(cores: Int) = AnalysisConfig(workers = (cores - 1).coerceIn(1, MAX_WORKERS))
     }
