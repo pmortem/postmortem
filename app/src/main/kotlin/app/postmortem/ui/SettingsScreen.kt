@@ -95,9 +95,9 @@ fun SettingsScreen(
                     HorizontalDivider()
                 }
             }
-            item { BackgroundSection(background, maxEngines, onBackgroundChange) }
-            item { HorizontalDivider() }
             item { DatabaseSection(database, actions) }
+            item { HorizontalDivider() }
+            item { BackgroundSection(background, maxEngines, onBackgroundChange) }
         }
     }
 }
