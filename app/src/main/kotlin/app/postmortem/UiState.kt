@@ -64,6 +64,8 @@ sealed interface UiState {
         val analysisSettings: String = "",
         /** The id of the game in the library, once it is saved. */
         val gameId: Long? = null,
+        /** What is worked out from [game] and [evals], shared by this result's copies (see [ResultCache]). */
+        val cache: ResultCache = ResultCache(),
     ) : UiState {
         /** The game position shown, or the one the line the board is on branches from (the chart marks it). */
         val selectedPly: Int get() = lines.gamePly(cursor)
@@ -75,9 +77,13 @@ sealed interface UiState {
         /** The position after the final move, whatever the ending: the eval bar says RIP there. */
         val atEndOfGame: Boolean get() = cursor.lineId == null && game.plies.isNotEmpty() && cursor.ply == game.plies.size
 
-        private val gameEvalsByKey: Map<String, Eval> by lazy(LazyThreadSafetyMode.NONE) {
-            evals.withIndex().associate { (position, eval) -> positionKey(game.fenAt(position)) to eval }
-        }
+        private val gameEvalsByKey: Map<String, Eval>
+            get() =
+                cache.evalsByKey(evals) {
+                    evals.withIndex().associate { (position, eval) ->
+                        positionKey(game.fenAt(position)) to eval
+                    }
+                }
 
         /** The eval of [fen] if the game or the lines' search has it. */
         fun evalOf(fen: String): Eval? = positionKey(fen).let { lineEvals[it] ?: gameEvalsByKey[it] }
@@ -96,6 +102,7 @@ sealed interface UiState {
         /** Whether each move of [line] is brilliant (same rule as the game's), as far as their evals are known. */
         fun brilliantOf(line: Line): List<Boolean> = reportOf(line)?.brilliant.orEmpty()
 
+        /** A line's report, worked out once for the line and the evals known for it: a line row asks for it on every recomposition. */
         private fun reportOf(line: Line): GameReport? {
             val known =
                 line.plies
@@ -103,6 +110,13 @@ sealed interface UiState {
                     .takeWhile { it != null }
                     .filterNotNull()
             if (known.isEmpty()) return null
+            return cache.lineReport(evals, line, known) { lineReportOf(line, known) }
+        }
+
+        private fun lineReportOf(
+            line: Line,
+            known: List<Eval>,
+        ): GameReport {
             val whiteToMove = Moves.sideToMove(game.fenAt(line.branchPly)) == PieceColor.WHITE
             val moves =
                 known.indices.map { index ->
@@ -121,16 +135,63 @@ sealed interface UiState {
             return GameReport.of(listOf(evals[line.branchPly]) + known, whiteToMove, moves = moves)
         }
 
-        /** Accuracy, ACPL and the judged moves; worked out once, when the Summary or the chart first asks. */
-        val report: GameReport by lazy(
-            LazyThreadSafetyMode.NONE,
-        ) {
-            val moves = game.plies.mapIndexed { index, ply -> PlayedMove(game.fenAt(index), ply.uci, ply.fen) }
-            GameReport.of(evals, game.whiteMovesFirst, startEval = lichessStartEval, moves = moves)
-        }
+        /**
+         * Accuracy, ACPL, the judged and the brilliant moves; worked out once for the game, not once per copy. The ViewModel starts it
+         * in the background as soon as the result exists, so the screen normally finds it ready instead of building it on the main thread.
+         */
+        val report: GameReport
+            get() =
+                cache.report(evals) {
+                    val moves = game.plies.mapIndexed { index, ply -> PlayedMove(game.fenAt(index), ply.uci, ply.fen) }
+                    GameReport.of(evals, game.whiteMovesFirst, startEval = lichessStartEval, moves = moves)
+                }
         val overview: GameOverview get() = game.overview
 
         /** Lichess scores the first move against 15 cp, whatever the start position evaluates to; so do we, for a normal game. */
         private val lichessStartEval: Eval? get() = if (game.startsFromStandardPosition) Eval.Cp(GameReport.LICHESS_START_CP) else null
+    }
+}
+
+/**
+ * What a result works out from its game and its evals: the report, the evals by position and the reports of the lines. Every step,
+ * tab change or line played makes a copy of the result, and none of this changes with them, so the copies share one cache instead of
+ * working it out again. Each value is tied to the evals it was made from and made again for others. Results are equal whatever their
+ * caches hold. Thread-safe: the report is started in the background while the screen may ask for it.
+ */
+class ResultCache {
+    private var report: Pair<List<Eval>, GameReport>? = null
+    private var byKey: Pair<List<Eval>, Map<String, Eval>>? = null
+    private val lines = HashMap<Triple<List<Eval>, Line, List<Eval>>, GameReport>()
+
+    @Synchronized
+    fun report(
+        evals: List<Eval>,
+        make: () -> GameReport,
+    ): GameReport = report?.takeIf { it.first === evals }?.second ?: make().also { report = evals to it }
+
+    @Synchronized
+    fun evalsByKey(
+        evals: List<Eval>,
+        make: () -> Map<String, Eval>,
+    ): Map<String, Eval> = byKey?.takeIf { it.first === evals }?.second ?: make().also { byKey = evals to it }
+
+    @Synchronized
+    fun lineReport(
+        evals: List<Eval>,
+        line: Line,
+        known: List<Eval>,
+        make: () -> GameReport,
+    ): GameReport {
+        if (lines.size > MAX_LINE_REPORTS) lines.clear()
+        return lines.getOrPut(Triple(evals, line, known), make)
+    }
+
+    override fun equals(other: Any?): Boolean = other is ResultCache
+
+    override fun hashCode(): Int = 0
+
+    private companion object {
+        /** Old lines and old eval sets are dropped now and then; a few hundred reports are plenty for one game. */
+        const val MAX_LINE_REPORTS = 256
     }
 }
