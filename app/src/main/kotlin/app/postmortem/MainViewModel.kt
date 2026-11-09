@@ -237,6 +237,7 @@ class MainViewModel(
                 cursor = Cursor.game(ply.coerceIn(0, saved.game.plies.size)),
             )
         state = opened
+        prepareReport(opened)
         openedFromLibrary = fromLibrary
         // a line position whose eval was never found (the app was closed meanwhile) is evaluated now
         saved.lines.all
@@ -273,7 +274,10 @@ class MainViewModel(
                                         game,
                                         progress.evals,
                                         analysisSettings = analysisSettings,
-                                    ).also { saveGame(it, progress.bestMoves) }
+                                    ).also {
+                                        prepareReport(it)
+                                        saveGame(it, progress.bestMoves)
+                                    }
                             } else {
                                 furthest = maxOf(furthest, progress.done)
                                 UiState.Analysing(pgn, game, furthest, progress.total)
@@ -281,6 +285,11 @@ class MainViewModel(
                         if (progress.finished) restartLive()
                     }
             }
+    }
+
+    /** Starts working out [result]'s report in the background, so the screen does not build it on the main thread when it first asks. */
+    private fun prepareReport(result: UiState.Result) {
+        viewModelScope.launch(dispatcher) { runCatching { result.report } }
     }
 
     /** Runs [task] after the saves queued before it, off the main thread; a failing save never takes the app down. */
@@ -302,19 +311,19 @@ class MainViewModel(
     ) {
         val saved = library ?: return
         val mine = handle
-        val report = result.report
-        val new =
-            NewGame(
-                pgn = result.pgn,
-                game = result.game,
-                evals = result.evals,
-                analysisSettings = result.analysisSettings,
-                whiteAccuracy = report.white.accuracy,
-                blackAccuracy = report.black.accuracy,
-                opening = result.game.overview.opening,
-                bestMoves = bestMoves,
-            )
         saveSoon {
+            val report = result.report
+            val new =
+                NewGame(
+                    pgn = result.pgn,
+                    game = result.game,
+                    evals = result.evals,
+                    analysisSettings = result.analysisSettings,
+                    whiteAccuracy = report.white.accuracy,
+                    blackAccuracy = report.black.accuracy,
+                    opening = result.game.overview.opening,
+                    bestMoves = bestMoves,
+                )
             mine.id = saved.save(new)
             libraryLog("saved game ${mine.id}")
             viewModelScope.launch {

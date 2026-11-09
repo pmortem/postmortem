@@ -13,6 +13,7 @@ import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.remember
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.graphics.Color
@@ -56,7 +57,8 @@ fun EvalChart(
     modifier: Modifier = Modifier,
 ) {
     val palette = LocalChartPalette.current
-    val chances = state.evals.map { it.winningChances().toFloat() }
+    // the points change only with the evals, not with the selected move a drag changes many times a second
+    val chances = remember(state.evals) { state.evals.map { it.winningChances().toFloat() } }
     val moves = state.game.plies.size
     val position = selectedPositionName(state)
     val evalText = state.selectedEval.format()
