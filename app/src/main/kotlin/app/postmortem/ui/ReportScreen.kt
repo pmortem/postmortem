@@ -68,7 +68,6 @@ fun ReportScreen(
     PageScaffold(
         title = if (listed != null) openingName(listed.name) else stringResource(R.string.report_title),
         onBack = if (listed != null) ({ report.closeList() }) else null,
-        backTag = UiTags.REPORT_BACK,
     ) { padding ->
         Box(Modifier.fillMaxSize().padding(padding)) {
             if (listed != null && view != null) {
@@ -102,7 +101,7 @@ private fun ReportBody(
             val view = ui.view
             when {
                 !ui.loaded -> Unit
-                ui.games == 0 -> Message(R.string.report_empty_db, UiTags.REPORT_EMPTY)
+                ui.games == 0 -> Message(R.string.report_empty_db)
                 ui.names.isEmpty() -> Message(R.string.report_no_names)
                 ui.player.isBlank() -> Message(R.string.report_pick_hint)
                 view == null -> Message(R.string.report_no_games)
@@ -130,15 +129,8 @@ private fun ReportBody(
 private fun rowsOf(families: List<OpeningFamily>): Int = families.size + families.sumOf { it.variations.size }
 
 @Composable
-private fun Message(
-    text: Int,
-    tag: String? = null,
-) {
-    Text(
-        stringResource(text),
-        style = MaterialTheme.typography.bodyLarge,
-        modifier = Modifier.padding(vertical = Spacing.gap).let { if (tag != null) it.testTag(tag) else it },
-    )
+private fun Message(text: Int) {
+    Text(stringResource(text), style = MaterialTheme.typography.bodyLarge, modifier = Modifier.padding(vertical = Spacing.gap))
 }
 
 @Composable
@@ -163,14 +155,13 @@ private fun PlayerPicker(report: ReportController) {
             singleLine = true,
             modifier = Modifier.fillMaxWidth().testTag(UiTags.REPORT_PLAYER),
         )
-        suggestions.forEachIndexed { index, name ->
+        suggestions.forEach { name ->
             Text(
                 stringResource(R.string.report_suggestion, name.name, name.games),
                 style = MaterialTheme.typography.bodyLarge,
                 modifier =
                     Modifier
                         .fillMaxWidth()
-                        .testTag(UiTags.reportSuggestion(index))
                         .clickable { report.setPlayer(name.name) }
                         .padding(vertical = Spacing.gap, horizontal = Spacing.small),
             )
@@ -192,7 +183,7 @@ private fun Overview(view: PlayerView) {
     Text(
         text,
         style = MaterialTheme.typography.titleMedium,
-        modifier = Modifier.padding(vertical = Spacing.gap).testTag(UiTags.REPORT_OVERVIEW),
+        modifier = Modifier.padding(vertical = Spacing.gap),
     )
 }
 
@@ -313,7 +304,6 @@ private fun GameList(
             Column(
                 Modifier
                     .fillMaxWidth()
-                    .testTag(UiTags.reportGame(game.gameId))
                     .clickable { onOpenGame(game.gameId) }
                     .padding(horizontal = Spacing.screen, vertical = Spacing.gap),
             ) {

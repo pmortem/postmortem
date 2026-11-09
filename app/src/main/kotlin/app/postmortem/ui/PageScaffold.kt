@@ -20,8 +20,8 @@ import androidx.compose.ui.semantics.testTagsAsResourceId
 import app.postmortem.R
 
 /**
- * A page with a title bar, the frame of Library, Settings, Report and practice: the title, a back arrow when [onBack] is given (tagged
- * [backTag]), and the content. Inside the start page the tab bar owns the system insets, so [insets] is none by default; a page shown on
+ * A page with a title bar, the frame of Library, Settings, Report and practice: the title, a back arrow when [onBack] is given, and
+ * the content. Inside the start page the tab bar owns the system insets, so [insets] is none by default; a page shown on
  * its own passes the usual ones.
  */
 @OptIn(ExperimentalMaterial3Api::class)
@@ -29,7 +29,6 @@ import app.postmortem.R
 fun PageScaffold(
     title: String,
     onBack: (() -> Unit)? = null,
-    backTag: String? = null,
     insets: WindowInsets = WindowInsets(0),
     snackbarHost: @Composable () -> Unit = {},
     content: @Composable (PaddingValues) -> Unit,
@@ -42,7 +41,7 @@ fun PageScaffold(
                 title = { Text(title) },
                 navigationIcon = {
                     if (onBack != null) {
-                        IconButton(onClick = onBack, modifier = backTag?.let { Modifier.testTag(it) } ?: Modifier) {
+                        IconButton(onClick = onBack) {
                             Icon(Icons.AutoMirrored.Filled.ArrowBack, stringResource(R.string.back))
                         }
                     }

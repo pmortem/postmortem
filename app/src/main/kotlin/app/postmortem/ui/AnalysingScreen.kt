@@ -54,7 +54,6 @@ fun AnalysingScreen(state: UiState.Analysing) {
             Box(
                 Modifier
                     .size(Spacing.ringSize)
-                    .testTag(UiTags.ANALYSIS_PROGRESS)
                     .semantics { contentDescription = description },
                 contentAlignment = Alignment.Center,
             ) {

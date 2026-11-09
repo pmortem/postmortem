@@ -241,7 +241,6 @@ private fun PromotionPicker(
                 modifier =
                     Modifier
                         .size(square)
-                        .testTag(UiTags.promotion(letter))
                         .clickable { prompt.onChoose(letter) },
             )
         }

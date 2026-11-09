@@ -74,10 +74,9 @@ fun SettingsScreen(
     PageScaffold(
         title = stringResource(R.string.settings_title),
         onBack = onBack,
-        backTag = UiTags.SETTINGS_BACK,
         insets = if (onBack == null) WindowInsets(0) else ScaffoldDefaults.contentWindowInsets,
     ) { padding ->
-        LazyColumn(Modifier.fillMaxSize().padding(padding).testTag(UiTags.SETTINGS)) {
+        LazyColumn(Modifier.fillMaxSize().padding(padding)) {
             item {
                 actions.onLibrary?.let { openLibrary ->
                     Text(
@@ -86,7 +85,6 @@ fun SettingsScreen(
                         modifier =
                             Modifier
                                 .fillMaxWidth()
-                                .testTag(UiTags.SETTINGS_LIBRARY)
                                 .clickable(onClick = openLibrary)
                                 .padding(horizontal = Spacing.screen, vertical = Spacing.gap),
                     )
@@ -118,15 +116,14 @@ private fun DatabaseSection(
             label = { Text(stringResource(R.string.db_name_label)) },
             singleLine = true,
             enabled = !database.busy,
-            modifier = Modifier.fillMaxWidth().testTag(UiTags.DB_NAME),
+            modifier = Modifier.fillMaxWidth(),
         )
         Row(horizontalArrangement = Arrangement.spacedBy(Spacing.gap), verticalAlignment = Alignment.CenterVertically) {
             Button(
                 onClick = { actions.onRename(typed) },
                 enabled = !database.busy && typed.isNotBlank() && typed != database.activeName,
-                modifier = Modifier.testTag(UiTags.DB_NAME_SAVE),
             ) { Text(stringResource(R.string.db_name_save)) }
-            OutlinedButton(onClick = actions.onExport, enabled = !database.busy, modifier = Modifier.testTag(UiTags.DB_EXPORT)) {
+            OutlinedButton(onClick = actions.onExport, enabled = !database.busy) {
                 Text(stringResource(R.string.db_export))
             }
             if (database.busy) CircularProgressIndicator(Modifier.size(Spacing.pendingSpinner * 2), strokeWidth = Spacing.pendingStroke)
@@ -136,16 +133,15 @@ private fun DatabaseSection(
         Text(
             stringResource(R.string.db_open_title),
             style = MaterialTheme.typography.titleMedium,
-            modifier = Modifier.testTag(UiTags.DB_OPEN),
         )
         Column {
             database.files.forEachIndexed { index, file -> FileRow(index, file, database.busy, actions.onOpenFile) }
         }
         Row(horizontalArrangement = Arrangement.spacedBy(Spacing.gap)) {
-            OutlinedButton(onClick = actions.onBrowse, enabled = !database.busy, modifier = Modifier.testTag(UiTags.DB_BROWSE)) {
+            OutlinedButton(onClick = actions.onBrowse, enabled = !database.busy) {
                 Text(stringResource(R.string.db_browse))
             }
-            OutlinedButton(onClick = actions.onImport, enabled = !database.busy, modifier = Modifier.testTag(UiTags.DB_IMPORT)) {
+            OutlinedButton(onClick = actions.onImport, enabled = !database.busy) {
                 Text(stringResource(R.string.db_import))
             }
         }
@@ -198,7 +194,6 @@ private fun Message(message: DbMessage) {
         text,
         style = MaterialTheme.typography.bodyMedium,
         color = if (failed) MaterialTheme.colorScheme.error else MaterialTheme.colorScheme.onBackground,
-        modifier = Modifier.testTag(UiTags.DB_MESSAGE),
     )
 }
 

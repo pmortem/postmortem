@@ -4,82 +4,41 @@ package app.postmortem
 object UiTags {
     const val PASTE_INPUT = "paste_input"
     const val ANALYSE_BUTTON = "analyse_button"
-    const val SPLASH_SCREEN = "splash_screen"
-    const val VERSION_LABEL = "version_label"
-    const val PASTE_STATUS = "paste_status"
     const val RESULT_BOARD = "result_board"
     const val PREVIOUS_BUTTON = "prev_button"
     const val FLIP_BUTTON = "flip_button"
     const val NEXT_BUTTON = "next_button"
     const val SETTINGS_BUTTON = "settings_button"
-    const val SETTINGS = "settings"
-    const val SETTINGS_BACK = "settings_back"
     const val ENGINE_TOGGLE = "engine_toggle"
-    const val ENGINE_READOUT = "engine_readout"
     const val SUMMARY = "summary"
-    const val ANALYSIS_SETTINGS = "analysis_settings"
-    const val OPENING = "opening"
     const val TAB_MOVES = "tab_moves"
     const val TAB_CHART = "tab_chart"
     const val TAB_SUMMARY = "tab_summary"
-    const val CHART_LABEL = "chart_label"
     const val EVAL_CHART = "eval_chart"
     const val SETTINGS_DB = "settings_db"
-    const val DB_NAME = "db_name"
-    const val DB_NAME_SAVE = "db_name_save"
-    const val DB_EXPORT = "db_export"
-    const val DB_OPEN = "db_open"
-    const val DB_BROWSE = "db_browse"
-    const val DB_IMPORT = "db_import"
-    const val DB_MESSAGE = "db_message"
     const val TAB_ANALYSE = "tab_analyse"
     const val TAB_LIBRARY = "tab_library"
     const val TAB_REPORT = "tab_report"
     const val TAB_SETTINGS = "tab_settings"
-    const val REPORT_EMPTY = "report_empty"
     const val REPORT_PLAYER = "report_player"
-    const val REPORT_OVERVIEW = "report_overview"
     const val REPORT_WHITE = "report_white"
     const val REPORT_BLACK = "report_black"
-    const val REPORT_BACK = "report_back"
 
-    const val REPORT_MISSED = "report_missed"
     const val DRILL_BUTTON = "drill_button"
     const val DRILL_BOARD = "drill_board"
     const val DRILL_RESULT = "drill_result"
     const val DRILL_NEXT = "drill_next"
     const val DRILL_SHOW = "drill_show"
-    const val DRILL_SKIP = "drill_skip"
-    const val DRILL_RETRY = "drill_retry"
-    const val DRILL_OPEN = "drill_open"
-    const val DRILL_START_OVER = "drill_start_over"
-    const val DRILL_BACK = "drill_back"
-
-    fun reportMissedWin(index: Int) = "report_missed_$index"
-
-    fun reportMissedMate(index: Int) = "report_mate_$index"
-
-    fun reportSuggestion(index: Int) = "report_suggestion_$index"
 
     fun openingRow(index: Int) = "opening_row_$index"
 
-    fun reportGame(id: Long) = "report_game_$id"
-
     const val LIBRARY = "library"
-    const val SETTINGS_LIBRARY = "settings_library"
-    const val UNDO = "undo"
-    const val MOVE_LIST = "move_list"
-    const val EVAL_BAR = "eval_bar"
-    const val ANALYSIS_PROGRESS = "analysis_progress"
 
     /** The cell for a half-move; [ply] counts from 1. */
     fun move(ply: Int) = "move_$ply"
 
     /** The square [name] such as `e2`, whichever way the board is turned. */
     fun square(name: String) = "square_$name"
-
-    /** The promotion picker's button for [piece]: `q`, `r`, `b` or `n`. */
-    fun promotion(piece: Char) = "promotion_$piece"
 
     /** The [index]-th database file in the list, counting from 0. */
     fun dbFile(index: Int) = "db_file_$index"

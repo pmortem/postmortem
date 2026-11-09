@@ -56,7 +56,6 @@ fun EvalBar(
     val leaderSide = if (whiteLeads == whiteOnLeft) Alignment.CenterStart else Alignment.CenterEnd
     Box(
         modifier
-            .testTag(UiTags.EVAL_BAR)
             .semantics { contentDescription = description }
             .background(palette.blackFill),
     ) {

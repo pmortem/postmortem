@@ -343,10 +343,10 @@ class MainViewModelTest {
         vm.flip()
         val before = vm.result()
         vm.openSettings()
-        assertTrue(vm.settingsOpen)
+        assertEquals(Overlay.Settings, vm.overlay)
         assertEquals(before, vm.result())
         assertTrue(vm.back())
-        assertFalse(vm.settingsOpen)
+        assertNull(vm.overlay)
         assertEquals(before, vm.result())
         assertEquals(7, vm.result().selectedPly)
     }
@@ -367,7 +367,7 @@ class MainViewModelTest {
     fun theSettingsCogOnlyOpensOverAResultAndTheStartPageHasTabsInstead() {
         val vm = viewModel()
         vm.openSettings()
-        assertFalse(vm.settingsOpen, "no Settings overlay over the start page: it is a tab")
+        assertNull(vm.overlay, "no Settings overlay over the start page: it is a tab")
         for (tab in StartTab.entries) {
             vm.selectStartTab(tab)
             assertEquals(tab, vm.startTab)
