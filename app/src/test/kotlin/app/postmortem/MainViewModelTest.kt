@@ -37,9 +37,7 @@ class MainViewModelTest {
     @After
     fun tearDown() = Dispatchers.resetMain()
 
-    private fun fixture(name: String) = checkNotNull(javaClass.getResource("/pgn/$name.pgn")) { "no fixture $name" }.readText()
-
-    private fun positionCount(name: String) = (PgnParser.parse(fixture(name)) as PgnResult.Success).game.positionCount
+    private fun positionCount(name: String) = (PgnParser.parse(TestPgn.text(name)) as PgnResult.Success).game.positionCount
 
     /** Stands in for the engine: one canned evaluation per position, reported one by one. */
     private fun canned(game: Game): Flow<AnalysisProgress> =
@@ -62,7 +60,7 @@ class MainViewModelTest {
     @Test
     fun aRealGameIsAnalysedAndOpensTheResultAtTheStartPosition() {
         val vm = viewModel()
-        vm.onPgnChange(fixture("chesscom-short-resign"))
+        vm.onPgnChange(TestPgn.text("chesscom-short-resign"))
         vm.analyse()
         val result = vm.result()
         assertEquals(57, result.game.plies.size)
@@ -80,7 +78,7 @@ class MainViewModelTest {
                     awaitCancellation()
                 }
             }
-        vm.onPgnChange(fixture("lichess-draw"))
+        vm.onPgnChange(TestPgn.text("lichess-draw"))
         vm.analyse()
         val analysing = assertIs<UiState.Analysing>(vm.state)
         assertEquals(3, analysing.done)
@@ -90,23 +88,23 @@ class MainViewModelTest {
     @Test
     fun anEngineFailureReturnsToThePastePageWithTheGameKept() {
         val vm = viewModel { flow { throw EngineException("boom") } }
-        vm.onPgnChange(fixture("lichess-draw"))
+        vm.onPgnChange(TestPgn.text("lichess-draw"))
         vm.analyse()
         val paste = vm.paste()
         assertTrue(paste.engineFailed)
-        assertEquals(fixture("lichess-draw"), paste.pgn)
+        assertEquals(TestPgn.text("lichess-draw"), paste.pgn)
     }
 
     @Test
     fun backDuringTheAnalysisStopsItAndKeepsTheGame() {
         var cancelled = false
         val vm = viewModel { flow<AnalysisProgress> { awaitCancellation() }.onCompletion { cancelled = true } }
-        vm.onPgnChange(fixture("lichess-draw"))
+        vm.onPgnChange(TestPgn.text("lichess-draw"))
         vm.analyse()
         assertIs<UiState.Analysing>(vm.state)
         assertTrue(vm.back())
         assertTrue(cancelled)
-        assertEquals(fixture("lichess-draw"), vm.paste().pgn)
+        assertEquals(TestPgn.text("lichess-draw"), vm.paste().pgn)
         assertFalse(vm.paste().engineFailed)
     }
 
@@ -127,7 +125,7 @@ class MainViewModelTest {
     @Test
     fun aGameWithoutMovesIsRejected() {
         val vm = viewModel()
-        vm.onPgnChange(fixture("chesscom-no-moves"))
+        vm.onPgnChange(TestPgn.text("chesscom-no-moves"))
         vm.analyse()
         assertEquals(PgnError.NoMoves, vm.paste().error)
     }
@@ -145,7 +143,7 @@ class MainViewModelTest {
     @Test
     fun selectingAndSteppingStayInsideTheGame() {
         val vm = viewModel()
-        vm.onPgnChange(fixture("lichess-short-resign"))
+        vm.onPgnChange(TestPgn.text("lichess-short-resign"))
         vm.analyse()
         val last =
             vm
@@ -167,7 +165,7 @@ class MainViewModelTest {
     @Test
     fun aNewAnalysisStartsOnTheMovesTabAndTheTabIsPartOfTheResult() {
         val vm = viewModel()
-        vm.onPgnChange(fixture("lichess-short-resign"))
+        vm.onPgnChange(TestPgn.text("lichess-short-resign"))
         vm.analyse()
         assertEquals(ResultTab.Moves, vm.result().tab)
         vm.selectTab(ResultTab.Summary)
@@ -184,7 +182,7 @@ class MainViewModelTest {
         assertEquals(0, vm.result().selectedPly)
         vm.selectTab(ResultTab.Chart)
         vm.back()
-        vm.onPgnChange(fixture("lichess-draw"))
+        vm.onPgnChange(TestPgn.text("lichess-draw"))
         vm.analyse()
         assertEquals(ResultTab.Moves, vm.result().tab)
     }
@@ -192,7 +190,7 @@ class MainViewModelTest {
     @Test
     fun flippingTurnsTheBoardAndKeepsTheMoveAndTheTabAndAFreshGameStartsUnflipped() {
         val vm = viewModel()
-        vm.onPgnChange(fixture("lichess-short-resign"))
+        vm.onPgnChange(TestPgn.text("lichess-short-resign"))
         vm.analyse()
         assertFalse(vm.result().flipped)
         vm.selectPly(5)
@@ -216,10 +214,10 @@ class MainViewModelTest {
     @Test
     fun backReturnsToThePastePageKeepingTheGame() {
         val vm = viewModel()
-        vm.onPgnChange(fixture("lichess-draw"))
+        vm.onPgnChange(TestPgn.text("lichess-draw"))
         vm.analyse()
         assertTrue(vm.back())
-        assertEquals(fixture("lichess-draw"), vm.paste().pgn)
+        assertEquals(TestPgn.text("lichess-draw"), vm.paste().pgn)
         assertFalse(vm.back())
     }
 
@@ -227,7 +225,7 @@ class MainViewModelTest {
     fun analyseIsOnlyAvailableWhileTheBoxHasText() {
         val vm = viewModel()
         assertFalse(vm.paste().canAnalyse)
-        vm.onPgnChange(fixture("lichess-draw"))
+        vm.onPgnChange(TestPgn.text("lichess-draw"))
         assertTrue(vm.paste().canAnalyse)
         vm.onPgnChange("")
         assertFalse(vm.paste().canAnalyse)
@@ -238,10 +236,10 @@ class MainViewModelTest {
     @Test
     fun theClipboardFillsAnEmptyBoxOnceWhenItHoldsAGame() {
         val vm = viewModel()
-        vm.onClipboard(fixture("lichess-draw"))
-        assertEquals(fixture("lichess-draw"), vm.paste().pgn)
+        vm.onClipboard(TestPgn.text("lichess-draw"))
+        assertEquals(TestPgn.text("lichess-draw"), vm.paste().pgn)
         vm.onPgnChange("")
-        vm.onClipboard(fixture("lichess-mate-castle"))
+        vm.onClipboard(TestPgn.text("lichess-mate-castle"))
         assertEquals("", vm.paste().pgn)
     }
 
@@ -253,14 +251,14 @@ class MainViewModelTest {
 
         val typed = viewModel()
         typed.onPgnChange("1. e4")
-        typed.onClipboard(fixture("lichess-draw"))
+        typed.onClipboard(TestPgn.text("lichess-draw"))
         assertEquals("1. e4", typed.paste().pgn)
     }
 
     @Test
     fun theSettingsAreKeptWithTheResult() {
         val vm = viewModel()
-        vm.onPgnChange(fixture("lichess-short-resign"))
+        vm.onPgnChange(TestPgn.text("lichess-short-resign"))
         vm.analyse()
         assertEquals("test engine, 123 nodes", vm.result().analysisSettings)
     }
@@ -268,7 +266,7 @@ class MainViewModelTest {
     @Test
     fun theEvalBarSaysRipOnTheLastPositionOnly() {
         val vm = viewModel()
-        vm.onPgnChange(fixture("lichess-draw"))
+        vm.onPgnChange(TestPgn.text("lichess-draw"))
         vm.analyse()
         val last =
             vm
@@ -287,7 +285,7 @@ class MainViewModelTest {
     fun theLastPositionIsTheEndWhateverTheEndingIsMateOrResignation() {
         for (name in listOf("scholars-mate", "chesscom-short-resign")) {
             val vm = viewModel()
-            vm.onPgnChange(fixture(name))
+            vm.onPgnChange(TestPgn.text(name))
             vm.analyse()
             vm.selectPly(Int.MAX_VALUE)
             assertTrue(vm.result().atEndOfGame, name)
@@ -303,7 +301,7 @@ class MainViewModelTest {
 
     @Test
     fun thePercentageIsRoundedStartsAtZeroEndsAtHundredAndNeverGoesDown() {
-        val game = (PgnParser.parse(fixture("lichess-draw")) as PgnResult.Success).game
+        val game = (PgnParser.parse(TestPgn.text("lichess-draw")) as PgnResult.Success).game
 
         fun percent(
             done: Int,
@@ -328,7 +326,7 @@ class MainViewModelTest {
                     awaitCancellation()
                 }
             }
-        vm.onPgnChange(fixture("lichess-draw"))
+        vm.onPgnChange(TestPgn.text("lichess-draw"))
         vm.analyse()
         assertEquals(5, assertIs<UiState.Analysing>(vm.state).done)
     }
@@ -336,7 +334,7 @@ class MainViewModelTest {
     @Test
     fun settingsOpensOverTheResultAndBackReturnsToTheSameGameMoveTabAndFlip() {
         val vm = viewModel()
-        vm.onPgnChange(fixture("chesscom-short-resign"))
+        vm.onPgnChange(TestPgn.text("chesscom-short-resign"))
         vm.analyse()
         vm.selectPly(7)
         vm.selectTab(ResultTab.Chart)
@@ -354,7 +352,7 @@ class MainViewModelTest {
     @Test
     fun backOnTheSettingsPageDoesNotLeaveTheResultButTheNextBackDoes() {
         val vm = viewModel()
-        vm.onPgnChange(fixture("lichess-draw"))
+        vm.onPgnChange(TestPgn.text("lichess-draw"))
         vm.analyse()
         vm.openSettings()
         vm.back()
@@ -380,7 +378,7 @@ class MainViewModelTest {
 
     private fun scholars(): MainViewModel =
         viewModel().also {
-            it.onPgnChange(fixture("scholars-mate"))
+            it.onPgnChange(TestPgn.text("scholars-mate"))
             it.analyse()
         }
 

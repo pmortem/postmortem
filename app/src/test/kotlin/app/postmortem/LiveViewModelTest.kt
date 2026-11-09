@@ -37,8 +37,6 @@ class LiveViewModelTest {
     @After
     fun tearDown() = Dispatchers.resetMain()
 
-    private fun fixture(name: String) = checkNotNull(javaClass.getResource("/pgn/$name.pgn")) { "no fixture $name" }.readText()
-
     private fun canned(game: Game): Flow<AnalysisProgress> =
         flow {
             emit(AnalysisProgress(game.positionCount, game.positionCount, List(game.positionCount) { Eval.Cp(0) }))
@@ -82,7 +80,7 @@ class LiveViewModelTest {
     ) = MainViewModel(::canned, dispatcher, live = live, arrowsSetting = setting, liveDebounceMs = debounceMs)
 
     private fun MainViewModel.analyseGame(name: String = "lichess-draw") {
-        onPgnChange(fixture(name))
+        onPgnChange(TestPgn.text(name))
         analyse()
     }
 
