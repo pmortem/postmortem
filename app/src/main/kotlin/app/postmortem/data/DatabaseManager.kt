@@ -82,23 +82,29 @@ class DatabaseManager(
     @Synchronized
     override fun list(): List<GameSummary> = store().list()
 
+    @Synchronized
     override fun reportRows(): List<ReportRow> = store().reportRows()
 
+    @Synchronized
     override fun mainLines(ids: List<Long>): Map<Long, MainLine> = store().mainLines(ids)
 
+    @Synchronized
     override fun drillProgress(ids: List<Long>): Map<DrillKey, DrillProgress> = store().drillProgress(ids)
 
+    @Synchronized
     override fun recordDrill(
         gameId: Long,
         position: Int,
         solved: Boolean,
     ) = store().recordDrill(gameId, position, solved)
 
+    @Synchronized
     override fun bestMove(
         gameId: Long,
         ply: Int,
     ): String? = store().bestMove(gameId, ply)
 
+    @Synchronized
     override fun setBestMove(
         gameId: Long,
         ply: Int,
