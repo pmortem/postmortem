@@ -65,21 +65,10 @@ fun ReportScreen(
 ) {
     val listed = report.listed
     val view = report.ui.view
-    Scaffold(
-        modifier = Modifier.fillMaxSize().semantics { testTagsAsResourceId = true },
-        contentWindowInsets = WindowInsets(0),
-        topBar = {
-            TopAppBar(
-                title = { Text(if (listed != null) openingName(listed.name) else stringResource(R.string.report_title)) },
-                navigationIcon = {
-                    if (listed != null) {
-                        IconButton(onClick = { report.closeList() }, modifier = Modifier.testTag(UiTags.REPORT_BACK)) {
-                            Icon(Icons.AutoMirrored.Filled.ArrowBack, stringResource(R.string.report_back))
-                        }
-                    }
-                },
-            )
-        },
+    PageScaffold(
+        title = if (listed != null) openingName(listed.name) else stringResource(R.string.report_title),
+        onBack = if (listed != null) ({ report.closeList() }) else null,
+        backTag = UiTags.REPORT_BACK,
     ) { padding ->
         Box(Modifier.fillMaxSize().padding(padding)) {
             if (listed != null && view != null) {
@@ -349,8 +338,9 @@ private fun GameList(
     }
 }
 
+/** An outcome in words: Win, Draw, Loss or Unfinished. */
 @Composable
-private fun outcomeText(outcome: Outcome): String =
+internal fun outcomeText(outcome: Outcome): String =
     stringResource(
         when (outcome) {
             Outcome.WIN -> R.string.report_win

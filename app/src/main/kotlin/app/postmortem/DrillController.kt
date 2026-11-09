@@ -54,13 +54,13 @@ class DrillController(
     var ui: DrillUi by mutableStateOf(DrillUi())
         private set
 
+    /** Moves played by hand, only on the position asked and only while it is asked. */
+    private val input = MoveInput({ asked.takeIf { ui.phase == DrillPhase.ASKING } }) { from, to, promotion -> play(from, to, promotion) }
+
     /** The picked-up piece and where it may go, and a promotion waiting for its piece, on the position asked. */
-    var selected: String? by mutableStateOf(null)
-        private set
-    var targets: List<MoveTarget> by mutableStateOf(emptyList())
-        private set
-    var promotion: PromotionAsked? by mutableStateOf(null)
-        private set
+    val selected: String? get() = input.selected
+    val targets: List<MoveTarget> get() = input.targets
+    val promotion: PromotionAsked? get() = input.promotion
 
     private var session: List<DrillItem> = emptyList()
     private var failed = mutableListOf<DrillItem>()
@@ -154,54 +154,20 @@ class DrillController(
         uci: String,
     ): String? = Moves.play(fen, uci.substring(0, 2), uci.substring(2, 4), uci.getOrNull(4))?.san
 
-    private fun clearInput() {
-        selected = null
-        targets = emptyList()
-        promotion = null
-    }
+    private fun clearInput() = input.clear()
 
-    /** A tap on [square]: picks a piece up, puts it down, or plays the move to a square it may go to. */
-    fun tapSquare(square: String) {
-        if (ui.phase != DrillPhase.ASKING || promotion != null) return
-        if (selected != null && targets.any { it.square == square }) {
-            attempt(selected!!, square)
-            return
-        }
-        val found = Moves.legalTargets(asked, square)
-        if (found.isEmpty() || selected == square) {
-            clearInput()
-        } else {
-            selected = square
-            targets = found
-        }
-    }
+    /** A tap on a square of the board (see [MoveInput.tap]). */
+    fun tapSquare(square: String) = input.tap(square)
 
     fun dragMove(
         from: String,
         to: String,
-    ) {
-        if (ui.phase != DrillPhase.ASKING || promotion != null || from == to) return
-        if (Moves.legalTargets(asked, from).none { it.square == to }) return
-        attempt(from, to)
-    }
+    ) = input.drag(from, to)
 
-    private fun attempt(
-        from: String,
-        to: String,
-    ) {
-        selected = null
-        targets = emptyList()
-        if (Moves.needsPromotion(asked, from, to)) promotion = PromotionAsked(asked, from, to) else play(from, to, null)
-    }
-
-    fun choosePromotion(piece: Char) {
-        val asked = promotion ?: return
-        promotion = null
-        play(asked.from, asked.to, piece)
-    }
+    fun choosePromotion(piece: Char) = input.choose(piece)
 
     fun cancelPromotion() {
-        promotion = null
+        input.cancelPromotion()
     }
 
     private fun play(

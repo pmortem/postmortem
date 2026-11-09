@@ -130,13 +130,22 @@ class DatabaseManager(
             .map { DbFileInfo(it.name, it.length(), gamesIn(it), it.name == name) }
     }
 
-    /** The number of games in [file], or null when it cannot be read as one of ours. Opened read-only. */
-    private fun gamesIn(file: File): Int? =
-        runCatching {
-            AndroidSqlDb(SQLiteDatabase.openDatabase(file.path, null, SQLiteDatabase.OPEN_READONLY)).use {
-                (DatabaseCheck.inspect(it) as? DatabaseCheck.Ok)?.games
-            }
-        }.getOrNull()
+    /** The number of games in [file], or null when it cannot be read as one of ours. */
+    private fun gamesIn(file: File): Int? = runCatching { inspect(file) as? DatabaseCheck.Ok }.getOrNull()?.games
+
+    /** What [DatabaseCheck] says about [file], opened read-only so that nothing in it changes. */
+    private fun inspect(file: File): DatabaseCheck =
+        AndroidSqlDb(SQLiteDatabase.openDatabase(file.path, null, SQLiteDatabase.OPEN_READONLY)).use { DatabaseCheck.inspect(it) }
+
+    /** Copies what [source] gives into [target]; false when there is nothing to read. */
+    private fun copyInto(
+        source: () -> InputStream?,
+        target: File,
+    ): Boolean {
+        val input = source() ?: return false
+        input.use { stream -> target.outputStream().use { stream.copyTo(it) } }
+        return true
+    }
 
     @Synchronized
     override fun rename(input: String): DbOutcome {
@@ -196,12 +205,10 @@ class DatabaseManager(
             }.getOrDefault(ByteArray(0))
         if (!DatabaseCheck.hasSqliteHeader(header)) return DbProblem.NOT_SQLITE
         return runCatching {
-            AndroidSqlDb(SQLiteDatabase.openDatabase(file.path, null, SQLiteDatabase.OPEN_READONLY)).use {
-                when (DatabaseCheck.inspect(it)) {
-                    DatabaseCheck.NotOurs -> DbProblem.NOT_OURS
-                    is DatabaseCheck.Newer -> DbProblem.NEWER
-                    else -> null
-                }
+            when (inspect(file)) {
+                DatabaseCheck.NotOurs -> DbProblem.NOT_OURS
+                is DatabaseCheck.Newer -> DbProblem.NEWER
+                else -> null
             }
         }.getOrElse { DbProblem.NOT_SQLITE }
     }
@@ -227,8 +234,7 @@ class DatabaseManager(
         folder.mkdirs()
         val target = uniqueFile(displayName)
         return runCatching {
-            val input = source() ?: return DbOutcome.Failed(DbProblem.FAILED)
-            input.use { stream -> target.outputStream().use { stream.copyTo(it) } }
+            if (!copyInto(source, target)) return DbOutcome.Failed(DbProblem.FAILED)
             checkFile(target)?.let {
                 target.delete()
                 return DbOutcome.Failed(it)
@@ -259,8 +265,7 @@ class DatabaseManager(
     override fun importPicked(source: () -> InputStream?): DbOutcome {
         val temp = File.createTempFile("import", DatabaseName.EXTENSION, context.cacheDir)
         return try {
-            val input = source() ?: return DbOutcome.Failed(DbProblem.FAILED)
-            input.use { stream -> temp.outputStream().use { stream.copyTo(it) } }
+            if (!copyInto(source, temp)) return DbOutcome.Failed(DbProblem.FAILED)
             checkFile(temp)?.let { return DbOutcome.Failed(it) }
             // the picked file may be of an older schema: it is read through a store, which migrates this copy, never the original
             val picked = AndroidSqlDb(SQLiteDatabase.openDatabase(temp.path, null, SQLiteDatabase.OPEN_READWRITE))

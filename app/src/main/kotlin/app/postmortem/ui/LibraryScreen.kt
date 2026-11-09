@@ -68,10 +68,8 @@ fun LibraryScreen(
             SnackbarResult.Dismissed -> onUndoExpired()
         }
     }
-    Scaffold(
-        modifier = Modifier.fillMaxSize().semantics { testTagsAsResourceId = true },
-        contentWindowInsets = WindowInsets(0),
-        topBar = { TopAppBar(title = { Text(stringResource(R.string.library_title)) }) },
+    PageScaffold(
+        title = stringResource(R.string.library_title),
         snackbarHost = {
             SnackbarHost(snackbars) { data ->
                 Snackbar(
