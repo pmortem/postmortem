@@ -125,8 +125,8 @@ class DatabaseManagementTest {
         java.io.File(picked).copyTo(java.io.File(copy), overwrite = true)
         val future = listOf(listOf("ALTER TABLE game ADD COLUMN note TEXT NOT NULL DEFAULT ''"))
         JdbcSqlDb.open(copy).use { db ->
-            Schema.migrate(db, upTo = 2, migrations = Schema.steps + future)
-            assertEquals(2, db.userVersion)
+            Schema.migrate(db, upTo = Schema.CURRENT_VERSION + 1, migrations = Schema.steps + future)
+            assertEquals(Schema.CURRENT_VERSION + 1, db.userVersion)
         }
         assertEquals(
             before,

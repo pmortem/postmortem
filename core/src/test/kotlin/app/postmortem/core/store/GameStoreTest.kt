@@ -348,4 +348,36 @@ class GameStoreTest {
         assertEquals(setOf(id), store.mainLines(many).keys)
         assertEquals(setOf(DrillKey(id, 2)), store.drillProgress(many).keys)
     }
+
+    @Test
+    fun anAnalysedGameIsSavedWithTheAccuraciesTheSummaryShowsAndTheOpeningOfItsTags() {
+        val game = Fixtures.game("lichess-short-resign")
+        val evals = evalsOf(game)
+        val new = NewGame.analysed("pgn", game, evals, List(game.positionCount) { null }, "settings")
+        val report =
+            app.postmortem.core.analysis.GameReport.of(
+                evals,
+                game.whiteMovesFirst,
+                startEval = Eval.Cp(app.postmortem.core.analysis.GameReport.LICHESS_START_CP),
+            )
+        assertEquals(report.white.accuracy, new.whiteAccuracy)
+        assertEquals(report.black.accuracy, new.blackAccuracy)
+        assertEquals(
+            app.postmortem.core.pgn.GameOverview
+                .of(game.headers)
+                .opening,
+            new.opening,
+        )
+        assertEquals("settings", new.analysisSettings)
+    }
+
+    @Test
+    fun theQueueTableKeepsItsGamesInOrderWithTheirState() {
+        val a = store.addQueued("first", 10)
+        val b = store.addQueued("second", 20)
+        store.setQueuedState(a, "running")
+        assertEquals(listOf(QueuedRow(a, "first", 10, "running"), QueuedRow(b, "second", 20, "waiting")), store.queuedRows())
+        store.removeQueued(a)
+        assertEquals(listOf(b), store.queuedRows().map { it.id })
+    }
 }

@@ -10,6 +10,7 @@ import app.postmortem.core.line.Lines
 import app.postmortem.core.pgn.Game
 import app.postmortem.core.pgn.GameOverview
 import app.postmortem.core.pgn.Ply
+import app.postmortem.core.pgn.overview
 import app.postmortem.core.pgn.whiteToMove
 
 /** A game to save: what the analysis made of it. [evals] has one entry per position; [bestMoves] (UCI) as many, or none at all. */
@@ -22,7 +23,61 @@ data class NewGame(
     val blackAccuracy: Double? = null,
     val opening: String? = null,
     val bestMoves: List<String?> = emptyList(),
+) {
+    companion object {
+        /**
+         * The game as a finished analysis saves it: its evals and best moves, the accuracies of both sides (Lichess's, scoring the first
+         * move from 15 cp in a game from the standard start, as the Summary does) and the opening its tags name.
+         */
+        fun analysed(
+            pgn: String,
+            game: Game,
+            evals: List<Eval>,
+            bestMoves: List<String?>,
+            analysisSettings: String,
+        ): NewGame {
+            val start = if (game.startsFromStandardPosition) Eval.Cp(GameReport.LICHESS_START_CP) else null
+            val report = GameReport.of(evals, game.whiteMovesFirst, startEval = start)
+            return NewGame(
+                pgn = pgn,
+                game = game,
+                evals = evals,
+                analysisSettings = analysisSettings,
+                whiteAccuracy = report.white.accuracy,
+                blackAccuracy = report.black.accuracy,
+                opening = game.overview.opening,
+                bestMoves = bestMoves,
+            )
+        }
+    }
+}
+
+/** A game waiting in the background queue, as stored: the PGN, when it was added, and `waiting` or `running`. */
+data class QueuedRow(
+    val id: Long,
+    val pgn: String,
+    val added: Long,
+    val state: String,
 )
+
+/** Where the background queue keeps its games, so it carries on after the app was killed. */
+interface QueueStore {
+    /** The queued games in the order they were added. */
+    fun queuedRows(): List<QueuedRow>
+
+    /** Adds [pgn] at the end of the queue and returns its id. */
+    fun addQueued(
+        pgn: String,
+        added: Long,
+    ): Long
+
+    fun setQueuedState(
+        id: Long,
+        state: String,
+    )
+
+    fun removeQueued(id: Long)
+}
 
 /** A game as stored: the analysis and the lines the user played, with the evals found for them (by `positionKey`). */
 data class SavedGame(
@@ -169,7 +224,8 @@ private const val IDS = "(:ids)"
 class GameStore(
     private val db: SqlDb,
     private val clock: () -> Long = System::currentTimeMillis,
-) : GameLibrary {
+) : GameLibrary,
+    QueueStore {
     init {
         Schema.migrate(db)
     }
@@ -470,6 +526,27 @@ class GameStore(
                         whiteMovesFirst = whiteToMove(rows.first().string("start_fen")),
                     )
             }.toMap()
+
+    override fun queuedRows(): List<QueuedRow> =
+        db.query("SELECT id, pgn, added, state FROM queued ORDER BY added, id").map {
+            QueuedRow(it.long("id"), it.string("pgn"), it.long("added"), it.string("state"))
+        }
+
+    override fun addQueued(
+        pgn: String,
+        added: Long,
+    ): Long =
+        db.transaction {
+            db.execute("INSERT INTO queued (pgn, added, state) VALUES (?, ?, 'waiting')", listOf(pgn, added))
+            db.lastInsertId()
+        }
+
+    override fun setQueuedState(
+        id: Long,
+        state: String,
+    ) = db.execute("UPDATE queued SET state = ? WHERE id = ?", listOf(state, id))
+
+    override fun removeQueued(id: Long) = db.execute("DELETE FROM queued WHERE id = ?", listOf(id))
 
     override fun delete(id: Long) = db.execute("DELETE FROM game WHERE id = ?", listOf(id))
 
