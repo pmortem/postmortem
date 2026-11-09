@@ -57,27 +57,8 @@ class ReportControllerTest {
     private class RowsLibrary(
         var rows: List<ReportRow>,
         var lines: Map<Long, MainLine> = emptyMap(),
-    ) : GameLibrary {
+    ) : StubLibrary() {
         var linesAsked = 0
-
-        override fun findSaved(game: Game): SavedGame? = null
-
-        override fun save(new: NewGame): Long = 0
-
-        override fun saveLines(
-            id: Long,
-            lines: app.postmortem.core.line.Lines,
-            lineEvals: Map<String, app.postmortem.core.analysis.Eval>,
-        ) = Unit
-
-        override fun setOpening(
-            id: Long,
-            opening: String?,
-        ) = Unit
-
-        override fun load(id: Long): SavedGame? = null
-
-        override fun list(): List<GameSummary> = emptyList()
 
         override fun reportRows(): List<ReportRow> = rows
 
@@ -85,10 +66,6 @@ class ReportControllerTest {
             linesAsked += ids.size
             return lines.filterKeys { it in ids }
         }
-
-        override fun delete(id: Long) = Unit
-
-        override fun restore(saved: SavedGame) = Unit
     }
 
     private val games =

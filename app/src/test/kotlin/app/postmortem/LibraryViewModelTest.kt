@@ -40,10 +40,8 @@ class LibraryViewModelTest {
     @After
     fun tearDown() = Dispatchers.resetMain()
 
-    private fun fixture(name: String) = checkNotNull(javaClass.getResource("/pgn/$name.pgn")) { "no fixture $name" }.readText()
-
     /** The saved games in memory, as the real store keeps them. [broken] makes every call fail, like a full disk. */
-    private class FakeLibrary : GameLibrary {
+    private class FakeLibrary : StubLibrary() {
         val games = LinkedHashMap<Long, SavedGame>()
         var broken = false
         private var next = 1L
@@ -123,22 +121,13 @@ class LibraryViewModelTest {
         }
     }
 
-    private class FakePositions : PositionEvals {
+    private class FakePositions : StubPositions() {
         val asked = ArrayList<String>()
-
-        override fun cached(fen: String): Eval? = null
 
         override suspend fun evaluate(fen: String): Eval {
             asked += fen
             return Eval.Cp(asked.size * 10)
         }
-
-        override fun seed(
-            game: Game,
-            evals: List<Eval>,
-        ) = Unit
-
-        override suspend fun release() = Unit
     }
 
     private var analysed = 0
@@ -155,7 +144,7 @@ class LibraryViewModelTest {
     ) = MainViewModel(::canned, dispatcher, positions = positions, library = library)
 
     private fun MainViewModel.analyse(name: String) {
-        onPgnChange(fixture(name))
+        onPgnChange(TestPgn.text(name))
         analyse()
     }
 
@@ -230,7 +219,7 @@ class LibraryViewModelTest {
         val vm = viewModel(library)
         vm.analyse("scholars-mate")
         vm.back()
-        vm.onPgnChange(fixture("scholars-mate").replace("Scholar's mate", "Scholar's mate, again"))
+        vm.onPgnChange(TestPgn.text("scholars-mate").replace("Scholar's mate", "Scholar's mate, again"))
         vm.analyse()
         assertEquals(2, analysed)
         assertEquals(2, library.games.size)
@@ -382,7 +371,7 @@ class LibraryViewModelTest {
     @Test
     fun theStartTabsCannotBeChangedWhileAnalysing() {
         val vm = MainViewModel({ flow { } }, dispatcher, library = FakeLibrary())
-        vm.onPgnChange(fixture("scholars-mate"))
+        vm.onPgnChange(TestPgn.text("scholars-mate"))
         vm.analyse()
         assertIs<UiState.Analysing>(vm.state)
         vm.selectStartTab(StartTab.Library)

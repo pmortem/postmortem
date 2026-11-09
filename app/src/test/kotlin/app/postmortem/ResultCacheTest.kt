@@ -33,8 +33,7 @@ class ResultCacheTest {
     @After
     fun tearDown() = Dispatchers.resetMain()
 
-    private val game: Game =
-        (PgnParser.parse(checkNotNull(javaClass.getResource("/pgn/scholars-mate.pgn")).readText()) as PgnResult.Success).game
+    private val game: Game = TestPgn.game("scholars-mate")
     private val evals = List(game.positionCount) { Eval.Cp(it * 40 - 100) }
 
     @Test
@@ -73,7 +72,7 @@ class ResultCacheTest {
     @Test
     fun aLineReportIsWorkedOutOnceForTheSameLineAndEvalsAndAgainWhenAnEvalArrives() {
         val vm = MainViewModel(::canned, dispatcher)
-        vm.onPgnChange(checkNotNull(javaClass.getResource("/pgn/scholars-mate.pgn")).readText())
+        vm.onPgnChange(TestPgn.text("scholars-mate"))
         vm.analyse()
         vm.selectPly(4)
         vm.playMove("d2", "d4")

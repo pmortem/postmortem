@@ -34,8 +34,6 @@ class LineEvalViewModelTest {
     @After
     fun tearDown() = Dispatchers.resetMain()
 
-    private fun fixture(name: String) = checkNotNull(javaClass.getResource("/pgn/$name.pgn")) { "no fixture $name" }.readText()
-
     /** One canned eval per position: Cp(10 * position). */
     private fun canned(game: Game): Flow<AnalysisProgress> =
         flow {
@@ -46,7 +44,7 @@ class LineEvalViewModelTest {
     /** Evaluates positions when told to: [hold] keeps every answer back, and the positions asked are noted in order. */
     private class FakePositions(
         private val answer: (String) -> Eval = { Eval.Cp(it.length) },
-    ) : PositionEvals {
+    ) : StubPositions() {
         val asked = ArrayList<String>()
         var seeded: List<Eval>? = null
         var released = 0
@@ -75,7 +73,7 @@ class LineEvalViewModelTest {
 
     private fun viewModel(positions: FakePositions) =
         MainViewModel(::canned, dispatcher, positions = positions).also {
-            it.onPgnChange(fixture("scholars-mate"))
+            it.onPgnChange(TestPgn.text("scholars-mate"))
             it.analyse()
             it.selectPly(4)
         }

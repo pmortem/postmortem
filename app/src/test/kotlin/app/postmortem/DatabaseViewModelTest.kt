@@ -41,14 +41,10 @@ class DatabaseViewModelTest {
     @After
     fun tearDown() = Dispatchers.resetMain()
 
-    private fun fixture(name: String) = checkNotNull(javaClass.getResource("/pgn/$name.pgn")) { "no fixture $name" }.readText()
-
     /** A library that only counts what is saved to it, so a test can see what was on disk when a file action ran. */
-    private class CountingLibrary : GameLibrary {
+    private class CountingLibrary : StubLibrary() {
         var games = 0
         var lineSaves = 0
-
-        override fun findSaved(game: Game): SavedGame? = null
 
         override fun save(new: NewGame): Long {
             games++
@@ -62,19 +58,6 @@ class DatabaseViewModelTest {
         ) {
             lineSaves++
         }
-
-        override fun setOpening(
-            id: Long,
-            opening: String?,
-        ) = Unit
-
-        override fun load(id: Long): SavedGame? = null
-
-        override fun list(): List<GameSummary> = emptyList()
-
-        override fun delete(id: Long) = Unit
-
-        override fun restore(saved: SavedGame) = Unit
     }
 
     private class FakeDatabases(
@@ -121,7 +104,7 @@ class DatabaseViewModelTest {
     private fun viewModel() = MainViewModel(::canned, dispatcher, library = library, databases = databases)
 
     private fun MainViewModel.analyseScholars() {
-        onPgnChange(fixture("scholars-mate"))
+        onPgnChange(TestPgn.text("scholars-mate"))
         analyse()
     }
 

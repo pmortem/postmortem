@@ -39,32 +39,16 @@ class DrillControllerTest {
     @After
     fun tearDown() = Dispatchers.resetMain()
 
-    private val game: Game =
-        (PgnParser.parse(checkNotNull(javaClass.getResource("/pgn/scholars-mate.pgn")).readText()) as PgnResult.Success).game
+    private val game: Game = TestPgn.game("scholars-mate")
 
     /** A library with one game; best moves are what [bests] holds (by position), and every try is noted. */
     private class OneGameLibrary(
         private val game: Game,
         val bests: MutableMap<Int, String> = HashMap(),
-    ) : GameLibrary {
+    ) : StubLibrary() {
         val tries = ArrayList<Triple<Long, Int, Boolean>>()
         val written = ArrayList<Triple<Long, Int, String>>()
         var hasGame = true
-
-        override fun findSaved(game: Game): SavedGame? = null
-
-        override fun save(new: NewGame): Long = 0
-
-        override fun saveLines(
-            id: Long,
-            lines: Lines,
-            lineEvals: Map<String, Eval>,
-        ) = Unit
-
-        override fun setOpening(
-            id: Long,
-            opening: String?,
-        ) = Unit
 
         override fun load(id: Long): SavedGame? =
             if (hasGame) {
@@ -72,12 +56,6 @@ class DrillControllerTest {
             } else {
                 null
             }
-
-        override fun list(): List<GameSummary> = emptyList()
-
-        override fun delete(id: Long) = Unit
-
-        override fun restore(saved: SavedGame) = Unit
 
         override fun bestMove(
             gameId: Long,
@@ -105,12 +83,10 @@ class DrillControllerTest {
     private class FakeEngine(
         var after: Eval = Eval.Cp(0),
         var best: String? = null,
-    ) : PositionEvals {
+    ) : StubPositions() {
         val asked = ArrayList<String>()
         var released = 0
         var fail = false
-
-        override fun cached(fen: String): Eval? = null
 
         override suspend fun evaluate(fen: String): Eval {
             asked += fen
@@ -119,11 +95,6 @@ class DrillControllerTest {
         }
 
         override suspend fun bestMove(fen: String): String? = best
-
-        override fun seed(
-            game: Game,
-            evals: List<Eval>,
-        ) = Unit
 
         override suspend fun release() {
             released++
