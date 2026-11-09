@@ -2,9 +2,17 @@
 <manifest xmlns:android="http://schemas.android.com/apk/res/android"
     xmlns:tools="http://schemas.android.com/tools">
 
-    <!-- No permissions, on purpose: the host refuses an APK that asks for one. The share sheet and the file picker need none. -->
+    <!--
+        Three permissions, all for the background analysis (#181), and on the host's allowlist: a foreground service keeps the app alive
+        while games are analysed (of the data sync type), and its notification shows the progress. Notifications are asked for only after
+        a game was analysed in the background; without them the work goes on. The share sheet and the file picker need none.
+    -->
+    <uses-permission android:name="android.permission.FOREGROUND_SERVICE" />
+    <uses-permission android:name="android.permission.FOREGROUND_SERVICE_DATA_SYNC" />
+    <uses-permission android:name="android.permission.POST_NOTIFICATIONS" />
 
     <application
+        android:name=".PostmortemApp"
         android:allowBackup="false"
         android:icon="@mipmap/ic_launcher"
         android:label="@string/app_name"
@@ -13,6 +21,7 @@
         <activity
             android:name=".MainActivity"
             android:exported="true"
+            android:launchMode="singleTop"
             android:screenOrientation="portrait"
             tools:ignore="DiscouragedApi,LockedOrientationActivity">
             <intent-filter>
@@ -20,6 +29,11 @@
                 <category android:name="android.intent.category.LAUNCHER" />
             </intent-filter>
         </activity>
+        <!-- Analyses the queued games while the app is not on screen; it stops itself when the queue is empty. -->
+        <service
+            android:name=".AnalysisService"
+            android:exported="false"
+            android:foregroundServiceType="dataSync" />
         <!-- Hands the exported database to the share sheet as a content URI; it grants read access to that one file. -->
         <provider
             android:name="androidx.core.content.FileProvider"

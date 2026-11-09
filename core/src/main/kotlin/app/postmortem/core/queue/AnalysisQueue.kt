@@ -61,15 +61,20 @@ sealed interface Enqueued {
     data object Invalid : Enqueued
 }
 
-/** A game that left the queue: saved as [gameId] with its accuracies, or failed with [message]. */
+/**
+ * A game that left the queue: analysed (and saved as [Finished.gameId], or not saved when the library failed, null then), or failed
+ * with [Failed.message].
+ */
 sealed interface QueueEvent {
     val game: QueuedGame
 
     data class Finished(
         override val game: QueuedGame,
-        val gameId: Long,
+        val gameId: Long?,
         val whiteAccuracy: Double?,
         val blackAccuracy: Double?,
+        /** The evals of every position, so a screen waiting for this game can show it at once. */
+        val evals: List<app.postmortem.core.analysis.Eval>,
     ) : QueueEvent
 
     data class Failed(
@@ -186,7 +191,20 @@ class AnalysisQueue(
                         launch {
                             analyse(queued.game, workers()).collect { progress ->
                                 last = progress
-                                setState(queued.id, QueueState.RUNNING, progress.done)
+                                // a report can arrive with an older count than one before it: the count never goes back
+                                lock.withLock {
+                                    games.update { list ->
+                                        list.map {
+                                            if (it.id ==
+                                                queued.id
+                                            ) {
+                                                it.copy(state = QueueState.RUNNING, done = maxOf(it.done, progress.done))
+                                            } else {
+                                                it
+                                            }
+                                        }
+                                    }
+                                }
                             }
                         }
                     lock.withLock {
@@ -226,23 +244,18 @@ class AnalysisQueue(
             }
 
             failure != null || last?.finished != true -> {
-                leave(queued)
                 events.emit(QueueEvent.Failed(queued, failure?.message ?: "the analysis stopped"))
+                leave(queued)
             }
 
             else -> {
                 val progress = last!!
-                val saved =
-                    runCatching {
-                        withContext(dispatcher) {
-                            val new = NewGame.analysed(queued.pgn, queued.game, progress.evals, progress.bestMoves, analysisSettings)
-                            new to library.save(new)
-                        }
-                    }
+                val new = NewGame.analysed(queued.pgn, queued.game, progress.evals, progress.bestMoves, analysisSettings)
+                // a library that fails costs the save, never the analysis
+                val id = runCatching { withContext(dispatcher) { library.save(new) } }.getOrNull()
+                // the event goes out before the game leaves the list, so whoever watches the list for the end has heard it
+                events.emit(QueueEvent.Finished(queued, id, new.whiteAccuracy, new.blackAccuracy, new.evals))
                 leave(queued)
-                saved
-                    .onSuccess { (new, id) -> events.emit(QueueEvent.Finished(queued, id, new.whiteAccuracy, new.blackAccuracy)) }
-                    .onFailure { events.emit(QueueEvent.Failed(queued, it.message ?: "the game could not be saved")) }
             }
         }
     }
@@ -264,5 +277,33 @@ class AnalysisQueue(
         const val EVENT_BUFFER = 16
         const val STATE_WAITING = "waiting"
         const val STATE_RUNNING = "running"
+    }
+}
+
+/** A [QueueStore] that lives in memory only: for a queue that need not survive the app (tests, a screen without a database). */
+class InMemoryQueueStore : QueueStore {
+    private val rows = ArrayList<QueuedRow>()
+    private var next = 1L
+
+    @Synchronized
+    override fun queuedRows(): List<QueuedRow> = rows.sortedWith(compareBy({ it.added }, { it.id }))
+
+    @Synchronized
+    override fun addQueued(
+        pgn: String,
+        added: Long,
+    ): Long = next++.also { rows += QueuedRow(it, pgn, added, "waiting") }
+
+    @Synchronized
+    override fun setQueuedState(
+        id: Long,
+        state: String,
+    ) {
+        rows.replaceAll { if (it.id == id) it.copy(state = state) else it }
+    }
+
+    @Synchronized
+    override fun removeQueued(id: Long) {
+        rows.removeAll { it.id == id }
     }
 }

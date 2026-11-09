@@ -1,6 +1,7 @@
 package app.postmortem
 
 import app.postmortem.core.store.GameLibrary
+import app.postmortem.core.store.QueueStore
 import app.postmortem.data.DatabaseControl
 import app.postmortem.data.DatabaseManager
 import java.lang.reflect.Modifier
@@ -8,14 +9,14 @@ import kotlin.test.Test
 import kotlin.test.assertEquals
 
 /**
- * `DatabaseManager` closes and reopens the database around its file actions, so every call into it must hold its lock: a call that
+ * `DatabaseManager` (the library, the database files and the background queue's table) closes and reopens the database around its file actions, so every call into it must hold its lock: a call that
  * does not can run on a database being closed, or reopen the old file in the middle of a rename (#200).
  */
 class DatabaseManagerLockTest {
     @Test
     fun everyLibraryAndDatabaseCallOfTheManagerHoldsItsLock() {
         val wanted =
-            (GameLibrary::class.java.methods + DatabaseControl::class.java.methods)
+            (GameLibrary::class.java.methods + DatabaseControl::class.java.methods + QueueStore::class.java.methods)
                 .map { it.name to it.parameterTypes.toList() }
                 .toSet()
         val unlocked =

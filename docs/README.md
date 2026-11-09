@@ -19,6 +19,7 @@ Back from another tab goes to Analyse; Back on Analyse leaves the app. The bar i
 | [Paste and analyse](analysis.md) | Pasting a game, the progress ring, what is checked, errors |
 | [The result screen](result-screen.md) | Board, last-move tint, eval bar (and RIP), arrows, flip, Moves / Chart / Summary tabs |
 | [Report](report.md) | Pick a player, see their openings as White and Black with win/draw/loss percentages |
+| [Background analysis](background-analysis.md) | The analysis queue, the notification, gentle and full speed, the heat pause |
 | [The database](database.md) | Where the games are saved, naming it, export, switching files, import |
 | [Summary](summary.md) | Overview, opening, accuracy, ACPL, inaccuracies, mistakes and blunders |
 | [Engine](engine.md) | Stockfish, the repeatable analysis settings, live arrows, the long-press readout |

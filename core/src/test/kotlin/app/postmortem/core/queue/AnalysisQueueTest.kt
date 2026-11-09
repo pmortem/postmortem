@@ -104,7 +104,7 @@ class AnalysisQueueTest {
             assertTrue(queue.progress.value.isEmpty())
             assertEquals(listOf(a, b), events.map { it.game.id })
             val finished = assertIs<QueueEvent.Finished>(events.first())
-            val saved = store.load(finished.gameId)!!
+            val saved = store.load(finished.gameId!!)!!
             assertEquals(Fixtures.game("scholars-mate"), saved.game)
             val expected = NewGame.analysed(scholars, saved.game, saved.evals, saved.bestMoves, "test")
             assertEquals(expected.whiteAccuracy, finished.whiteAccuracy)
@@ -298,4 +298,32 @@ class AnalysisQueueTest {
     private companion object {
         const val TIMEOUT_MS = 60_000L
     }
+
+    @Test
+    fun aLibraryThatCannotSaveStillGivesTheAnalysisWithNoGameIdAndTheCountNeverGoesBack() =
+        runTest(UnconfinedTestDispatcher()) {
+            val failing =
+                object : app.postmortem.core.store.GameLibrary by store {
+                    override fun save(new: NewGame): Long = error("disk full")
+                }
+            val dispatcher = UnconfinedTestDispatcher(testScheduler)
+            val counts =
+                AnalysisQueue(backgroundScope, dispatcher, store, failing, { game, _ ->
+                    flow {
+                        emit(AnalysisProgress(5, game.positionCount, emptyList()))
+                        emit(AnalysisProgress(3, game.positionCount, emptyList()))
+                        emit(AnalysisProgress(game.positionCount, game.positionCount, List(game.positionCount) { Eval.Cp(0) }))
+                    }
+                }, "t", { 1 }) { 0 }
+            val events = ArrayList<QueueEvent>()
+            val seen = ArrayList<Int>()
+            backgroundScope.launch { counts.finished.collect { events += it } }
+            backgroundScope.launch { counts.progress.collect { list -> list.firstOrNull()?.let { seen += it.done } } }
+            counts.start()
+            counts.enqueue(scholars)
+            val finished = assertIs<QueueEvent.Finished>(events.single())
+            assertEquals(null, finished.gameId)
+            assertEquals(Fixtures.game("scholars-mate").positionCount, finished.evals.size)
+            assertEquals(seen.sorted(), seen, "the count only goes forward: $seen")
+        }
 }

@@ -14,6 +14,8 @@ import app.postmortem.core.store.GameStore
 import app.postmortem.core.store.GameSummary
 import app.postmortem.core.store.MainLine
 import app.postmortem.core.store.NewGame
+import app.postmortem.core.store.QueueStore
+import app.postmortem.core.store.QueuedRow
 import app.postmortem.core.store.ReportRow
 import app.postmortem.core.store.SavedGame
 import app.postmortem.core.store.Schema
@@ -29,6 +31,7 @@ class DatabaseManager(
     private val context: Context,
     private val active: ActiveDatabaseName,
 ) : GameLibrary,
+    QueueStore,
     DatabaseControl {
     private var open: OpenDatabase? = null
 
@@ -110,6 +113,24 @@ class DatabaseManager(
         ply: Int,
         uci: String,
     ) = store().setBestMove(gameId, ply, uci)
+
+    @Synchronized
+    override fun queuedRows(): List<QueuedRow> = store().queuedRows()
+
+    @Synchronized
+    override fun addQueued(
+        pgn: String,
+        added: Long,
+    ): Long = store().addQueued(pgn, added)
+
+    @Synchronized
+    override fun setQueuedState(
+        id: Long,
+        state: String,
+    ) = store().setQueuedState(id, state)
+
+    @Synchronized
+    override fun removeQueued(id: Long) = store().removeQueued(id)
 
     @Synchronized
     override fun delete(id: Long) = store().delete(id)

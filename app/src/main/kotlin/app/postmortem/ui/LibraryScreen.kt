@@ -5,17 +5,22 @@ import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.WindowInsets
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.lazy.LazyColumn
+import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.lazy.itemsIndexed
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.ArrowBack
+import androidx.compose.material.icons.filled.Close
 import androidx.compose.material3.ExperimentalMaterial3Api
+import androidx.compose.material3.HorizontalDivider
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
+import androidx.compose.material3.LinearProgressIndicator
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Scaffold
 import androidx.compose.material3.Snackbar
@@ -41,17 +46,22 @@ import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.semantics.testTagsAsResourceId
 import app.postmortem.R
 import app.postmortem.UiTags
+import app.postmortem.core.queue.QueueState
+import app.postmortem.core.queue.QueuedGame
 import app.postmortem.core.store.GameSummary
 import app.postmortem.ui.theme.Spacing
 
 /**
  * The saved games, the one worked on last first: players, result, date, opening, both accuracies and the number of lines. A tap
  * reopens the game with no analysis, a swipe to the right deletes it with an Undo. [games] is null while they are being read.
+ * The games waiting in the background queue, and the one being analysed, come first, with their progress and a Cancel button.
  */
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun LibraryScreen(
     games: List<GameSummary>?,
+    queued: List<QueuedGame>,
+    onCancelQueued: (Long) -> Unit,
     deletedOffered: Boolean,
     onOpen: (Long) -> Unit,
     onDelete: (Long) -> Unit,
@@ -88,7 +98,7 @@ fun LibraryScreen(
                     Unit
                 }
 
-                games.isEmpty() -> {
+                games.isEmpty() && queued.isEmpty() -> {
                     Text(
                         stringResource(R.string.library_empty),
                         style = MaterialTheme.typography.bodyLarge,
@@ -98,6 +108,7 @@ fun LibraryScreen(
 
                 else -> {
                     LazyColumn(Modifier.fillMaxSize()) {
+                        items(queued, key = { "queued${it.id}" }) { QueuedRow(it, onCancelQueued) }
                         itemsIndexed(games, key = { _, game -> game.id }) { index, game ->
                             GameRow(index, game, onOpen, onDelete)
                         }
@@ -165,3 +176,64 @@ private fun GameRow(
         }
     }
 }
+
+/** A game in the background queue: its players, how far it is (or that it waits), and Cancel. */
+@Composable
+private fun QueuedRow(
+    game: QueuedGame,
+    onCancel: (Long) -> Unit,
+) {
+    Row(
+        Modifier.fillMaxWidth().padding(horizontal = Spacing.screen, vertical = Spacing.small),
+        verticalAlignment = Alignment.CenterVertically,
+    ) {
+        Column(Modifier.weight(1f)) {
+            Text(
+                stringResource(
+                    R.string.notify_players,
+                    game.white ?: stringResource(R.string.summary_white),
+                    game.black ?: stringResource(R.string.summary_black),
+                ),
+                style = MaterialTheme.typography.bodyLarge,
+            )
+            Text(
+                when (game.state) {
+                    QueueState.RUNNING -> {
+                        stringResource(
+                            R.string.library_queue_running,
+                            if (game.total ==
+                                0
+                            ) {
+                                0
+                            } else {
+                                game.done * PERCENT / game.total
+                            },
+                        )
+                    }
+
+                    QueueState.WAITING -> {
+                        stringResource(R.string.library_queue_waiting)
+                    }
+
+                    QueueState.PAUSED_HOT -> {
+                        stringResource(R.string.library_queue_hot)
+                    }
+                },
+                style = MaterialTheme.typography.bodySmall,
+                color = MaterialTheme.colorScheme.onSurfaceVariant,
+            )
+            if (game.state == QueueState.RUNNING) {
+                LinearProgressIndicator(
+                    progress = { if (game.total == 0) 0f else game.done.toFloat() / game.total },
+                    modifier = Modifier.fillMaxWidth().padding(top = Spacing.small),
+                )
+            }
+        }
+        IconButton(onClick = { onCancel(game.id) }) {
+            Icon(Icons.Filled.Close, stringResource(R.string.library_queue_cancel))
+        }
+    }
+    HorizontalDivider()
+}
+
+private const val PERCENT = 100
