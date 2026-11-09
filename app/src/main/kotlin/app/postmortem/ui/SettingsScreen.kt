@@ -71,21 +71,11 @@ fun SettingsScreen(
     actions: SettingsActions,
     onBack: (() -> Unit)? = null,
 ) {
-    Scaffold(
-        modifier = Modifier.fillMaxSize().semantics { testTagsAsResourceId = true },
-        contentWindowInsets = if (onBack == null) WindowInsets(0) else ScaffoldDefaults.contentWindowInsets,
-        topBar = {
-            TopAppBar(
-                title = { Text(stringResource(R.string.settings_title)) },
-                navigationIcon = {
-                    if (onBack != null) {
-                        IconButton(onClick = onBack, modifier = Modifier.testTag(UiTags.SETTINGS_BACK)) {
-                            Icon(Icons.AutoMirrored.Filled.ArrowBack, stringResource(R.string.settings_back))
-                        }
-                    }
-                },
-            )
-        },
+    PageScaffold(
+        title = stringResource(R.string.settings_title),
+        onBack = onBack,
+        backTag = UiTags.SETTINGS_BACK,
+        insets = if (onBack == null) WindowInsets(0) else ScaffoldDefaults.contentWindowInsets,
     ) { padding ->
         LazyColumn(Modifier.fillMaxSize().padding(padding).testTag(UiTags.SETTINGS)) {
             item {

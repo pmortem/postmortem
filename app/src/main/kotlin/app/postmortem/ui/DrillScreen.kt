@@ -48,20 +48,7 @@ fun DrillScreen(
     onOpenGame: () -> Unit,
 ) {
     val ui = drill.ui
-    Scaffold(
-        modifier = Modifier.fillMaxSize().semantics { testTagsAsResourceId = true },
-        contentWindowInsets = WindowInsets(0),
-        topBar = {
-            TopAppBar(
-                title = { Text(stringResource(R.string.drill_title)) },
-                navigationIcon = {
-                    IconButton(onClick = drill::close, modifier = Modifier.testTag(UiTags.DRILL_BACK)) {
-                        Icon(Icons.AutoMirrored.Filled.ArrowBack, stringResource(R.string.drill_back))
-                    }
-                },
-            )
-        },
-    ) { padding ->
+    PageScaffold(title = stringResource(R.string.drill_title), onBack = drill::close, backTag = UiTags.DRILL_BACK) { padding ->
         Column(
             Modifier
                 .fillMaxSize()

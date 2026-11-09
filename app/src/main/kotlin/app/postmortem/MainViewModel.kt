@@ -108,20 +108,19 @@ class MainViewModel(
     var pendingExport: java.io.File? by mutableStateOf(null)
         private set
 
-    /** The piece the user picked up by tapping, and where it may go. It counts only while the board shows the position it was picked in. */
-    private var selection: BoardSelection? by mutableStateOf(null)
-    private var promotionAsked: PromotionAsked? by mutableStateOf(null)
-
     private val shownFen: String? get() = (state as? UiState.Result)?.fen
 
+    /** Moves played by hand on the board; what is picked up counts only while the board shows the position it was picked on. */
+    private val input = MoveInput({ shownFen }) { from, to, promotion -> playMove(from, to, promotion) }
+
     /** The square of the picked-up piece on the shown position, or null. */
-    val selectedSquare: String? get() = selection?.takeIf { it.fen == shownFen }?.square
+    val selectedSquare: String? get() = input.selected
 
     /** Where the picked-up piece may go. */
-    val moveTargets: List<MoveTarget> get() = selection?.takeIf { it.fen == shownFen }?.targets.orEmpty()
+    val moveTargets: List<MoveTarget> get() = input.targets
 
     /** The pawn move waiting for a piece to be chosen, or null. */
-    val promotion: PromotionAsked? get() = promotionAsked?.takeIf { it.fen == shownFen }
+    val promotion: PromotionAsked? get() = input.promotion
 
     /** The line deleted last, which Undo brings back, with where the board was. */
     var deletedLine: DeletedLine? by mutableStateOf(null)
@@ -346,56 +345,20 @@ class MainViewModel(
         restartLive()
     }
 
-    /**
-     * A tap on [square]: with a piece picked up, a square it may go to plays the move (a pawn reaching the last rank first asks for
-     * the piece), another piece of the side to move picks that one up, and anything else puts the piece down. With none picked up, a
-     * piece that can move is picked up.
-     */
-    fun tapSquare(square: String) {
-        val fen = shownFen ?: return
-        if (promotion != null) return
-        val picked = selection?.takeIf { it.fen == fen }
-        if (picked != null && picked.targets.any { it.square == square }) {
-            attempt(picked.square, square)
-            return
-        }
-        val targets = Moves.legalTargets(fen, square)
-        selection = if (targets.isEmpty() || picked?.square == square) null else BoardSelection(fen, square, targets)
-    }
+    /** A tap on a square of the board (see [MoveInput.tap]). */
+    fun tapSquare(square: String) = input.tap(square)
 
     /** A piece dragged from [from] and dropped on [to]: played when legal; otherwise nothing changes and the piece snaps back. */
     fun dragMove(
         from: String,
         to: String,
-    ) {
-        val fen = shownFen ?: return
-        if (promotion != null || from == to) return
-        if (Moves.legalTargets(fen, from).none { it.square == to }) return
-        attempt(from, to)
-    }
-
-    private fun attempt(
-        from: String,
-        to: String,
-    ) {
-        val fen = shownFen ?: return
-        selection = null
-        if (Moves.needsPromotion(fen, from, to)) {
-            promotionAsked = PromotionAsked(fen, from, to)
-        } else {
-            playMove(from, to)
-        }
-    }
+    ) = input.drag(from, to)
 
     /** The piece (`q`, `r`, `b` or `n`) chosen for the waiting promotion. */
-    fun choosePromotion(piece: Char) {
-        val asked = promotion ?: return
-        promotionAsked = null
-        playMove(asked.from, asked.to, piece)
-    }
+    fun choosePromotion(piece: Char) = input.choose(piece)
 
     fun cancelPromotion() {
-        promotionAsked = null
+        input.cancelPromotion()
     }
 
     /** Opens the game of the position being practised, at the move that was played there; the practice ends. */
@@ -462,7 +425,7 @@ class MainViewModel(
         val current = state as? UiState.Result ?: return
         val ply = Moves.play(current.fen, from, to, promotion) ?: return
         val played = current.lines.play(current.game, current.cursor, ply)
-        selection = null
+        input.putDown()
         state = current.copy(lines = played.lines, cursor = played.cursor)
         saveLinesSoon()
         evaluateSoon(ply.fen)
@@ -750,10 +713,7 @@ class MainViewModel(
             restartLive()
             return true
         }
-        if (promotion != null) {
-            promotionAsked = null
-            return true
-        }
+        if (promotion != null && input.cancelPromotion()) return true
         (state as? UiState.Result)?.let { current ->
             if (current.cursor.lineId != null) {
                 state = current.copy(cursor = current.lines.leave(current.cursor))
@@ -795,20 +755,6 @@ class MainViewModel(
         return true
     }
 }
-
-/** A piece picked up on [square] of the position [fen], with the squares it may go to. */
-private data class BoardSelection(
-    val fen: String,
-    val square: String,
-    val targets: List<MoveTarget>,
-)
-
-/** A pawn move from [from] to [to] on the position [fen] that needs a piece chosen. */
-data class PromotionAsked(
-    val fen: String,
-    val from: String,
-    val to: String,
-)
 
 /** A line the user deleted, and where the board was, so Undo can put both back. */
 data class DeletedLine(

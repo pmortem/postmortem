@@ -107,14 +107,3 @@ private fun moveText(
     san: String,
     judgement: Judgement?,
 ): String = plyLabel(ply, san) + (judgement?.let { stringResource(it.marksRes()) } ?: "")
-
-@Composable
-private fun outcomeText(outcome: Outcome): String =
-    stringResource(
-        when (outcome) {
-            Outcome.WIN -> R.string.report_win
-            Outcome.DRAW -> R.string.report_draw
-            Outcome.LOSS -> R.string.report_loss
-            Outcome.UNFINISHED -> R.string.report_unfinished
-        },
-    )
