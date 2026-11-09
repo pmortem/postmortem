@@ -21,6 +21,12 @@ object UiTags {
     const val TAB_REPORT = "tab_report"
     const val TAB_SETTINGS = "tab_settings"
     const val REPORT_PLAYER = "report_player"
+    const val REPORT_TAB_OVERVIEW = "report_tab_overview"
+    const val REPORT_TAB_OPENINGS = "report_tab_openings"
+    const val REPORT_TAB_MISTAKES = "report_tab_mistakes"
+    const val REPORT_TAB_PRACTICE = "report_tab_practice"
+    const val REPORT_FILTER_PERIOD = "report_filter_period"
+    const val REPORT_FILTER_SPEED = "report_filter_speed"
     const val REPORT_WHITE = "report_white"
     const val REPORT_BLACK = "report_black"
 

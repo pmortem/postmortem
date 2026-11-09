@@ -5,6 +5,9 @@ import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.ExperimentalLayoutApi
+import androidx.compose.foundation.layout.FlowRow
+import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.WindowInsets
 import androidx.compose.foundation.layout.fillMaxSize
@@ -16,12 +19,15 @@ import androidx.compose.foundation.lazy.items
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.ArrowBack
 import androidx.compose.material3.ExperimentalMaterial3Api
+import androidx.compose.material3.FilterChip
 import androidx.compose.material3.HorizontalDivider
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.OutlinedTextField
+import androidx.compose.material3.PrimaryTabRow
 import androidx.compose.material3.Scaffold
+import androidx.compose.material3.Tab
 import androidx.compose.material3.Text
 import androidx.compose.material3.TopAppBar
 import androidx.compose.runtime.Composable
@@ -38,14 +44,18 @@ import app.postmortem.FamilyKey
 import app.postmortem.PlayerView
 import app.postmortem.R
 import app.postmortem.ReportController
+import app.postmortem.ReportTab
 import app.postmortem.UiTags
 import app.postmortem.VariationKey
 import app.postmortem.core.board.PieceColor
 import app.postmortem.core.report.OpeningFamily
 import app.postmortem.core.report.OpeningVariation
 import app.postmortem.core.report.Outcome
+import app.postmortem.core.report.Period
 import app.postmortem.core.report.PlayerGame
 import app.postmortem.core.report.Record
+import app.postmortem.core.report.ReportFilter
+import app.postmortem.core.report.Speed
 import app.postmortem.ui.theme.ReportColors
 import app.postmortem.ui.theme.Spacing
 import kotlin.math.roundToInt
@@ -89,39 +99,143 @@ private fun ReportBody(
     onPractise: () -> Unit,
 ) {
     val ui = report.ui
-    LazyColumn(
-        Modifier.fillMaxSize(),
-        contentPadding =
-            androidx.compose.foundation.layout
-                .PaddingValues(Spacing.screen),
-    ) {
+    val view = ui.view
+    LazyColumn(Modifier.fillMaxSize(), contentPadding = PaddingValues(Spacing.screen)) {
         item { PlayerPicker(report) }
-        item { PractiseButton(report.ui.drill, onPractise) }
-        item {
-            val view = ui.view
-            when {
-                !ui.loaded -> Unit
-                ui.games == 0 -> Message(R.string.report_empty_db)
-                ui.names.isEmpty() -> Message(R.string.report_no_names)
-                ui.player.isBlank() -> Message(R.string.report_pick_hint)
-                view == null -> Message(R.string.report_no_games)
-                else -> Overview(view)
+        item { Filters(ui.filter, report::setFilter) }
+        item { Tabs(report.tab, report::selectTab) }
+        if (view == null) {
+            item {
+                when {
+                    !ui.loaded -> Unit
+                    ui.games == 0 -> Message(R.string.report_empty_db)
+                    ui.names.isEmpty() -> Message(R.string.report_no_names)
+                    ui.player.isBlank() -> Message(R.string.report_pick_hint)
+                    ui.unfiltered == 0 -> Message(R.string.report_no_games)
+                    else -> Message(R.string.report_no_games_filter)
+                }
+            }
+            if (report.tab == ReportTab.Practice) item { PractiseButton(null, onPractise) }
+        }
+        if (view != null) {
+            when (report.tab) {
+                ReportTab.Overview -> {
+                    item { Overview(view) }
+                    item { Message(R.string.report_charts_coming) }
+                }
+
+                ReportTab.Openings -> {
+                    item { Section(R.string.report_as_white, UiTags.REPORT_WHITE, PieceColor.WHITE, view.openings.white, 0, report) }
+                    item {
+                        Section(
+                            R.string.report_as_black,
+                            UiTags.REPORT_BLACK,
+                            PieceColor.BLACK,
+                            view.openings.black,
+                            rowsOf(view.openings.white),
+                            report,
+                        )
+                    }
+                }
+
+                ReportTab.Mistakes -> {
+                    ui.missed?.let { missed -> item { MissedCard(missed, onOpenGame) } }
+                }
+
+                ReportTab.Practice -> {
+                    item { PractiseButton(ui.drill, onPractise) }
+                }
             }
         }
-        ui.view?.let { view ->
-            item { Section(R.string.report_as_white, UiTags.REPORT_WHITE, PieceColor.WHITE, view.openings.white, 0, report) }
-            item {
-                Section(
-                    R.string.report_as_black,
-                    UiTags.REPORT_BLACK,
-                    PieceColor.BLACK,
-                    view.openings.black,
-                    rowsOf(view.openings.white),
-                    report,
+    }
+}
+
+/** The period and the time control as two rows of chips: every tab of the Report follows them. */
+@OptIn(ExperimentalLayoutApi::class)
+@Composable
+private fun Filters(
+    filter: ReportFilter,
+    onChange: (ReportFilter) -> Unit,
+) {
+    Column(Modifier.padding(top = Spacing.small), verticalArrangement = Arrangement.spacedBy(Spacing.small)) {
+        FlowRow(Modifier.testTag(UiTags.REPORT_FILTER_PERIOD), horizontalArrangement = Arrangement.spacedBy(Spacing.small)) {
+            Period.entries.forEach { period ->
+                FilterChip(
+                    selected = filter.period == period,
+                    onClick = { onChange(filter.copy(period = period)) },
+                    label = {
+                        Text(
+                            stringResource(
+                                when (period) {
+                                    Period.ALL -> R.string.report_period_all
+                                    Period.LAST_30_DAYS -> R.string.report_period_30
+                                    Period.LAST_100_GAMES -> R.string.report_period_100
+                                },
+                            ),
+                        )
+                    },
                 )
             }
         }
-        ui.missed?.let { missed -> item { MissedCard(missed, onOpenGame) } }
+        FlowRow(Modifier.testTag(UiTags.REPORT_FILTER_SPEED), horizontalArrangement = Arrangement.spacedBy(Spacing.small)) {
+            val speeds = listOf<Speed?>(null) + Speed.entries
+            speeds.forEach { speed ->
+                FilterChip(
+                    selected = filter.speed == speed,
+                    onClick = { onChange(filter.copy(speed = speed)) },
+                    label = {
+                        Text(
+                            stringResource(
+                                when (speed) {
+                                    null -> R.string.report_speed_all
+                                    Speed.BULLET -> R.string.report_speed_bullet
+                                    Speed.BLITZ -> R.string.report_speed_blitz
+                                    Speed.RAPID -> R.string.report_speed_rapid
+                                    Speed.CLASSICAL -> R.string.report_speed_classical
+                                },
+                            ),
+                        )
+                    },
+                )
+            }
+        }
+    }
+}
+
+/** The four parts of the Report, as the tabs of the Result screen. */
+@Composable
+private fun Tabs(
+    selected: ReportTab,
+    onSelect: (ReportTab) -> Unit,
+) {
+    PrimaryTabRow(selectedTabIndex = selected.ordinal, modifier = Modifier.padding(top = Spacing.small)) {
+        ReportTab.entries.forEach { tab ->
+            Tab(
+                selected = tab == selected,
+                onClick = { onSelect(tab) },
+                text = {
+                    Text(
+                        stringResource(
+                            when (tab) {
+                                ReportTab.Overview -> R.string.report_tab_overview
+                                ReportTab.Openings -> R.string.report_tab_openings
+                                ReportTab.Mistakes -> R.string.report_tab_mistakes
+                                ReportTab.Practice -> R.string.report_tab_practice
+                            },
+                        ),
+                    )
+                },
+                modifier =
+                    Modifier.testTag(
+                        when (tab) {
+                            ReportTab.Overview -> UiTags.REPORT_TAB_OVERVIEW
+                            ReportTab.Openings -> UiTags.REPORT_TAB_OPENINGS
+                            ReportTab.Mistakes -> UiTags.REPORT_TAB_MISTAKES
+                            ReportTab.Practice -> UiTags.REPORT_TAB_PRACTICE
+                        },
+                    ),
+            )
+        }
     }
 }
 

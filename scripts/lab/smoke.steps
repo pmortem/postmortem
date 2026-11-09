@@ -6,11 +6,11 @@ shot library
 tap tab_settings
 wait settings_db
 tap tab_report
+tap report_tab_practice
 wait drill_button
 tap tab_analyse
 tap analyse_button
 shot analysing
-wait result_board
 wait move_6
 tap move_6
 sleep 5

@@ -12,6 +12,19 @@ Type a name in the **Player** field, or tap one of the suggestions under it. The
 - The last name you picked is remembered, also after the app is closed.
 - If the database has no games, the tab says **Analyse some games first**. If it has games but no names, or none for the name you typed, it says so.
 
+## Filters and tabs
+Under the player field are two rows of chips, the **filters**, and under them four **tabs**: **Overview**, **Openings**, **Mistakes** and **Practice**. Every tab follows the filters, and so do the numbers in it (the overview line, the openings, the missed wins and the practice queue and its count). The choice is remembered with the player: it is still there after you switch tabs, open a game and come back, or restart the app.
+
+- **Period:** **All**, **Last 30 days** or **Last 100 games**. The days come from the game's `Date` tag; when the tag says nothing, the day the game was saved is used. The last 100 games are the newest by that day, then by the order they were saved, among the games the time control lets through (so "Last 100 games" with "Blitz" is your last 100 blitz games).
+- **Time control:** **All**, **Bullet**, **Blitz**, **Rapid** or **Classical**. It is worked out from the game's `TimeControl` tag the way Lichess does: the base time plus 40 times the increment, in seconds. Under 180 seconds is bullet, under 480 blitz, under 1500 rapid, and anything longer classical. For example `60+0` is bullet, `180+2` is blitz (260 seconds), `600+5` is rapid (800) and `1800+0` is classical. A game of days per move (`1/259200`, chess.com's daily games) counts as classical.
+- **Unknown time control:** a game with no `TimeControl` tag, or a `-`, belongs to no time control. It shows under **All** only.
+- If no game is left for the filters, the Report says **No games for these filters**.
+
+- **Overview:** the overview line below. Charts are coming.
+- **Openings:** the two sections below.
+- **Mistakes:** the missed wins and missed mates.
+- **Practice:** the Learn from your mistakes button.
+
 ## The overview
 One line under the field: the number of games, how many were won, drawn and lost, and the average accuracy of the games that have one, for example `23 games · 11 W 4 D 8 L · avg accuracy 78 %`. The accuracy is the player's own, as shown in the [Summary](summary.md).
 
