@@ -46,14 +46,14 @@ object Drill {
      * The positions before each of the player's moves that [GameReport] marks as a mistake or a blunder, plus the turning move of every
      * missed win and every missed mate, ordered as the [DrillKind]s say (newest game first within a kind). Solved positions are not in
      * [DrillQueue.items] (they are counted in [DrillQueue.solved]); positions tried or skipped before come after the fresh ones, the
-     * longest ago first.
+     * longest ago first. [missed] is the missed-wins report of the same games, when the caller has it already.
      */
     fun queue(
         games: List<PlayerGame>,
         lines: Map<Long, MainLine>,
         progress: Map<DrillKey, DrillProgress>,
+        missed: MissedReport = MissedWins.of(games, lines),
     ): DrillQueue {
-        val missed = MissedWins.of(games, lines)
         val special = HashMap<Pair<Long, Int>, DrillKind>()
         missed.mates.forEach { special[it.game.gameId to it.ply] = DrillKind.MISSED_MATE }
         missed.wins.forEach { special[it.game.gameId to it.turningPly] = DrillKind.MISSED_WIN }
@@ -61,7 +61,7 @@ object Drill {
         for (game in games) {
             val line = lines[game.gameId] ?: continue
             if (line.evals.size < 2) continue
-            val judgements = GameReport.of(line.evals, line.whiteMovesFirst).judgements
+            val judgements = line.judgements
             for (ply in 1..line.evals.size - 1) {
                 if (moverAt(ply, line.whiteMovesFirst) != game.color) continue
                 val kind =

@@ -1,6 +1,7 @@
 package app.postmortem.core.report
 
 import app.postmortem.core.analysis.Eval
+import app.postmortem.core.analysis.GameReport
 import app.postmortem.core.board.PieceColor
 import app.postmortem.core.pgn.Fixtures
 import app.postmortem.core.store.DrillKey
@@ -159,5 +160,16 @@ class DrillTest {
     @Test
     fun theLimitIsTheSameNumberAsTheInaccuracyMark() {
         assertEquals(0.1, Drill.GOOD_ENOUGH_DROP)
+    }
+
+    @Test
+    fun theQueueIsTheSameWhenTheMissedWinsAreHandedInAndAMainLineJudgesItsMovesOnceLikeGameReport() {
+        val missedWin =
+            line(*(5 until 9).map { it to Eval.Cp(400) }.toTypedArray(), *(9 until positions).map { it to Eval.Cp(-200) }.toTypedArray())
+        val games = listOf(played(1, outcome = Outcome.LOSS), played(2))
+        val lines = mapOf(1L to missedWin, 2L to twoMistakes)
+        assertEquals(Drill.queue(games, lines, emptyMap()), Drill.queue(games, lines, emptyMap(), MissedWins.of(games, lines)))
+        assertEquals(GameReport.of(missedWin.evals, missedWin.whiteMovesFirst).judgements, missedWin.judgements)
+        assertTrue(missedWin.judgements === missedWin.judgements, "worked out once")
     }
 }

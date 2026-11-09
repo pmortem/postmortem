@@ -80,6 +80,9 @@ class ReportController(
 
     private var rows: List<ReportRow> = emptyList()
 
+    /** The names of [rows], worked out when they are read (not on every keystroke). */
+    private var names: List<PlayerName> = emptyList()
+
     /** The main lines read so far, by game id; cleared when the games are read again. */
     private val lines = HashMap<Long, MainLine>()
 
@@ -100,6 +103,7 @@ class ReportController(
                 }
                 val read = withContext(dispatcher) { runCatching { saved.reportRows() }.getOrDefault(emptyList()) }
                 rows = read
+                names = withContext(dispatcher) { PlayerGames.names(read) }
                 lines.clear()
                 asked.clear()
                 rebuild()
@@ -137,7 +141,7 @@ class ReportController(
         val player = ui.player
         val built =
             withContext(dispatcher) {
-                val names = PlayerGames.names(rows)
+                val names = names
                 val games = PlayerGames.of(rows, player)
                 val view =
                     games.takeIf { it.isNotEmpty() }?.let { found ->
@@ -150,8 +154,10 @@ class ReportController(
                             OpeningStats.of(found),
                         )
                     }
-                val queue = view?.let { Drill.queue(games, mainLinesOf(games), progressOf(games)) }
-                Built(names, view, view?.let { MissedWins.of(games, mainLinesOf(games)) }, queue, rows.size)
+                val lines = view?.let { mainLinesOf(games) }.orEmpty()
+                val missed = view?.let { MissedWins.of(games, lines) }
+                val queue = missed?.let { Drill.queue(games, lines, progressOf(games), it) }
+                Built(names, view, missed, queue, rows.size)
             }
         if (ui.player != player) return
         ui = ui.copy(loaded = true, games = built.games, names = built.names, view = built.view, missed = built.missed, drill = built.drill)

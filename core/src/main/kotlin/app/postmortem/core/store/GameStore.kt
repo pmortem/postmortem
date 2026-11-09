@@ -1,6 +1,8 @@
 package app.postmortem.core.store
 
 import app.postmortem.core.analysis.Eval
+import app.postmortem.core.analysis.GameReport
+import app.postmortem.core.analysis.Judgement
 import app.postmortem.core.analysis.positionKey
 import app.postmortem.core.board.PieceColor
 import app.postmortem.core.line.Line
@@ -75,7 +77,10 @@ data class ReportRow(
     val opening: String?,
     val whiteAccuracy: Double?,
     val blackAccuracy: Double?,
-)
+) {
+    /** The tags read as an overview, worked out once per row: the Report asks for it on every keystroke. */
+    val overview: GameOverview by lazy(LazyThreadSafetyMode.PUBLICATION) { GameOverview.of(headers) }
+}
 
 /**
  * The main line of a game for the Report: the SAN of each ply (index 0 is ply 1) and the eval of each position (index n is after ply
@@ -85,7 +90,10 @@ data class MainLine(
     val sans: List<String>,
     val evals: List<Eval>,
     val whiteMovesFirst: Boolean,
-)
+) {
+    /** [GameReport]'s judgement of each move (null for a move that is fine), worked out once per line for every report that needs it. */
+    val judgements: List<Judgement?> by lazy(LazyThreadSafetyMode.PUBLICATION) { GameReport.of(evals, whiteMovesFirst).judgements }
+}
 
 /** How a merge went: [added] games came in, [skipped] were already there. */
 data class MergeResult(
