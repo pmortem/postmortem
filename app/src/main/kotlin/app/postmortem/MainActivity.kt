@@ -56,8 +56,6 @@ import kotlinx.coroutines.flow.onStart
 import java.io.File
 
 private const val ANALYSIS_TAG = "Analysis"
-private const val PREFS = "app"
-private const val NOTIFICATIONS_ASKED = "notifications_asked"
 private const val LIBRARY_TAG = "Library"
 private const val SQLITE_MIME_TYPE = "application/vnd.sqlite3"
 private val ANY_FILE = arrayOf("*/*")
@@ -94,12 +92,7 @@ class MainActivity : ComponentActivity() {
         registerForActivityResult(ActivityResultContracts.RequestPermission()) { }
 
     private fun maybeAskForNotifications() {
-        if (Build.VERSION.SDK_INT < Build.VERSION_CODES.TIRAMISU || !app.analysedInBackground) return
-        if (ContextCompat.checkSelfPermission(this, Manifest.permission.POST_NOTIFICATIONS) == PackageManager.PERMISSION_GRANTED) return
-        val prefs = getSharedPreferences(PREFS, MODE_PRIVATE)
-        if (prefs.getBoolean(NOTIFICATIONS_ASKED, false)) return
-        prefs.edit().putBoolean(NOTIFICATIONS_ASKED, true).apply()
-        askNotifications.launch(Manifest.permission.POST_NOTIFICATIONS)
+        if (app.analysedInBackground && app.takeNotificationQuestion()) askNotifications.launch(Manifest.permission.POST_NOTIFICATIONS)
     }
 
     /** A tap on a finished game's notification opens that game. */

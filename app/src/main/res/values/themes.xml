@@ -2,6 +2,9 @@
 <resources>
     <style name="Theme.Postmortem" parent="android:Theme.Material.NoActionBar" />
 
+    <!-- The share target has no screen: it shows a toast and is gone. -->
+    <style name="Theme.Postmortem.Share" parent="android:Theme.Translucent.NoTitleBar" />
+
     <!--
         The system start-up screen shows only the background colour, with an empty icon, so the first
         picture is the splash scene that SplashScreen.kt draws right after it.

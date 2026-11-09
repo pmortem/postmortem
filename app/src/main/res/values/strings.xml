@@ -111,6 +111,12 @@
     <string name="library_queue_waiting">Waiting</string>
     <string name="library_queue_hot">Paused: phone is hot</string>
     <string name="library_queue_cancel">Cancel the analysis</string>
+    <string name="share_queued_one">Queued: %1$s (%2$d waiting)</string>
+    <string name="share_queued_many">Queued %1$d games</string>
+    <string name="share_already_queued">Already in the queue</string>
+    <string name="share_already_saved">Already in your Library</string>
+    <string name="share_link">Share the PGN, not the link</string>
+    <string name="share_not_a_game">That doesn\'t look like a chess game</string>
     <string name="drill_title">Learn from your mistakes</string>
     <string name="drill_count">%1$d to go · %2$d solved</string>
     <string name="drill_nothing">Nothing to practise</string>
