@@ -2,6 +2,7 @@ package app.postmortem.ui
 
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
+import androidx.compose.foundation.horizontalScroll
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
@@ -15,7 +16,9 @@ import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.lazy.LazyColumn
+import androidx.compose.foundation.lazy.LazyListScope
 import androidx.compose.foundation.lazy.items
+import androidx.compose.foundation.rememberScrollState
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.ArrowBack
 import androidx.compose.material3.ExperimentalMaterial3Api
@@ -25,7 +28,7 @@ import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.OutlinedTextField
-import androidx.compose.material3.PrimaryTabRow
+import androidx.compose.material3.PrimaryScrollableTabRow
 import androidx.compose.material3.Scaffold
 import androidx.compose.material3.Tab
 import androidx.compose.material3.Text
@@ -39,6 +42,7 @@ import androidx.compose.ui.res.pluralStringResource
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.semantics.testTagsAsResourceId
+import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import app.postmortem.FamilyKey
 import app.postmortem.PlayerView
@@ -100,12 +104,13 @@ private fun ReportBody(
 ) {
     val ui = report.ui
     val view = ui.view
-    LazyColumn(Modifier.fillMaxSize(), contentPadding = PaddingValues(Spacing.screen)) {
-        item { PlayerPicker(report) }
-        item { Filters(ui.filter, report::setFilter) }
+    LazyColumn(Modifier.fillMaxSize(), contentPadding = PaddingValues(vertical = Spacing.screen)) {
+        paddedItem { PlayerPicker(report) }
+        paddedItem { Filters(ui.filter, report::setFilter) }
+        // the tabs run from edge to edge: four labels need the width the side margins would take
         item { Tabs(report.tab, report::selectTab) }
         if (view == null) {
-            item {
+            paddedItem {
                 when {
                     !ui.loaded -> Unit
                     ui.games == 0 -> Message(R.string.report_empty_db)
@@ -115,18 +120,18 @@ private fun ReportBody(
                     else -> Message(R.string.report_no_games_filter)
                 }
             }
-            if (report.tab == ReportTab.Practice) item { PractiseButton(null, onPractise) }
+            if (report.tab == ReportTab.Practice) paddedItem { PractiseButton(null, onPractise) }
         }
         if (view != null) {
             when (report.tab) {
                 ReportTab.Overview -> {
-                    item { Overview(view) }
-                    item { Message(R.string.report_charts_coming) }
+                    paddedItem { Overview(view) }
+                    paddedItem { Message(R.string.report_charts_coming) }
                 }
 
                 ReportTab.Openings -> {
-                    item { Section(R.string.report_as_white, UiTags.REPORT_WHITE, PieceColor.WHITE, view.openings.white, 0, report) }
-                    item {
+                    paddedItem { Section(R.string.report_as_white, UiTags.REPORT_WHITE, PieceColor.WHITE, view.openings.white, 0, report) }
+                    paddedItem {
                         Section(
                             R.string.report_as_black,
                             UiTags.REPORT_BLACK,
@@ -139,15 +144,20 @@ private fun ReportBody(
                 }
 
                 ReportTab.Mistakes -> {
-                    ui.missed?.let { missed -> item { MissedCard(missed, onOpenGame) } }
+                    ui.missed?.let { missed -> paddedItem { MissedCard(missed, onOpenGame) } }
                 }
 
                 ReportTab.Practice -> {
-                    item { PractiseButton(ui.drill, onPractise) }
+                    paddedItem { PractiseButton(ui.drill, onPractise) }
                 }
             }
         }
     }
+}
+
+/** An item of the report with the screen's side margins, which the tab row goes without. */
+private fun LazyListScope.paddedItem(content: @Composable () -> Unit) {
+    item { Box(Modifier.padding(horizontal = Spacing.screen)) { content() } }
 }
 
 /** The period and the time control as two rows of chips: every tab of the Report follows them. */
@@ -158,7 +168,10 @@ private fun Filters(
     onChange: (ReportFilter) -> Unit,
 ) {
     Column(Modifier.padding(top = Spacing.small), verticalArrangement = Arrangement.spacedBy(Spacing.small)) {
-        FlowRow(Modifier.testTag(UiTags.REPORT_FILTER_PERIOD), horizontalArrangement = Arrangement.spacedBy(Spacing.small)) {
+        Row(
+            Modifier.horizontalScroll(rememberScrollState()).testTag(UiTags.REPORT_FILTER_PERIOD),
+            horizontalArrangement = Arrangement.spacedBy(Spacing.small),
+        ) {
             Period.entries.forEach { period ->
                 FilterChip(
                     selected = filter.period == period,
@@ -177,7 +190,10 @@ private fun Filters(
                 )
             }
         }
-        FlowRow(Modifier.testTag(UiTags.REPORT_FILTER_SPEED), horizontalArrangement = Arrangement.spacedBy(Spacing.small)) {
+        Row(
+            Modifier.horizontalScroll(rememberScrollState()).testTag(UiTags.REPORT_FILTER_SPEED),
+            horizontalArrangement = Arrangement.spacedBy(Spacing.small),
+        ) {
             val speeds = listOf<Speed?>(null) + Speed.entries
             speeds.forEach { speed ->
                 FilterChip(
@@ -208,21 +224,26 @@ private fun Tabs(
     selected: ReportTab,
     onSelect: (ReportTab) -> Unit,
 ) {
-    PrimaryTabRow(selectedTabIndex = selected.ordinal, modifier = Modifier.padding(top = Spacing.small)) {
+    PrimaryScrollableTabRow(selectedTabIndex = selected.ordinal, edgePadding = 0.dp, modifier = Modifier.padding(top = Spacing.small)) {
         ReportTab.entries.forEach { tab ->
             Tab(
                 selected = tab == selected,
                 onClick = { onSelect(tab) },
                 text = {
                     Text(
-                        stringResource(
-                            when (tab) {
-                                ReportTab.Overview -> R.string.report_tab_overview
-                                ReportTab.Openings -> R.string.report_tab_openings
-                                ReportTab.Mistakes -> R.string.report_tab_mistakes
-                                ReportTab.Practice -> R.string.report_tab_practice
-                            },
-                        ),
+                        maxLines = 1,
+                        softWrap = false,
+                        overflow = TextOverflow.Ellipsis,
+                        style = MaterialTheme.typography.labelMedium,
+                        text =
+                            stringResource(
+                                when (tab) {
+                                    ReportTab.Overview -> R.string.report_tab_overview
+                                    ReportTab.Openings -> R.string.report_tab_openings
+                                    ReportTab.Mistakes -> R.string.report_tab_mistakes
+                                    ReportTab.Practice -> R.string.report_tab_practice
+                                },
+                            ),
                     )
                 },
                 modifier =
