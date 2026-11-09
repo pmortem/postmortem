@@ -4,8 +4,10 @@ import app.postmortem.core.analysis.Eval
 import app.postmortem.core.analysis.GameReport
 import app.postmortem.core.analysis.Judgement
 import app.postmortem.core.analysis.formatShort
-import app.postmortem.core.analysis.winningChances
+import app.postmortem.core.analysis.winningChancesFor
 import app.postmortem.core.board.PieceColor
+import app.postmortem.core.board.moverAt
+import app.postmortem.core.board.sign
 import app.postmortem.core.store.MainLine
 
 /** A game the player was winning for [PLIES_HELD] moves in a row and did not win: where it went wrong, and from how high. */
@@ -65,20 +67,12 @@ object MissedWins {
             missedWin(game, line, judgements)?.let(wins::add)
             mates += missedMates(game, line, judgements)
         }
-        val newestFirst = compareByDescending<PlayerGame> { it.date.orEmpty() }.thenByDescending { it.gameId }
         return MissedReport(
             decided = games.count { it.outcome != Outcome.UNFINISHED },
-            wins = wins.sortedWith { a, b -> newestFirst.compare(a.game, b.game) },
-            mates = mates.sortedWith(Comparator<MissedMate> { a, b -> newestFirst.compare(a.game, b.game) }.thenBy { it.ply }),
+            wins = wins.sortedWith { a, b -> PlayerGame.newestFirst.compare(a.game, b.game) },
+            mates = mates.sortedWith(Comparator<MissedMate> { a, b -> PlayerGame.newestFirst.compare(a.game, b.game) }.thenBy { it.ply }),
         )
     }
-
-    private fun mover(
-        ply: Int,
-        line: MainLine,
-    ): PieceColor = if ((ply % 2 == 1) == line.whiteMovesFirst) PieceColor.WHITE else PieceColor.BLACK
-
-    private fun sign(color: PieceColor) = if (color == PieceColor.WHITE) 1 else -1
 
     private fun missedWin(
         game: PlayerGame,
@@ -86,11 +80,10 @@ object MissedWins {
         judgements: List<Judgement?>,
     ): MissedWin? {
         if (game.outcome != Outcome.DRAW && game.outcome != Outcome.LOSS) return null
-        val sign = sign(game.color)
         val moves = line.evals.size - 1
 
-        fun chances(position: Int) = sign * line.evals[position].winningChances()
-        val mine = (1..moves).filter { mover(it, line) == game.color }
+        fun chances(position: Int) = line.evals[position].winningChancesFor(game.color)
+        val mine = (1..moves).filter { moverAt(it, line.whiteMovesFirst) == game.color }
         val held =
             (0..mine.size - PLIES_HELD).firstOrNull { start ->
                 (start until start + PLIES_HELD).all { chances(mine[it]) >= WINNING_CHANCES }
@@ -111,10 +104,10 @@ object MissedWins {
         line: MainLine,
         judgements: List<Judgement?>,
     ): List<MissedMate> {
-        val sign = sign(game.color)
+        val sign = game.color.sign
         val moves = line.evals.size - 1
         return (1..moves)
-            .filter { mover(it, line) == game.color }
+            .filter { moverAt(it, line.whiteMovesFirst) == game.color }
             .mapNotNull { ply ->
                 val before = line.evals[ply - 1] as? Eval.Mate ?: return@mapNotNull null
                 val mateIn = before.moves * sign

@@ -3,6 +3,8 @@ package app.postmortem.core.analysis
 import app.postmortem.core.board.Moves
 import app.postmortem.core.board.PieceColor
 import app.postmortem.core.board.StaticExchange
+import app.postmortem.core.board.moverAt
+import app.postmortem.core.board.sign
 import kotlin.math.exp
 import kotlin.math.max
 import kotlin.math.min
@@ -112,7 +114,7 @@ data class GameReport(
             val moveCount = evals.size - 1
             if (moveCount <= 0) return GameReport(emptyPlayer(), emptyPlayer(), emptyList())
 
-            fun mover(ply: Int) = if ((ply % 2 == 1) == whiteMovesFirst) PieceColor.WHITE else PieceColor.BLACK
+            fun mover(ply: Int) = moverAt(ply, whiteMovesFirst)
 
             // Centipawns from White's point of view, with mates and checkmates at the limit.
             val cps = evals.map { it.clampedCentipawns() }
@@ -124,7 +126,7 @@ data class GameReport(
             val brilliant =
                 (1..moveCount).map { ply ->
                     val played = moves?.getOrNull(ply - 1)
-                    val sign = if (mover(ply) == PieceColor.WHITE) 1 else -1
+                    val sign = mover(ply).sign
                     played != null &&
                         judgements[ply - 1] == null &&
                         evals[ply] !is Eval.Checkmate &&
@@ -135,7 +137,7 @@ data class GameReport(
             fun player(color: PieceColor): PlayerReport {
                 val plies = (1..moveCount).filter { mover(it) == color }
                 if (plies.isEmpty()) return emptyPlayer()
-                val sign = if (color == PieceColor.WHITE) 1 else -1
+                val sign = color.sign
                 val accuracies = plies.map { moveAccuracy(winPercentFor(winWhite[it - 1], sign), winPercentFor(winWhite[it], sign)) }
                 // Lichess's `AccuracyCP`: the evals are clamped to +-1000, the loss itself is not capped.
                 val losses = plies.map { max(0, sign * (cps[it - 1] - cps[it])) }
@@ -227,7 +229,7 @@ data class GameReport(
             mover: PieceColor,
         ): Judgement? {
             if (after is Eval.Checkmate) return null // the mating move is the best move there is
-            val sign = if (mover == PieceColor.WHITE) 1 else -1
+            val sign = mover.sign
             val mateBefore = (before as? Eval.Mate)?.moves?.times(sign)
             val mateAfter = (after as? Eval.Mate)?.moves?.times(sign)
             val cpBefore = sign * before.clampedCentipawns()

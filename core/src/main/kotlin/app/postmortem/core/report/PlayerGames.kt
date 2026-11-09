@@ -22,7 +22,12 @@ data class PlayerGame(
     val opening: String?,
     val accuracy: Double?,
     val date: String?,
-)
+) {
+    companion object {
+        /** The newest game first (by the date tag, then the most recently saved), the order every list of the Report uses. */
+        val newestFirst: Comparator<PlayerGame> = compareByDescending<PlayerGame> { it.date.orEmpty() }.thenByDescending { it.gameId }
+    }
+}
 
 /** Finding a player in the saved games, and the games they played. Names match without regard to case, with spaces trimmed. */
 object PlayerGames {

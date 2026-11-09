@@ -89,4 +89,12 @@ class EvalChartTest {
         assertEquals(1, nearestPly(400f, 400f, 2))
         assertEquals(0, nearestPly(10f, 0f, 5))
     }
+
+    @Test
+    fun winningChancesFromBlacksSideAreWhitesTurnedOver() {
+        for (eval in listOf(Eval.Cp(250), Eval.Cp(-40), Eval.Mate(3), Eval.Mate(-2), Eval.Checkmate(PieceColor.BLACK))) {
+            assertEquals(eval.winningChances(), eval.winningChancesFor(PieceColor.WHITE))
+            assertEquals(-eval.winningChances(), eval.winningChancesFor(PieceColor.BLACK))
+        }
+    }
 }

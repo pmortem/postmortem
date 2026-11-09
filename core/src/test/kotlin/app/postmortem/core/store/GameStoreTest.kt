@@ -339,4 +339,13 @@ class GameStoreTest {
         val headers = db.query("SELECT headers_json AS json FROM game").single()["json"] as String
         assertTrue(headers.startsWith("{") && "\"Result\":" in headers, headers)
     }
+
+    @Test
+    fun aLongListOfIdsIsAskedInChunksAndOnlyTheGamesThereAreFound() {
+        val id = store.save(newGame("scholars-mate"))
+        store.recordDrill(id, 2, solved = true)
+        val many = (100_000L until 101_000L).toList() + id
+        assertEquals(setOf(id), store.mainLines(many).keys)
+        assertEquals(setOf(DrillKey(id, 2)), store.drillProgress(many).keys)
+    }
 }

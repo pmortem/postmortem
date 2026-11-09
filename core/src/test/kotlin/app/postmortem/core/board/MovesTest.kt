@@ -132,4 +132,37 @@ class MovesTest {
         assertEquals(1, Moves.legalMoveCount("5r1k/7p/8/4Q3/8/8/8/4K1R1 b - - 0 1"))
         assertEquals(true, Moves.inCheck("5r1k/7p/8/4Q3/8/8/8/4K1R1 b - - 0 1"))
     }
+
+    @Test
+    fun theSideToMoveReadFromTheFenIsWhatChesslibSaysForEveryFixturePosition() {
+        for (name in Fixtures.names.filter { it != "chesscom-no-moves" }) {
+            val game = Fixtures.game(name)
+            for (position in 0 until game.positionCount) {
+                val fen = game.fenAt(position)
+                val board =
+                    com.github.bhlangonijr.chesslib
+                        .Board()
+                        .apply { loadFromFen(fen) }
+                val expected = if (board.sideToMove == com.github.bhlangonijr.chesslib.Side.WHITE) PieceColor.WHITE else PieceColor.BLACK
+                assertEquals(expected, Moves.sideToMove(fen), "$name position $position")
+            }
+        }
+    }
+
+    @Test
+    fun aMoveIsFoundByItsUciWithAndWithoutAPromotionLetter() {
+        val board = boardOf("r3k3/1P6/8/8/8/8/8/4K3 w - - 0 1")
+        assertEquals(
+            "b7a8",
+            board
+                .legalMove("b7a8q")
+                ?.toString()
+                ?.lowercase()
+                ?.take(4),
+        )
+        assertEquals(null, board.legalMove("b7a8"), "a promotion needs its piece")
+        assertEquals(null, board.legalMove("b7b9"))
+        assertEquals(null, board.legalMove("e1"))
+        assertEquals(5, StaticExchange.captured("r3k3/1P6/8/8/8/8/8/4K3 w - - 0 1", "b7a8r"))
+    }
 }

@@ -3,8 +3,9 @@ package app.postmortem.core.report
 import app.postmortem.core.analysis.Eval
 import app.postmortem.core.analysis.GameReport
 import app.postmortem.core.analysis.Judgement
-import app.postmortem.core.analysis.winningChances
+import app.postmortem.core.analysis.winningChancesFor
 import app.postmortem.core.board.PieceColor
+import app.postmortem.core.board.moverAt
 import app.postmortem.core.store.DrillKey
 import app.postmortem.core.store.DrillProgress
 import app.postmortem.core.store.MainLine
@@ -62,8 +63,7 @@ object Drill {
             if (line.evals.size < 2) continue
             val judgements = GameReport.of(line.evals, line.whiteMovesFirst).judgements
             for (ply in 1..line.evals.size - 1) {
-                val mine = ((ply % 2 == 1) == line.whiteMovesFirst) == (game.color == PieceColor.WHITE)
-                if (!mine) continue
+                if (moverAt(ply, line.whiteMovesFirst) != game.color) continue
                 val kind =
                     special[game.gameId to ply] ?: when (judgements[ply - 1]) {
                         Judgement.BLUNDER -> DrillKind.BLUNDER
@@ -90,8 +90,7 @@ object Drill {
 
     private val freshOrder: Comparator<DrillItem> =
         compareBy<DrillItem> { it.kind.ordinal }
-            .thenByDescending { it.game.date.orEmpty() }
-            .thenByDescending { it.game.gameId }
+            .then { a, b -> PlayerGame.newestFirst.compare(a.game, b.game) }
             .thenBy { it.position }
 
     /** How an answer went: the engine's best move, a move nearly as good, or not good enough. */
@@ -116,8 +115,7 @@ object Drill {
         mover: PieceColor,
     ): Verdict {
         if (best != null && best == played) return Verdict.RIGHT
-        val sign = if (mover == PieceColor.WHITE) 1 else -1
-        val drop = sign * (before.winningChances() - after.winningChances())
+        val drop = before.winningChancesFor(mover) - after.winningChancesFor(mover)
         return if (drop < GOOD_ENOUGH_DROP) Verdict.GOOD else Verdict.WRONG
     }
 }
