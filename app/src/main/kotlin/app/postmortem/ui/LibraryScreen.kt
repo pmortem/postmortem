@@ -74,7 +74,7 @@ fun LibraryScreen(
             SnackbarHost(snackbars) { data ->
                 Snackbar(
                     action = {
-                        TextButton(onClick = { data.performAction() }, modifier = Modifier.testTag(UiTags.UNDO)) {
+                        TextButton(onClick = { data.performAction() }) {
                             Text(data.visuals.actionLabel.orEmpty())
                         }
                     },

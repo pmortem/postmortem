@@ -148,7 +148,7 @@ fun ResultScreen(
             SnackbarHost(snackbars, Modifier.align(Alignment.BottomCenter).safeDrawingPadding()) { data ->
                 Snackbar(
                     action = {
-                        TextButton(onClick = { data.performAction() }, modifier = Modifier.testTag(UiTags.UNDO)) {
+                        TextButton(onClick = { data.performAction() }) {
                             Text(data.visuals.actionLabel.orEmpty())
                         }
                     },
@@ -258,7 +258,6 @@ private fun EngineReadout(live: LiveUpdate?) {
     Text(
         text,
         style = MaterialTheme.typography.labelSmall,
-        modifier = Modifier.testTag(UiTags.ENGINE_READOUT),
     )
 }
 
@@ -387,7 +386,7 @@ private fun MoveList(
             lastScroll = now
         }
     }
-    LazyColumn(modifier.testTag(UiTags.MOVE_LIST), state = listState) {
+    LazyColumn(modifier, state = listState) {
         items(items, key = { if (it is MoveListItem.LineRow) "line${it.line.id}" else "row${(it as MoveListItem.Row).row}" }) { item ->
             when (item) {
                 is MoveListItem.Row -> GameRow(item.row, state, onSelect)

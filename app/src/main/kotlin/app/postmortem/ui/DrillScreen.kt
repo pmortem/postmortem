@@ -48,7 +48,7 @@ fun DrillScreen(
     onOpenGame: () -> Unit,
 ) {
     val ui = drill.ui
-    PageScaffold(title = stringResource(R.string.drill_title), onBack = drill::close, backTag = UiTags.DRILL_BACK) { padding ->
+    PageScaffold(title = stringResource(R.string.drill_title), onBack = drill::close) { padding ->
         Column(
             Modifier
                 .fillMaxSize()
@@ -77,7 +77,7 @@ private fun Done(
         modifier = Modifier.padding(top = Spacing.gap).testTag(UiTags.DRILL_RESULT),
     )
     if (ui.failed > 0) {
-        Button(onClick = drill::startOver, modifier = Modifier.fillMaxWidth().testTag(UiTags.DRILL_START_OVER)) {
+        Button(onClick = drill::startOver, modifier = Modifier.fillMaxWidth()) {
             Text(stringResource(R.string.drill_start_over))
         }
     }
@@ -198,18 +198,15 @@ private fun Buttons(
             DrillPhase.ASKING -> {
                 OutlinedButton(
                     onClick = drill::skip,
-                    modifier = Modifier.testTag(UiTags.DRILL_SKIP),
                 ) { Text(stringResource(R.string.drill_skip)) }
                 OutlinedButton(
                     onClick = onOpenGame,
-                    modifier = Modifier.testTag(UiTags.DRILL_OPEN),
                 ) { Text(stringResource(R.string.drill_open)) }
             }
 
             DrillPhase.WRONG -> {
                 Button(
                     onClick = drill::tryAgain,
-                    modifier = Modifier.testTag(UiTags.DRILL_RETRY),
                 ) { Text(stringResource(R.string.drill_retry)) }
                 OutlinedButton(
                     onClick = drill::show,
@@ -217,7 +214,6 @@ private fun Buttons(
                 ) { Text(stringResource(R.string.drill_show)) }
                 OutlinedButton(
                     onClick = drill::skip,
-                    modifier = Modifier.testTag(UiTags.DRILL_SKIP),
                 ) { Text(stringResource(R.string.drill_skip)) }
             }
 
@@ -225,7 +221,6 @@ private fun Buttons(
                 Button(onClick = drill::next, modifier = Modifier.testTag(UiTags.DRILL_NEXT)) { Text(stringResource(R.string.drill_next)) }
                 OutlinedButton(
                     onClick = onOpenGame,
-                    modifier = Modifier.testTag(UiTags.DRILL_OPEN),
                 ) { Text(stringResource(R.string.drill_open)) }
             }
 

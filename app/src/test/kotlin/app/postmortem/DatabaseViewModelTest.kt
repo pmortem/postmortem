@@ -167,8 +167,6 @@ class DatabaseViewModelTest {
         vm.renameDatabase("club")
         assertEquals(DbMessage.Failed(DbProblem.EXISTS), vm.databaseUi.message)
         assertTrue(!vm.databaseUi.busy)
-        vm.dismissDatabaseMessage()
-        assertNull(vm.databaseUi.message)
     }
 
     @Test

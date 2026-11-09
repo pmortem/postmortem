@@ -37,7 +37,7 @@ fun MissedCard(
     onOpenGame: (Long, Int) -> Unit,
 ) {
     val share = if (report.decided == 0) 0 else (PERCENT * report.wins.size / report.decided).roundToInt()
-    Column(Modifier.fillMaxWidth().padding(top = Spacing.gap).testTag(UiTags.REPORT_MISSED)) {
+    Column(Modifier.fillMaxWidth().padding(top = Spacing.gap)) {
         Text(
             stringResource(R.string.report_missed_title, report.wins.size, report.decided, share),
             style = MaterialTheme.typography.titleLarge,
@@ -47,11 +47,11 @@ fun MissedCard(
         if (report.wins.isEmpty() && report.mates.isEmpty()) {
             Text(stringResource(R.string.report_missed_none), style = MaterialTheme.typography.bodyMedium)
         }
-        report.wins.forEachIndexed { index, win ->
-            MissedRow(win.game, UiTags.reportMissedWin(index), { onOpenGame(win.game.gameId, win.turningPly) }) { WinDetail(win) }
+        report.wins.forEach { win ->
+            MissedRow(win.game, { onOpenGame(win.game.gameId, win.turningPly) }) { WinDetail(win) }
         }
-        report.mates.forEachIndexed { index, mate ->
-            MissedRow(mate.game, UiTags.reportMissedMate(index), { onOpenGame(mate.game.gameId, mate.ply) }) { MateDetail(mate) }
+        report.mates.forEach { mate ->
+            MissedRow(mate.game, { onOpenGame(mate.game.gameId, mate.ply) }) { MateDetail(mate) }
         }
     }
 }
@@ -59,14 +59,12 @@ fun MissedCard(
 @Composable
 private fun MissedRow(
     game: PlayerGame,
-    tag: String,
     onClick: () -> Unit,
     detail: @Composable () -> Unit,
 ) {
     Column(
         Modifier
             .fillMaxWidth()
-            .testTag(tag)
             .clickable(onClick = onClick)
             .padding(vertical = Spacing.small),
     ) {

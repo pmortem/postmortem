@@ -107,7 +107,6 @@ fun EvalChart(
                 ),
             ply = state.selectedPly,
             positions = chances.size,
-            modifier = Modifier.testTag(UiTags.CHART_LABEL),
         )
     }
 }

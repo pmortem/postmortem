@@ -55,7 +55,7 @@ fun SummaryScreen(
     ) {
         // The opening and the table first: the tab is short, and they are what the Summary is for.
         openingText(overview)?.let {
-            Text(it, style = MaterialTheme.typography.titleMedium, modifier = Modifier.testTag(UiTags.OPENING))
+            Text(it, style = MaterialTheme.typography.titleMedium)
         }
         PlayerTable(report.white, report.black)
         if (!overview.copy(opening = null, eco = null).isEmpty) {
@@ -67,7 +67,6 @@ fun SummaryScreen(
                 stringResource(R.string.summary_analysed_with, state.analysisSettings),
                 style = MaterialTheme.typography.labelSmall,
                 color = MaterialTheme.colorScheme.onSurfaceVariant,
-                modifier = Modifier.testTag(UiTags.ANALYSIS_SETTINGS),
             )
         }
     }

@@ -76,7 +76,6 @@ fun PasteScreen(
                 stringResource(R.string.version_label, BuildConfig.VERSION_NAME),
                 style = MaterialTheme.typography.labelSmall,
                 color = MaterialTheme.colorScheme.onSurfaceVariant,
-                modifier = Modifier.testTag(UiTags.VERSION_LABEL),
             )
         }
     }
@@ -97,7 +96,6 @@ private fun StatusLine(
         message,
         color = MaterialTheme.colorScheme.error,
         style = MaterialTheme.typography.bodyLarge,
-        modifier = Modifier.testTag(UiTags.PASTE_STATUS),
     )
 }
 

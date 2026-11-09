@@ -86,8 +86,6 @@ class MainViewModel(
     var overlay: Overlay? by mutableStateOf(null)
         private set
 
-    val settingsOpen: Boolean get() = overlay == Overlay.Settings
-
     /** The tab of the start page (the Paste state): it stays while a game is open, so Back from a game returns to it. */
     var startTab: StartTab by mutableStateOf(StartTab.Analyse)
         private set
@@ -578,10 +576,6 @@ class MainViewModel(
     ) = databaseAction { it.openPicked(displayName, source) }
 
     fun importPickedDatabase(source: () -> java.io.InputStream?) = databaseAction { it.importPicked(source) }
-
-    fun dismissDatabaseMessage() {
-        databaseUi = databaseUi.copy(message = null)
-    }
 
     /** Shows [tab] on the start page; the Library's games and the database files are read again when their tab opens. */
     fun selectStartTab(tab: StartTab) {
